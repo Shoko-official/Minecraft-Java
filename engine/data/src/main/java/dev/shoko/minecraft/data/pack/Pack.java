@@ -44,8 +44,10 @@ public final class Pack {
    * @param files the files of the pack
    * @return the pack, or empty when there is no usable {@code pack.mcmeta} (R7: the pack is
    *     ignored, with a {@code PACK_INVALID} warning on the origin {@code (id, pack.mcmeta)}, plus
-   *     the {@code JSON_*} error when the file is not valid JSON). A pack whose format fields are
-   *     unusable is present and broken (R4, R5), with the diagnostics of {@code PackMetaReader}
+   *     the {@code JSON_*} error when the file is not valid JSON; the same warning alone when the
+   *     file is larger than {@link PackFiles#MAX_FILE_BYTES} or its archive entry is damaged). A
+   *     pack whose format fields are unusable is present and broken (R4, R5), with the diagnostics
+   *     of {@code PackMetaReader}
    * @throws IOException when {@code pack.mcmeta} cannot be read from the files
    */
   public static Outcome<Pack> open(String id, PackOrigin origin, PackType type, PackFiles files)
@@ -56,6 +58,8 @@ public final class Pack {
       bytes = files.read(META_FILE);
     } catch (NoSuchFileException e) {
       return notAPack(metaOrigin, List.of(), "no pack.mcmeta");
+    } catch (PackContentException e) {
+      return notAPack(metaOrigin, List.of(), "unusable pack.mcmeta: " + e.getMessage());
     }
     Outcome<JsonNode> json = JsonReader.read(bytes, metaOrigin);
     if (json.value().isEmpty()) {

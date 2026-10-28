@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.data.pack;
 
+import dev.shoko.minecraft.data.pack.meta.FilterBudgetException;
 import dev.shoko.minecraft.data.pack.meta.PackFormat;
 import dev.shoko.minecraft.data.pack.meta.PackType;
 import java.io.IOException;
@@ -69,6 +70,8 @@ public final class PackStack {
    * Lists the paths visible after overlays and filters.
    *
    * @return the distinct stacked paths sorted by Unicode code point
+   * @throws PackFilterException when the block filter of a pack is too costly to evaluate: the
+   *     stack cannot be used until that pack is left out
    * @throws IOException when a pack cannot be listed
    */
   public List<String> paths() throws IOException {
@@ -105,6 +108,18 @@ public final class PackStack {
     return index;
   }
 
+  private void hideLowerFiles(List<Map<String, String>> views, int higher)
+      throws PackFilterException {
+    Pack filtering = packs.get(higher);
+    try {
+      for (int lower = 0; lower < higher; lower++) {
+        PackView.hide(views.get(lower), filtering.meta().filters());
+      }
+    } catch (FilterBudgetException e) {
+      throw new PackFilterException(filtering.id(), e);
+    }
+  }
+
   private Map<String, List<PackFileRef>> build() throws IOException {
     PackFormat target = type.targetFormat();
     List<Map<String, String>> views = new ArrayList<>();
@@ -113,9 +128,7 @@ public final class PackStack {
     }
     for (int higher = 1; higher < packs.size(); higher++) {
       if (!packs.get(higher).meta().filters().isEmpty()) {
-        for (int lower = 0; lower < higher; lower++) {
-          PackView.hide(views.get(lower), packs.get(higher).meta().filters());
-        }
+        hideLowerFiles(views, higher);
       }
     }
     Map<String, List<PackFileRef>> built = new TreeMap<>(PathOrder.BY_CODE_POINT);

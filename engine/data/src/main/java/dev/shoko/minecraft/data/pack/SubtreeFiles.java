@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.data.pack;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 
@@ -26,5 +27,10 @@ final class SubtreeFiles extends BaseFiles {
   @Override
   public byte[] read(String path) throws IOException {
     return parent.read(prefix + path);
+  }
+
+  @Override
+  public Closeable keepOpen() throws IOException {
+    return parent.keepOpen();
   }
 }

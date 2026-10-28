@@ -26,10 +26,13 @@ final class PathOrder {
 
   /**
    * Tells whether a pack path is relative, uses {@code /} and has no empty, {@code .} or {@code ..}
-   * step.
+   * step, no backslash and no {@code :} (a drive letter or a stream name on Windows).
    */
   static boolean isPlainRelative(String path) {
-    if (path.isEmpty() || path.startsWith("/") || path.indexOf('\\') >= 0) {
+    if (path.isEmpty()
+        || path.startsWith("/")
+        || path.indexOf('\\') >= 0
+        || path.indexOf(':') >= 0) {
       return false;
     }
     for (String segment : path.split("/", -1)) {

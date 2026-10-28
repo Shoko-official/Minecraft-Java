@@ -12,7 +12,9 @@ import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.json.JsonReader;
 import dev.shoko.minecraft.data.pack.Pack;
+import dev.shoko.minecraft.data.pack.PackContentException;
 import dev.shoko.minecraft.data.pack.PackFileRef;
+import dev.shoko.minecraft.data.pack.PackFilterException;
 import dev.shoko.minecraft.data.pack.PackStack;
 import dev.shoko.minecraft.data.pack.meta.FeatureFlags;
 import dev.shoko.minecraft.data.pack.meta.PackMeta;
@@ -47,6 +49,7 @@ final class LoadRun {
     this.classifier = PathClassifier.of(request.catalog());
   }
 
+  @SuppressWarnings("try") // OpenFiles is used for its closing only
   Outcome<LoadedData> run() throws IOException {
     for (RegistryDescriptor registry : request.catalog().registries()) {
       switch (registry.kind()) {
@@ -59,21 +62,26 @@ final class LoadRun {
     }
     List<Pack> all = request.packs().packs();
     Map<String, FeatureFlags> missing = new HashMap<>();
+    // The reason each pack left out of the load is reported, by pack identifier.
+    Map<String, Diagnostic> dropped = new HashMap<>();
     List<Pack> kept = new ArrayList<>();
     for (Pack pack : all) {
       FeatureFlags absent = missingFlags(pack.meta());
       missing.put(pack.id(), absent);
       if (absent.flags().isEmpty()) {
         kept.add(pack);
+      } else {
+        dropped.put(pack.id(), inactiveFlags(pack, absent));
       }
     }
-    PackType type = all.isEmpty() ? PackType.DATA : all.get(0).type();
-    Map<String, List<PackFileRef>> filesByPack = filesByPack(PackStack.of(type, kept));
-    for (Pack pack : all) {
-      if (kept.contains(pack)) {
-        readFiles(pack.id(), filesByPack.getOrDefault(pack.id(), List.of()));
-      } else {
-        discarded(pack, missing.get(pack.id()));
+    try (OpenFiles open = new OpenFiles(all)) {
+      Map<String, List<PackFileRef>> filesByPack = stackFiles(all, kept, dropped);
+      for (Pack pack : all) {
+        if (kept.contains(pack)) {
+          readFiles(pack.id(), filesByPack.getOrDefault(pack.id(), List.of()));
+        } else {
+          diagnostics.add(dropped.get(pack.id()));
+        }
       }
     }
     TagLoading tags = new TagLoading(request, elements, contents, tagLayers);
@@ -95,11 +103,32 @@ final class LoadRun {
         meta.features().flags().stream().filter(f -> !active.contains(f)).toList());
   }
 
-  private void discarded(Pack pack, FeatureFlags missing) {
+  private static Diagnostic inactiveFlags(Pack pack, FeatureFlags missing) {
     String message = "pack requires flags that are not active: " + missing.flags();
     FileOrigin origin = new FileOrigin(pack.id(), "pack.mcmeta");
-    diagnostics.add(
-        new Diagnostic(DiagnosticCode.PACK_FLAGS_INACTIVE, origin, JsonPath.root(), message));
+    return new Diagnostic(DiagnosticCode.PACK_FLAGS_INACTIVE, origin, JsonPath.root(), message);
+  }
+
+  /**
+   * Stacks the kept packs and lists their files. A pack whose block filter is too costly to
+   * evaluate is left out of the stack, with a diagnostic, and the stack is built again.
+   */
+  private static Map<String, List<PackFileRef>> stackFiles(
+      List<Pack> all, List<Pack> kept, Map<String, Diagnostic> dropped) throws IOException {
+    PackType type = all.isEmpty() ? PackType.DATA : all.get(0).type();
+    while (true) {
+      try {
+        return filesByPack(PackStack.of(type, kept));
+      } catch (PackFilterException e) {
+        Pack refused =
+            kept.stream().filter(pack -> pack.id().equals(e.pack())).findFirst().orElseThrow();
+        kept.remove(refused);
+        FileOrigin origin = new FileOrigin(refused.id(), "pack.mcmeta");
+        dropped.put(
+            refused.id(),
+            new Diagnostic(DiagnosticCode.PACK_INVALID, origin, JsonPath.root(), e.getMessage()));
+      }
+    }
   }
 
   /** Lists the files of each pack in sorted path order, so diagnostics follow the pack stack. */
@@ -168,7 +197,17 @@ final class LoadRun {
 
   /** Reads one JSON file; returns null when it is invalid, after recording its diagnostic. */
   private JsonNode parse(PackFileRef file) throws IOException {
-    Outcome<JsonNode> read = JsonReader.read(file.read(), file.origin());
+    byte[] bytes;
+    try {
+      bytes = file.read();
+    } catch (PackContentException e) {
+      // Too large or damaged: the file is invalid like any other, the rest of the pack loads (R54).
+      diagnostics.add(
+          new Diagnostic(
+              DiagnosticCode.JSON_SYNTAX, file.origin(), JsonPath.root(), e.getMessage()));
+      return null;
+    }
+    Outcome<JsonNode> read = JsonReader.read(bytes, file.origin());
     diagnostics.addAll(read.diagnostics());
     return read.value().orElse(null);
   }

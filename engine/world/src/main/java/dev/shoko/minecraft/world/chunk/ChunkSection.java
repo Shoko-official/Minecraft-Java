@@ -2,6 +2,7 @@ package dev.shoko.minecraft.world.chunk;
 
 import dev.shoko.minecraft.world.block.BlockState;
 import dev.shoko.minecraft.world.palette.PalettedContainer;
+import java.util.Objects;
 
 /**
  * A 16 x 16 x 16 part of a chunk (CF-R2, CF-R22): 4096 block states, 64 biome cells and its stored
@@ -9,7 +10,24 @@ import dev.shoko.minecraft.world.palette.PalettedContainer;
  */
 public final class ChunkSection {
 
-  private ChunkSection() {}
+  private static final int BLOCK_COUNT = 4096;
+  private static final int BIOME_COUNT = 64;
+
+  private final int y;
+  private final PalettedContainer<BlockState> blockStates;
+  private final PalettedContainer<String> biomes;
+  private final SectionLight light;
+
+  private ChunkSection(
+      int y,
+      PalettedContainer<BlockState> blockStates,
+      PalettedContainer<String> biomes,
+      SectionLight light) {
+    this.y = y;
+    this.blockStates = blockStates;
+    this.biomes = biomes;
+    this.light = light;
+  }
 
   /**
    * Creates a section from its parts.
@@ -26,7 +44,15 @@ public final class ChunkSection {
       PalettedContainer<BlockState> blockStates,
       PalettedContainer<String> biomes,
       SectionLight light) {
-    return Skeleton.throwNotImplemented();
+    if (blockStates.size() != BLOCK_COUNT) {
+      throw new IllegalArgumentException(
+          "block states must have " + BLOCK_COUNT + " positions, got " + blockStates.size());
+    }
+    if (biomes.size() != BIOME_COUNT) {
+      throw new IllegalArgumentException(
+          "biomes must have " + BIOME_COUNT + " positions, got " + biomes.size());
+    }
+    return new ChunkSection(y, blockStates, biomes, Objects.requireNonNull(light, "light"));
   }
 
   /**
@@ -38,7 +64,11 @@ public final class ChunkSection {
    * @return the section
    */
   public static ChunkSection uniform(int y, BlockState state, String biome) {
-    return Skeleton.throwNotImplemented();
+    return new ChunkSection(
+        y,
+        PalettedContainer.filled(BLOCK_COUNT, state),
+        PalettedContainer.filled(BIOME_COUNT, biome),
+        SectionLight.none());
   }
 
   /**
@@ -52,7 +82,7 @@ public final class ChunkSection {
    * @return the index, in {@code [0, 63]}
    */
   public static int biomeIndex(int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    return (((y & 15) >> 2) * 4 + ((z & 15) >> 2)) * 4 + ((x & 15) >> 2);
   }
 
   /**
@@ -61,7 +91,7 @@ public final class ChunkSection {
    * @return {@code blockY >> 4}
    */
   public int y() {
-    return Skeleton.throwNotImplemented();
+    return y;
   }
 
   /**
@@ -70,7 +100,7 @@ public final class ChunkSection {
    * @return the live container
    */
   public PalettedContainer<BlockState> blockStates() {
-    return Skeleton.throwNotImplemented();
+    return blockStates;
   }
 
   /**
@@ -79,7 +109,7 @@ public final class ChunkSection {
    * @return the live container
    */
   public PalettedContainer<String> biomes() {
-    return Skeleton.throwNotImplemented();
+    return biomes;
   }
 
   /**
@@ -88,6 +118,6 @@ public final class ChunkSection {
    * @return the live light
    */
   public SectionLight light() {
-    return Skeleton.throwNotImplemented();
+    return light;
   }
 }

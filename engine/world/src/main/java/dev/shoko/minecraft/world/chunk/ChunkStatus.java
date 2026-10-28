@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.world.chunk;
 
+import java.util.Locale;
 import java.util.Optional;
 
 /**
@@ -26,7 +27,7 @@ public enum ChunkStatus {
    * @return the identifier with namespace
    */
   public String id() {
-    return Skeleton.throwNotImplemented();
+    return "minecraft:" + name().toLowerCase(Locale.ROOT);
   }
 
   /**
@@ -36,7 +37,12 @@ public enum ChunkStatus {
    * @return the status, or empty for an unknown one, including the removed statuses (CF-R29)
    */
   public static Optional<ChunkStatus> byId(String id) {
-    return Skeleton.throwNotImplemented();
+    for (ChunkStatus status : values()) {
+      if (status.id().equals(id)) {
+        return Optional.of(status);
+      }
+    }
+    return Optional.empty();
   }
 
   /**
@@ -45,6 +51,6 @@ public enum ChunkStatus {
    * @return {@code true} for {@link #FULL}
    */
   public boolean isFull() {
-    return Skeleton.throwNotImplemented();
+    return this == FULL;
   }
 }

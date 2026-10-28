@@ -1,6 +1,8 @@
 package dev.shoko.minecraft.world.chunk;
 
 import dev.shoko.minecraft.core.nbt.CompoundTag;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 
@@ -38,6 +40,17 @@ public record ChunkAttachments(
    * @return the empty attachments
    */
   public static ChunkAttachments empty(int sectionCount) {
-    return Skeleton.throwNotImplemented();
+    List<List<Short>> postProcessing = new ArrayList<>(sectionCount);
+    for (int k = 0; k < sectionCount; k++) {
+      postProcessing.add(List.of());
+    }
+    return new ChunkAttachments(
+        List.of(),
+        List.of(),
+        List.of(),
+        List.copyOf(postProcessing),
+        new StructureData(CompoundTag.empty(), new LinkedHashMap<>()),
+        List.of(),
+        new LinkedHashMap<>());
   }
 }

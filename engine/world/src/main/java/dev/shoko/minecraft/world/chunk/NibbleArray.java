@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.world.chunk;
 
+import java.util.Arrays;
+
 /**
  * 4096 values from 0 to 15, two per byte, in the block order of a section (CF-R14): an even index
  * is in the low 4 bits of byte {@code index >> 1}, an odd index in the high 4 bits. Mutable,
@@ -10,7 +12,11 @@ public final class NibbleArray {
   /** Length of the byte form, 4096 values at 4 bits (CF-R14). */
   public static final int BYTE_LENGTH = 2048;
 
-  private NibbleArray() {}
+  private final byte[] bytes;
+
+  private NibbleArray(byte[] bytes) {
+    this.bytes = bytes;
+  }
 
   /**
    * Creates an array of zeros.
@@ -18,7 +24,7 @@ public final class NibbleArray {
    * @return the array
    */
   public static NibbleArray zeros() {
-    return Skeleton.throwNotImplemented();
+    return new NibbleArray(new byte[BYTE_LENGTH]);
   }
 
   /**
@@ -29,7 +35,10 @@ public final class NibbleArray {
    * @throws IllegalArgumentException if the value is out of range
    */
   public static NibbleArray filled(int value) {
-    return Skeleton.throwNotImplemented();
+    checkValue(value);
+    byte[] bytes = new byte[BYTE_LENGTH];
+    Arrays.fill(bytes, (byte) (value | (value << 4)));
+    return new NibbleArray(bytes);
   }
 
   /**
@@ -40,7 +49,10 @@ public final class NibbleArray {
    * @throws IllegalArgumentException if the length differs
    */
   public static NibbleArray ofBytes(byte[] bytes) {
-    return Skeleton.throwNotImplemented();
+    if (bytes.length != BYTE_LENGTH) {
+      throw new IllegalArgumentException("expected " + BYTE_LENGTH + " bytes, got " + bytes.length);
+    }
+    return new NibbleArray(bytes.clone());
   }
 
   /**
@@ -51,7 +63,9 @@ public final class NibbleArray {
    * @throws IndexOutOfBoundsException if out of range
    */
   public int get(int index) {
-    return Skeleton.throwNotImplemented();
+    checkIndex(index);
+    int packed = bytes[index >> 1];
+    return (index & 1) == 0 ? packed & 0xF : (packed >> 4) & 0xF;
   }
 
   /**
@@ -63,7 +77,11 @@ public final class NibbleArray {
    * @throws IllegalArgumentException if the value is out of range
    */
   public void set(int index, int value) {
-    Skeleton.throwNotImplemented();
+    checkIndex(index);
+    checkValue(value);
+    int packed = bytes[index >> 1];
+    bytes[index >> 1] =
+        (byte) ((index & 1) == 0 ? (packed & 0xF0) | value : (packed & 0x0F) | (value << 4));
   }
 
   /**
@@ -72,7 +90,7 @@ public final class NibbleArray {
    * @return a new array of {@link #BYTE_LENGTH} bytes
    */
   public byte[] toBytes() {
-    return Skeleton.throwNotImplemented();
+    return bytes.clone();
   }
 
   /**
@@ -81,6 +99,18 @@ public final class NibbleArray {
    * @return the copy
    */
   public NibbleArray copy() {
-    return Skeleton.throwNotImplemented();
+    return new NibbleArray(bytes.clone());
+  }
+
+  private static void checkIndex(int index) {
+    if (index < 0 || index >= BYTE_LENGTH * 2) {
+      throw new IndexOutOfBoundsException("index " + index + " of " + BYTE_LENGTH * 2);
+    }
+  }
+
+  private static void checkValue(int value) {
+    if (value < 0 || value > 15) {
+      throw new IllegalArgumentException("value must be from 0 to 15: " + value);
+    }
   }
 }

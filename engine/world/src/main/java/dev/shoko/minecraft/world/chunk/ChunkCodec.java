@@ -51,7 +51,13 @@ public final class ChunkCodec {
   /** Data version of the reference game 26.3, read from its {@code version.json} (CF-R20). */
   public static final int SUPPORTED_DATA_VERSION = 5023;
 
-  private ChunkCodec() {}
+  private final ChunkReader reader;
+  private final ChunkWriter writer;
+
+  private ChunkCodec(BlockStateRegistry blocks, BiomeCatalog biomes) {
+    this.reader = new ChunkReader(blocks, biomes);
+    this.writer = new ChunkWriter(blocks);
+  }
 
   /**
    * Creates a codec. Findings of a read go to the warning list of its result, not to the codec.
@@ -61,7 +67,7 @@ public final class ChunkCodec {
    * @return the codec
    */
   public static ChunkCodec of(BlockStateRegistry blocks, BiomeCatalog biomes) {
-    return Skeleton.throwNotImplemented();
+    return new ChunkCodec(blocks, biomes);
   }
 
   /**
@@ -74,7 +80,7 @@ public final class ChunkCodec {
    *     faulty field or section (a path such as {@code sections[3].block_states.data})
    */
   public ReadResult<Chunk> decode(CompoundTag root, WorldHeight height) {
-    return Skeleton.throwNotImplemented();
+    return reader.read(root, height);
   }
 
   /**
@@ -84,6 +90,6 @@ public final class ChunkCodec {
    * @return the root Compound, with {@code DataVersion} {@link #SUPPORTED_DATA_VERSION}
    */
   public CompoundTag encode(Chunk chunk) {
-    return Skeleton.throwNotImplemented();
+    return writer.write(chunk);
   }
 }

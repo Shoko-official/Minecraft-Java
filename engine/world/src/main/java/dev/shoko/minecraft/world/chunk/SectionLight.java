@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.world.chunk;
 
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -11,6 +12,9 @@ import java.util.Optional;
  */
 public final class SectionLight {
 
+  private NibbleArray blockLight;
+  private NibbleArray skyLight;
+
   private SectionLight() {}
 
   /**
@@ -19,7 +23,7 @@ public final class SectionLight {
    * @return the light
    */
   public static SectionLight none() {
-    return Skeleton.throwNotImplemented();
+    return new SectionLight();
   }
 
   /**
@@ -28,7 +32,7 @@ public final class SectionLight {
    * @return the array, or empty when absent
    */
   public Optional<NibbleArray> blockLight() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(blockLight);
   }
 
   /**
@@ -37,7 +41,7 @@ public final class SectionLight {
    * @return the array, or empty when absent
    */
   public Optional<NibbleArray> skyLight() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(skyLight);
   }
 
   /**
@@ -46,12 +50,12 @@ public final class SectionLight {
    * @param light the array, held without copy
    */
   public void setBlockLight(NibbleArray light) {
-    Skeleton.throwNotImplemented();
+    this.blockLight = Objects.requireNonNull(light, "light");
   }
 
   /** Removes the block light. */
   public void clearBlockLight() {
-    Skeleton.throwNotImplemented();
+    this.blockLight = null;
   }
 
   /**
@@ -60,11 +64,11 @@ public final class SectionLight {
    * @param light the array, held without copy
    */
   public void setSkyLight(NibbleArray light) {
-    Skeleton.throwNotImplemented();
+    this.skyLight = Objects.requireNonNull(light, "light");
   }
 
   /** Removes the sky light. */
   public void clearSkyLight() {
-    Skeleton.throwNotImplemented();
+    this.skyLight = null;
   }
 }

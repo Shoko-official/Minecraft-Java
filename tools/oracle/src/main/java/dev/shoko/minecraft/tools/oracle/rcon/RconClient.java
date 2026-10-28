@@ -141,6 +141,8 @@ public final class RconClient implements AutoCloseable {
    * Runs a console command and returns its whole response, fragments joined in order.
    *
    * @throws IllegalArgumentException when the command is longer than {@code maxCommandBytes}
+   * @throws IOException on any I/O or protocol failure; the connection is then closed, and further
+   *     commands fail with {@link IllegalStateException}
    */
   public String command(String command) throws IOException {
     if (socket.isClosed()) {
@@ -153,8 +155,23 @@ public final class RconClient implements AutoCloseable {
     }
     int id = nextId++;
     int marker = nextId++;
-    new RconPacket(id, RconPacket.TYPE_COMMAND, command).write(out);
-    new RconPacket(marker, options.markerType(), "").write(out);
+    try {
+      new RconPacket(id, RconPacket.TYPE_COMMAND, command).write(out);
+      new RconPacket(marker, options.markerType(), "").write(out);
+      return readResponse(id, marker);
+    } catch (IOException e) {
+      // The stream may be cut in the middle of a packet or hold replies of this command: any later
+      // command would read them as its own, so the connection is dropped.
+      try {
+        socket.close();
+      } catch (IOException closing) {
+        e.addSuppressed(closing);
+      }
+      throw e;
+    }
+  }
+
+  private String readResponse(int id, int marker) throws IOException {
     ByteArrayOutputStream response = new ByteArrayOutputStream();
     while (true) {
       RconPacket.Frame reply = receive("command");

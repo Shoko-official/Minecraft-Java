@@ -3,11 +3,17 @@ package dev.shoko.minecraft.core.coord;
 /** The three axes, named {@code x}, {@code y}, {@code z} in the data (R34). */
 public enum Axis {
   /** East-west axis, horizontal (R34). */
-  X,
+  X("x"),
   /** Vertical axis (R34). */
-  Y,
+  Y("y"),
   /** North-south axis, horizontal (R34). */
-  Z;
+  Z("z");
+
+  private final String serializedName;
+
+  Axis(String serializedName) {
+    this.serializedName = serializedName;
+  }
 
   /**
    * Tells whether this axis is horizontal: {@code x} and {@code z} (R34).
@@ -15,7 +21,7 @@ public enum Axis {
    * @return {@code true} for {@link #X} and {@link #Z}
    */
   public boolean isHorizontal() {
-    return Skeleton.throwNotImplemented();
+    return this != Y;
   }
 
   /**
@@ -24,6 +30,6 @@ public enum Axis {
    * @return the lowercase name
    */
   public String serializedName() {
-    return Skeleton.throwNotImplemented();
+    return serializedName;
   }
 }

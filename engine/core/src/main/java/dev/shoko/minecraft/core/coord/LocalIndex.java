@@ -10,6 +10,9 @@ package dev.shoko.minecraft.core.coord;
  */
 public final class LocalIndex {
 
+  /** Bits of one local coordinate, 16 blocks per section side (R32). */
+  private static final int LOCAL_BITS = 4;
+
   private LocalIndex() {}
 
   /**
@@ -22,7 +25,7 @@ public final class LocalIndex {
    * @return the index, in {@code [0, 4095]}
    */
   public static int sectionStateIndex(int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    return pack(y, z, x);
   }
 
   /**
@@ -35,7 +38,7 @@ public final class LocalIndex {
    * @return the packed value, in {@code [0, 4095]}
    */
   public static int postProcessingIndex(int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    return pack(z, y, x);
   }
 
   /**
@@ -48,6 +51,12 @@ public final class LocalIndex {
    * @return the packed value, in {@code [0, 4095]}
    */
   public static int sectionUpdateIndex(int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    return pack(x, z, y);
+  }
+
+  private static int pack(int high, int middle, int low) {
+    return (Coordinates.sectionLocal(high) << (2 * LOCAL_BITS))
+        | (Coordinates.sectionLocal(middle) << LOCAL_BITS)
+        | Coordinates.sectionLocal(low);
   }
 }

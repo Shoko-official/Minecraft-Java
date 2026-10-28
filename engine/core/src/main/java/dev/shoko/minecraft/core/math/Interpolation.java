@@ -43,7 +43,7 @@ public final class Interpolation {
    * @return the interpolated value
    */
   public static double interpolate(double t, double a, double b) {
-    return Skeleton.throwNotImplemented();
+    return a + t * (b - a);
   }
 
   /**
@@ -55,7 +55,7 @@ public final class Interpolation {
    * @return the interpolated value
    */
   public static float interpolate(float t, float a, float b) {
-    return Skeleton.throwNotImplemented();
+    return a + t * (b - a);
   }
 
   /**
@@ -73,7 +73,7 @@ public final class Interpolation {
    */
   public static double bilinear(
       double tx, double ty, double v00, double v10, double v01, double v11) {
-    return Skeleton.throwNotImplemented();
+    return interpolate(ty, interpolate(tx, v00, v10), interpolate(tx, v01, v11));
   }
 
   /**
@@ -87,7 +87,9 @@ public final class Interpolation {
    * @return the interpolated value
    */
   public static double trilinear(double tx, double ty, double tz, CubeCorners corners) {
-    return Skeleton.throwNotImplemented();
+    double nearZ = bilinear(tx, ty, corners.v000(), corners.v100(), corners.v010(), corners.v110());
+    double farZ = bilinear(tx, ty, corners.v001(), corners.v101(), corners.v011(), corners.v111());
+    return interpolate(tz, nearZ, farZ);
   }
 
   /**
@@ -100,7 +102,7 @@ public final class Interpolation {
    * @return the parameter of {@code v} between {@code a} and {@code b}
    */
   public static double inverseInterpolate(double v, double a, double b) {
-    return Skeleton.throwNotImplemented();
+    return (v - a) / (b - a);
   }
 
   /**
@@ -115,7 +117,7 @@ public final class Interpolation {
    * @return the remapped value
    */
   public static double remap(double v, double a0, double a1, double b0, double b1) {
-    return Skeleton.throwNotImplemented();
+    return interpolate(inverseInterpolate(v, a0, a1), b0, b1);
   }
 
   /**
@@ -131,7 +133,7 @@ public final class Interpolation {
    * @return the remapped value, within the target range
    */
   public static double remapClamped(double v, double a0, double a1, double b0, double b1) {
-    return Skeleton.throwNotImplemented();
+    return Clamping.clamp(remap(v, a0, a1, b0, b1), Math.min(b0, b1), Math.max(b0, b1));
   }
 
   /**
@@ -144,7 +146,13 @@ public final class Interpolation {
    * @return the interpolated value
    */
   public static double clampedInterpolate(double t, double a, double b) {
-    return Skeleton.throwNotImplemented();
+    if (t < 0) {
+      return a;
+    }
+    if (t > 1) {
+      return b;
+    }
+    return interpolate(t, a, b);
   }
 
   /**
@@ -156,6 +164,7 @@ public final class Interpolation {
    * @return the faded value
    */
   public static double quinticFade(double t) {
-    return Skeleton.throwNotImplemented();
+    // Coefficients of the polynomial 6t^5 - 15t^4 + 10t^3 (R16, improved Perlin noise reference).
+    return t * t * t * (t * (t * 6 - 15) + 10);
   }
 }

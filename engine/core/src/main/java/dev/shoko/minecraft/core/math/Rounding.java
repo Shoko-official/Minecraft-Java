@@ -23,7 +23,8 @@ public final class Rounding {
    * @return the floor of {@code x} as an {@code int}
    */
   public static int floorToInt(double x) {
-    return Skeleton.throwNotImplemented();
+    // The narrowing conversion saturates and maps NaN to 0 (JLS 5.1.3), which is candidate F1.
+    return (int) Math.floor(x);
   }
 
   /**
@@ -34,7 +35,8 @@ public final class Rounding {
    * @return the floor of {@code x} as an {@code int}
    */
   public static int floorToInt(float x) {
-    return Skeleton.throwNotImplemented();
+    // Widening a float to double is exact, so this floors the float value itself.
+    return (int) Math.floor(x);
   }
 
   /**
@@ -45,7 +47,7 @@ public final class Rounding {
    * @return the ceiling of {@code x} as an {@code int}
    */
   public static int ceilToInt(double x) {
-    return Skeleton.throwNotImplemented();
+    return (int) Math.ceil(x);
   }
 
   /**
@@ -56,7 +58,7 @@ public final class Rounding {
    * @return the ceiling of {@code x} as an {@code int}
    */
   public static int ceilToInt(float x) {
-    return Skeleton.throwNotImplemented();
+    return (int) Math.ceil(x);
   }
 
   /**
@@ -67,7 +69,7 @@ public final class Rounding {
    * @return the floor of {@code x} as a {@code long}
    */
   public static long floorToLong(double x) {
-    return Skeleton.throwNotImplemented();
+    return (long) Math.floor(x);
   }
 
   /**
@@ -78,6 +80,6 @@ public final class Rounding {
    * @return the fractional part of {@code x}, in {@code [0, 1]}
    */
   public static double fractionalPart(double x) {
-    return Skeleton.throwNotImplemented();
+    return x - floorToLong(x);
   }
 }

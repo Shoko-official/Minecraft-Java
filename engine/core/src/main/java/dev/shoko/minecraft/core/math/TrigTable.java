@@ -12,6 +12,20 @@ package dev.shoko.minecraft.core.math;
  */
 public final class TrigTable {
 
+  /** Number of entries over one period (R17). */
+  private static final int SIZE = 65536;
+
+  private static final int INDEX_MASK = SIZE - 1;
+
+  /** Index offset of a quarter period, which turns the sine table into a cosine (R17). */
+  private static final double QUARTER_PERIOD = SIZE / 4.0;
+
+  /** Radians to table index, {@code 65536 / (2 * pi)} in {@code double} (R17). */
+  private static final double RADIANS_TO_INDEX = SIZE / (2 * StrictMath.PI);
+
+  // Written once by the class initializer and never exposed, so it is effectively immutable.
+  private static final float[] SINE = buildTable();
+
   private TrigTable() {}
 
   /**
@@ -21,7 +35,7 @@ public final class TrigTable {
    * @return the table entry for {@code x}
    */
   public static float tableSin(double x) {
-    return Skeleton.throwNotImplemented();
+    return SINE[(int) ((long) (x * RADIANS_TO_INDEX) & INDEX_MASK)];
   }
 
   /**
@@ -32,6 +46,14 @@ public final class TrigTable {
    * @return the table entry for {@code x} shifted by 16,384
    */
   public static float tableCos(double x) {
-    return Skeleton.throwNotImplemented();
+    return SINE[(int) ((long) (x * RADIANS_TO_INDEX + QUARTER_PERIOD) & INDEX_MASK)];
+  }
+
+  private static float[] buildTable() {
+    float[] table = new float[SIZE];
+    for (int i = 0; i < SIZE; i++) {
+      table[i] = (float) StrictMath.sin(i * StrictMath.PI * 2.0 / SIZE);
+    }
+    return table;
   }
 }

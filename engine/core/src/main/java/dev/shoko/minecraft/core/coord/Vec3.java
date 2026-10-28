@@ -18,7 +18,7 @@ public record Vec3(double x, double y, double z) {
    * @return the sum
    */
   public Vec3 add(Vec3 other) {
-    return Skeleton.throwNotImplemented();
+    return new Vec3(x + other.x, y + other.y, z + other.z);
   }
 
   /**
@@ -28,7 +28,7 @@ public record Vec3(double x, double y, double z) {
    * @return the difference
    */
   public Vec3 subtract(Vec3 other) {
-    return Skeleton.throwNotImplemented();
+    return new Vec3(x - other.x, y - other.y, z - other.z);
   }
 
   /**
@@ -38,7 +38,7 @@ public record Vec3(double x, double y, double z) {
    * @return the scaled vector
    */
   public Vec3 scale(double factor) {
-    return Skeleton.throwNotImplemented();
+    return new Vec3(x * factor, y * factor, z * factor);
   }
 
   /**
@@ -48,7 +48,7 @@ public record Vec3(double x, double y, double z) {
    * @return the squared length
    */
   public double lengthSquared() {
-    return Skeleton.throwNotImplemented();
+    return (x * x + y * y) + z * z;
   }
 
   /**
@@ -57,6 +57,6 @@ public record Vec3(double x, double y, double z) {
    * @return the length
    */
   public double length() {
-    return Skeleton.throwNotImplemented();
+    return Math.sqrt(lengthSquared());
   }
 }

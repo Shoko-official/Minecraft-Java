@@ -1,0 +1,36 @@
+{
+  "frozen": true,
+  "rule": "Frozen sample set of seeds and zones (docs/VERIFICATION.md, anti-bias rule 7). Any change goes through a dedicated pull request that changes nothing else, is never made by the agent that has just met a failure on these samples, and updates the pinned digest in SamplesTest. The null fields of reliefZones are filled the same way, from oracle observations such as /locate, never guessed.",
+  "version": 1,
+  "units": "Zones are in chunk coordinates with inclusive bounds. Seeds are decimal strings so that no JSON tool rounds them.",
+  "seeds": [
+    { "name": "zero", "seed": "0", "why": "zero seed" },
+    { "name": "one", "seed": "1", "why": "smallest positive seed" },
+    { "name": "minus-one", "seed": "-1", "why": "all bits set" },
+    { "name": "long-min", "seed": "-9223372036854775808", "why": "large negative seed whose negation overflows" },
+    { "name": "large-negative", "seed": "-6243058710358542913", "why": "large negative seed with mixed bits" },
+    { "name": "long-max", "seed": "9223372036854775807", "why": "largest seed" },
+    { "name": "classic", "seed": "12345", "why": "ordinary positive seed, the one of the report example" }
+  ],
+  "zones": [
+    { "name": "origin-cross", "minChunkX": -2, "minChunkZ": -2, "maxChunkX": 1, "maxChunkZ": 1, "why": "crosses the -1/0 border on both axes, which is also a region border" },
+    { "name": "region-corner-positive", "minChunkX": 30, "minChunkZ": 30, "maxChunkX": 33, "maxChunkZ": 33, "why": "crosses the 31/32 region border on both axes" },
+    { "name": "region-corner-negative", "minChunkX": -34, "minChunkZ": -34, "maxChunkX": -31, "maxChunkZ": -31, "why": "crosses the -33/-32 region border on both axes" },
+    { "name": "region-corner-mixed", "minChunkX": -34, "minChunkZ": 30, "maxChunkX": -31, "maxChunkZ": 33, "why": "negative and positive region borders in one zone" },
+    { "name": "far-positive", "minChunkX": 62498, "minChunkZ": 62498, "maxChunkX": 62501, "maxChunkZ": 62501, "why": "about one million blocks from the origin" },
+    { "name": "far-negative", "minChunkX": -62502, "minChunkZ": -62502, "maxChunkX": -62499, "maxChunkZ": -62499, "why": "about minus one million blocks from the origin" }
+  ],
+  "reliefZones": [
+    { "family": "ocean", "description": "open water over a sea floor", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "deep-ocean", "description": "deepest sea floor", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "shore", "description": "transition between land and sea", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "river", "description": "carved river bed", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "lowland", "description": "flat land near sea level", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "hills", "description": "rolling relief of moderate height", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "peaks", "description": "highest mountain relief", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "plateau", "description": "eroded high flat land", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "wetland", "description": "waterlogged low ground", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "frozen", "description": "frozen relief", "targetBiome": null, "seed": null, "zone": null },
+    { "family": "rare-island", "description": "rare isolated island", "targetBiome": null, "seed": null, "zone": null }
+  ]
+}

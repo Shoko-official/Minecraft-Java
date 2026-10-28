@@ -9,4 +9,5 @@ dependencies {
     api(project(":engine:loot"))
     api(project(":engine:game"))
     api(project(":tools:oracle"))
+    implementation(libs.gson)
 }

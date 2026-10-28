@@ -152,7 +152,7 @@ public enum Direction {
 
   /**
    * Returns the yaw of a horizontal direction in degrees: south 0, west 90, north 180, east -90
-   * (R36).
+   * (R36, provisional until probe P35).
    *
    * @return the yaw
    * @throws IllegalStateException for {@link #UP} and {@link #DOWN}
@@ -165,9 +165,12 @@ public enum Direction {
   /**
    * Returns the horizontal direction faced at a yaw, of 2D identifier {@code floorToInt(yaw / 90 +
    * 0.5) & 3} computed in {@code double} (R36, provisional until probe P36). The boundary at 45
-   * falls to west, the one at -45 to south.
+   * falls to west, the one at -45 to south. The sector boundaries are those of that formula after
+   * {@code double} rounding: a yaw less than one ULP below 45 can fall into the next sector. The
+   * result stops being periodic for {@code |yaw| > ~1.93e11}, where {@code floorToInt} saturates
+   * (out of domain).
    *
-   * @param yaw yaw in degrees, any value
+   * @param yaw yaw in degrees
    * @return the horizontal direction
    */
   public static Direction fromYaw(double yaw) {

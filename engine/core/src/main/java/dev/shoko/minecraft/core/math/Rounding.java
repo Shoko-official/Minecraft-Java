@@ -10,6 +10,9 @@ package dev.shoko.minecraft.core.math;
  *
  * <p>The {@code float} and {@code double} overloads are not interchangeable: the {@code float}
  * variant applies to the value already rounded to {@code float} (R5). The consuming spec chooses.
+ * An {@code int} or {@code long} argument passed to {@code floorToInt} or {@code ceilToInt}
+ * resolves to the {@code float} overload and is rounded to {@code float} first, which is exact only
+ * up to 2^24 in magnitude: cast it explicitly to {@code double}.
  */
 public final class Rounding {
 
@@ -73,11 +76,13 @@ public final class Rounding {
   }
 
   /**
-   * Returns {@code x - floorToLong(x)} computed in {@code double} (R7). The result is not always
-   * strictly below 1: {@code fractionalPart(-1e-20)} is exactly {@code 1.0} after rounding.
+   * Returns {@code x - floorToLong(x)} computed in {@code double} (R7). Domain: {@code |x| < 2^63},
+   * the domain of {@link #floorToLong(double)}. Within it the result lies in {@code [0, 1]}, not
+   * always strictly below 1: {@code fractionalPart(-1e-20)} is exactly {@code 1.0} after rounding.
+   * Outside of it the result is out of domain and not bounded to {@code [0, 1]}.
    *
    * @param x value to split
-   * @return the fractional part of {@code x}, in {@code [0, 1]}
+   * @return the fractional part of {@code x}, in {@code [0, 1]} within the domain
    */
   public static double fractionalPart(double x) {
     return x - floorToLong(x);

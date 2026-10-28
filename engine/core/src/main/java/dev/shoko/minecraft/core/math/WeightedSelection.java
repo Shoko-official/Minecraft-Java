@@ -23,7 +23,8 @@ public final class WeightedSelection {
    * weights {@code [3, 0, 5, 2]} give index 0 for {@code r} in 0..2, 2 for 3..7, 3 for 8..9.
    *
    * @param weights weights in list order, read but not modified; their positive sum must fit an
-   *     {@code int}
+   *     {@code int}. They are copied on entry: changes made to the array during the draw do not
+   *     affect the result, and an entry of weight 0 or less at the call is never picked
    * @param nextIntBelow bounded draw of {@code core-random}: given {@code W > 0}, returns an
    *     integer in {@code [0, W)}; called at most once
    * @return the index of the picked entry in {@code weights}, or empty if no weight is positive
@@ -31,12 +32,14 @@ public final class WeightedSelection {
    * @throws IllegalStateException if {@code nextIntBelow} returns a value outside {@code [0, W)}
    */
   public static OptionalInt weightedPick(int[] weights, IntUnaryOperator nextIntBelow) {
+    // The draw callback may modify the caller's array: total and walk must see the same weights.
+    int[] snapshot = weights.clone();
     int total = 0;
     int candidates = 0;
     int lastCandidate = -1;
-    for (int i = 0; i < weights.length; i++) {
-      if (weights[i] > 0) {
-        total = Math.addExact(total, weights[i]);
+    for (int i = 0; i < snapshot.length; i++) {
+      if (snapshot[i] > 0) {
+        total = Math.addExact(total, snapshot[i]);
         candidates++;
         lastCandidate = i;
       }
@@ -51,9 +54,9 @@ public final class WeightedSelection {
     if (r < 0 || r >= total) {
       throw new IllegalStateException("bounded draw " + r + " outside [0, " + total + ")");
     }
-    for (int i = 0; i < weights.length; i++) {
-      if (weights[i] > 0) {
-        r -= weights[i];
+    for (int i = 0; i < snapshot.length; i++) {
+      if (snapshot[i] > 0) {
+        r -= snapshot[i];
         if (r < 0) {
           return OptionalInt.of(i);
         }

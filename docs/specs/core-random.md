@@ -11,7 +11,8 @@ Couvert :
 - le générateur congruentiel 48 bits compatible avec `java.util.Random`, appelé ici **G48** ;
 - le générateur xoroshiro128++, appelé ici **X128** ;
 - les tirages dérivés de chacun (entiers avec et sans borne, long, booléen, float, double, gaussienne), leur consommation et le saut de `n` pas ;
-- l'expansion d'une graine 64 bits en état 128 bits, l'initialisation depuis une chaîne, les dérivations (fork, fabrique positionnelle) au niveau de leur structure ;
+- l'expansion d'une graine 64 bits en état 128 bits et l'empreinte d'un identifiant ;
+- le contrat des sources dérivées (source dérivée d'une autre, source par nom, source par position), réduit à des propriétés vérifiables et à un comportement provisoire étiqueté comme tel. Le sous-ensemble « source par position » est exclu de la fidélité M1 tant que Q1 n'est pas levée (R29) ;
 - les séquences aléatoires nommées du jeu et la commande `/random`, qui sont l'interface d'oracle admise au jalon M1 (ADR 0002, tableau 2c).
 
 Non couvert : les graines propres à la génération de monde (décoration, features, placement de structures, sels, choix de famille par réglage de bruit), listées en fin de document pour la spec worldgen ; le choix de la source de butin (spec loot) ; les tables numériques (trigonométrie) et utilitaires mathématiques (autre spec M1).
@@ -26,10 +27,10 @@ Vocabulaire :
 
 Niveaux de preuve employés :
 
-- **D** : donnée exacte. Soit un fichier extrait du jeu de référence, soit une source publique qui fixe l'algorithme (spécification Java, article ou code de référence des auteurs). Une règle marquée **D (W)** repose sur le wiki communautaire recoupé par un rapport local ; le wiki n'étant pas normatif, ces règles ont une sonde de confirmation prioritaire.
+- **D** : donnée exacte. Soit un fichier extrait du jeu de référence, soit une source publique qui fixe la définition d'un algorithme (spécification Java, article ou code de référence des auteurs). Une telle définition ne dit rien de son emploi par le jeu : cet emploi a son propre niveau.
 - **M** : observé sur l'oracle. Aucune règle n'est à ce niveau aujourd'hui (oracle non exécutable, EULA non acceptée).
 - **C** : calcul dérivé, exécuté par l'analyste (scripts dans [core-random-vectors.md](core-random-vectors.md)).
-- **S** : à vérifier. Toute affirmation sur le comportement du jeu qui ne vient que d'un rapport local ou d'une hypothèse de l'analyste.
+- **S** : à vérifier. Toute affirmation sur le comportement du jeu qui ne vient que d'un rapport local, de la documentation communautaire ou d'une hypothèse de l'analyste. La mention **S, documenté [Wn]** signale une règle décrite par le wiki public (non normatif) et le plus souvent recoupée par un rapport : elle reste S, mais sa sonde est prioritaire.
 
 Sources publiques :
 
@@ -45,11 +46,11 @@ Données extraites (jeu 26.3, `C:\Users\shoko\Downloads\Minecraft\.cache\referen
 - [E1] `generated/reports/commands.json`, nœud `random` (arbre de syntaxe et permissions).
 - [E2] `resources/assets/minecraft/lang/en_us.json`, clés `commands.random.*`.
 - [E3] `resources/data/minecraft/worldgen/noise_settings/*.json`, champ `legacy_random_source`.
-- [E4] `resources/data/minecraft/loot_table/**.json` : 1 520 fichiers portent un champ `random_sequence`.
+- [E4] Champ `random_sequence` sous `resources/data/minecraft/` : 1 520 fichiers, soit les 1 447 tables de `loot_table/` (toutes), 68 fichiers de `trade_set/` et 5 tables de butin du pack intégré `datapacks/trade_rebalance/data/minecraft/loot_table/chests/`. Les `rolls` de type `minecraft:uniform` ont la forme `{"type": "minecraft:uniform", "min": ..., "max": ...}`.
 
 Rapports locaux (indices, ADR 0002 point 2b) :
 
-- [R1] `docs/reference/Rapport_Integral_Overworld_Minecraft_Java_26_3.md` : chapitres 018 et 019 (sections 2.1 et 2.2, familles aléatoires et transitions), chapitres 103 et 104 (choix de la source de butin, séquences nommées), annexe JSON `loot_random_priority` et `uniform_integer`, synthèse finale (paragraphes sur les deux familles, `random_spread`, graines de décoration).
+- [R1] `docs/reference/Rapport_Integral_Overworld_Minecraft_Java_26_3.md` : chapitres 018 et 019 (sections 2.1 et 2.2, familles aléatoires et transitions), chapitres 103 et 104 (choix de la source de butin, séquences nommées), annexe JSON `loot_random_priority` et `uniform_integer`, synthèse finale (paragraphes sur les deux familles).
 - [R2] `docs/reference/rapport-generation-minecraft-java-1-21-1.md` : sections 2.2.1, 2.2.2, 2.3, 2.4 et 10.1.2 (version 1.21.1, pas 26.3).
 
 Sondes : P1 à P7, décrites plus bas. Vecteurs : [core-random-vectors.md](core-random-vectors.md).
@@ -101,7 +102,7 @@ Sondes : P1 à P7, décrites plus bas. Vecteurs : [core-random-vectors.md](core-
 | `nextGaussian()` | 0 si valeur en cache, sinon 4k (k essais) |
 | initialisation | 0 (et vide le cache) |
 
-**R12 (S, [R1] annexe `uniform_integer`)** Tirage d'un entier dans un intervalle inclusif `[min, max]` tel que le jeu l'utilise pour ses fournisseurs de nombres : si `min < max`, `min + nextInt(max - min + 1)` ; si `min >= max`, rend `min` sans consommer de pas. Différence avec `java.util.Random` (D [J]) : depuis Java 17, les méthodes à deux bornes de `java.util.Random` (`nextInt(origin, bound)`, `nextLong(bound)`, etc.) viennent d'une interface générique et utilisent d'autres algorithmes et d'autres consommations. Le moteur ne doit ni les appeler ni les imiter. Aucune autre différence observable entre G48 du jeu et `java.util.Random` n'est connue à ce jour (R8, R9 restent S).
+**R12 (S, [R1] annexe `uniform_integer`)** Tirage d'un entier dans un intervalle inclusif `[min, max]` tel que le jeu l'utilise pour ses fournisseurs de nombres : si `min < max`, `min + nextInt(max - min + 1)` ; si `min >= max`, rend `min` sans consommer de pas. Cette spec est propriétaire de cette règle : la spec `core-math` (sa règle de tirage dans un intervalle) y renvoie au lieu de la dupliquer. Sonde du cas `min == max` : P4. Différence avec `java.util.Random` (D [J]) : depuis Java 17, les méthodes à deux bornes de `java.util.Random` (`nextInt(origin, bound)`, `nextLong(bound)`, etc.) viennent d'une interface générique et utilisent d'autres algorithmes et d'autres consommations. Le moteur ne doit ni les appeler ni les imiter. Aucune autre différence observable entre G48 du jeu et `java.util.Random` n'est connue à ce jour (R8, R9 restent S).
 
 ### B. Générateur xoroshiro128++ (X128)
 
@@ -112,7 +113,7 @@ Sondes : P1 à P7, décrites plus bas. Vecteurs : [core-random-vectors.md](core-
 
 La sortie est calculée sur l'état avant la transition. Vecteurs V-X1 (recoupés avec l'implémentation indépendante du JDK).
 
-**R14 (D (W) [W2], recoupé [R1], [R2])** Les séquences aléatoires nommées du jeu (butin, `/random`) utilisent X128. Sonde de confirmation : P2. Indice associé, de niveau S ([R1], voir hors périmètre) : l'état aléatoire du générateur de bruit utilise X128 quand `legacy_random_source` vaut `false` et la famille 48 bits sinon. Valeurs du drapeau (D [E3]) : `false` pour `overworld`, `amplified`, `large_biomes` ; `true` pour `nether`, `end`, `caves`, `floating_islands`.
+**R14 (S, documenté [W2], recoupé [R1], [R2])** Les séquences aléatoires nommées du jeu (butin, `/random`) utilisent X128. Sonde : P2. Indice associé, également S ([R1], voir hors périmètre) : le réglage `legacy_random_source` choisit la famille de générateur employée pour le bruit du monde (X128 pour `false`, 48 bits pour `true`). Valeurs du drapeau (D [E3]) : `false` pour `overworld`, `amplified`, `large_biomes` ; `true` pour `nether`, `end`, `caves`, `floating_islands`.
 
 **R15 (S, [R2] 2.2.2)** Un état tout à zéro est remplacé à la construction par un état non nul fixe, dont la valeur n'est donnée par aucune source autorisée. Calcul (C) : les initialisations R24 et R31 ne peuvent pas produire cet état (le mélange R23 est bijectif et ne s'annule qu'en 0 ; avant mélange, `hi = lo + 0x9E3779B97F4A7C15` interdit `lo = hi = 0`, sauf empreinte MD5 particulière). Choix provisoire du moteur, faute de valeur connue : un état nul fourni directement est une erreur de programmation (exception), ce qui ne se produit dans aucun chemin connu ; à remplacer par le comportement du jeu quand Q2 sera levée.
 
@@ -130,34 +131,36 @@ La sortie est calculée sur l'état avant la transition. Vecteurs V-X1 (recoupé
 
 **R21 (C, sous R16 à R20)** Consommation : un pas pour `nextLong`, `nextInt`, `nextBoolean`, `nextFloat`, `nextDouble` ; `k` pas pour `nextInt(bound)` (k = 1 sauf rejet, probabilité inférieure à `bound / 2^32`) ; 0 ou 2k pour la gaussienne. `skip(n)` avance de `n` pas ; contrairement à G48, il n'a pas de forme fermée simple pour un `n` quelconque, on l'exécute pas à pas (les sauts polynomiaux de [BV] ne couvrent que des longueurs fixes, 2^64 et 2^96 pas).
 
-### C. Graines, chaînes et dérivations
+### C. Graines, empreintes et sources dérivées
 
-**R22 (D (W) [W2], recoupé [R1], [R2] et calcul)** Expansion non mélangée d'une valeur 64 bits `v` en deux mots : `lo = v XOR 0x6A09E667F3BCC909`, `hi = lo + 0x9E3779B97F4A7C15` (mod 2^64). Recoupement (C) : `0x9E3779B97F4A7C15 = floor(2^64 / phi)` (nombre d'or) ; `0x6A09E667F3BCC909 = floor(frac(sqrt 2) * 2^64) + 1`, l'entier impair suivant la partie fractionnaire de racine de 2 (le `+ 1` ne se déduit pas, il vient de [W2]).
+**R22 (C, définition de la fonction)** Expansion non mélangée `E(v)` d'une valeur 64 bits `v` en deux mots : `lo = v XOR K_SQRT2`, `hi = lo + K_PHI` (mod 2^64), avec `K_SQRT2 = 0x6A09E667F3BCC909` et `K_PHI = 0x9E3779B97F4A7C15`. Recoupements (C) : `K_PHI = floor(2^64 / phi)` (nombre d'or) ; `K_SQRT2 = floor(frac(sqrt 2) * 2^64) + 1`, l'entier impair qui suit la partie fractionnaire de racine de 2 ; le constructeur à graine 64 bits du xoroshiro128++ du JDK (module `jdk.random`) emploie les mêmes constantes, puisqu'il reproduit V-X3 (voir R24).
 
-**R23 (D [ST], [W2])** Mélange de Stafford, variante 13 (finaliseur de SplitMix64), sur un mot `z` : `z = (z XOR (z >>> 30)) * 0xBF58476D1CE4E5B9` ; `z = (z XOR (z >>> 27)) * 0x94D049BB133111EB` ; résultat `z XOR (z >>> 31)`, mod 2^64. Il est bijectif et vaut 0 en 0. Recoupement (C) : `new java.util.SplittableRandom(0).nextLong()` vaut le mélange de `0x9E3779B97F4A7C15`, soit -2152535657050944081, identique au calcul. Vecteurs V-X2.
+**R23 (D [ST])** Mélange de Stafford, variante 13 (finaliseur de SplitMix64), sur un mot `z` : `z = (z XOR (z >>> 30)) * 0xBF58476D1CE4E5B9` ; `z = (z XOR (z >>> 27)) * 0x94D049BB133111EB` ; résultat `z XOR (z >>> 31)`, mod 2^64. Il est bijectif et vaut 0 en 0. Recoupement (C) : `new java.util.SplittableRandom(0).nextLong()` vaut le mélange de `K_PHI`, soit -2152535657050944081, identique au calcul. Vecteurs V-X2.
 
-**R24 (S, [R2] 2.2.2, [R1] annexe)** Initialiser X128 avec une graine 64 bits `seed` : appliquer R22 à `seed`, puis R23 à chaque mot ; l'état est `(mélange(lo), mélange(hi))`. Vecteurs V-X3. Sonde : P1, cas N1, qui vaut exactement l'initialisation par la graine 0.
+**R24 (C, définition de la fonction)** `Init64(seed)` : état X128 = `(mélange(lo), mélange(hi))` avec `(lo, hi) = E(seed)` (R22, R23). Recoupement (C) : `java.util.random.RandomGeneratorFactory.of("Xoroshiro128PlusPlus").create(seed)` donne les trois premiers `nextLong` de V-X3 pour les graines 0, 1, -1, 12345 et -2^63 (JDK 21.0.10).
 
-**R25 (S)** Réinitialiser une source X128 existante avec une graine 64 bits suit R24 et vide la gaussienne en cache.
+**R25 (S, documenté [W2], recoupé [R1], [R2])** Emploi par le jeu : les séquences nommées sont initialisées par `E`, l'empreinte R26 et le mélange R23 (détail en R31) ; une source X128 initialisée ou réinitialisée par une graine 64 bits l'est par `Init64`, et la réinitialisation vide la gaussienne en cache. Sonde : P1 (le cas N1 vaut exactement `Init64(0)`).
 
-**R26 (D (W) [W2] pour MD5 ; S pour le reste)** L'empreinte d'un identifiant est le MD5 (128 bits) de son texte. Hypothèses à lever : le texte est la forme complète `namespace:path` encodée en UTF-8 (`test` et `minecraft:test` donnent la même empreinte, celle de `minecraft:test`) ; les 8 premiers octets, lus en gros-boutiste, forment le mot bas, les 8 suivants le mot haut. Contre-hypothèse : petit-boutiste. Vecteurs V-X4. Sonde : P1, cas N4 contre N4le, et N7.
+**R26 (S, documenté [W2] pour le MD5 ; S pour le texte haché et l'ordre des octets)** L'empreinte d'un identifiant est le MD5 (128 bits) de son texte. Hypothèses à lever : le texte est la forme complète `namespace:path` encodée en UTF-8 (`test` et `minecraft:test` donnent la même empreinte, celle de `minecraft:test`) ; les 8 premiers octets, lus en gros-boutiste, forment le mot bas, les 8 suivants le mot haut. Contre-hypothèse : petit-boutiste. Vecteurs V-X4. Sonde : P1, cas N4 contre N4le, et N7.
 
-**R27 (S, [R2] 2.3)** Une source X128 peut être obtenue d'une chaîne au travers d'une fabrique (voir R29) : l'empreinte R26 est combinée avec les deux mots de la fabrique. Hypothèse : combinaison par XOR mot à mot, sans mélange ultérieur, par analogie avec R31. Sonde : indirecte, par la génération de monde (spec worldgen) ; directe seulement avec ADR 0002 point 2a-bis.
+**R27 à R29 : sources dérivées.** La génération de monde a besoin de sources dérivées d'une graine : d'une autre source, d'un nom ou d'une position. Les sources autorisées n'en décrivent pas la construction dans le jeu ; cette spec n'en fixe donc que le contrat vérifiable, et un comportement **provisoire** qui rend le reste du moteur testable. Le provisoire n'est pas fidèle : aucun vecteur doré ne peut en être tiré. La construction fidèle sera établie par la spec worldgen, à partir de sondes sur le monde généré (ou par appel direct si le propriétaire accepte ADR 0002 point 2a-bis).
 
-**R28 (S, [R1] synthèse « fork selon leur consommation réelle »)** Dériver (« fork ») une source neuve d'une source existante consomme des tirages de la source mère : hypothèse un `nextLong` pour G48 (nouvelle source initialisée avec ce long par R2), deux `nextLong` pour X128 (pris comme état brut). Sonde : indirecte (worldgen).
+**R27 (S, contrat ; provisoire)** Source par nom. Contrat : fonction déterministe d'une graine de dérivation et d'un identifiant ; deux identifiants distincts donnent des flux distincts. Provisoire : appliquer R31 étapes 3 et 4 aux deux mots de la dérivation (XOR avec l'empreinte R26, puis mélange). Sonde : indirecte (worldgen).
 
-**R29 (S, [R2] 2.3)** Fabrique positionnelle : construite à partir d'une source, elle fige deux mots `(f_lo, f_hi)` (hypothèse : deux `nextLong` de la source) ; la source pour une position entière `(x, y, z)` combine une empreinte de position `h(x, y, z)` avec un seul de ces mots ([R2] : « un hash des coordonnées est combiné avec un mot de l'état »). La fonction `h`, le mot choisi et l'opération ne sont donnés par aucune source autorisée (question Q1, bloquante pour la partie « RNG positionnels » de M1). Exigence (C) : `h` doit être définie pour toutes les coordonnées `int`, négatives comprises, sans passer par une division.
+**R28 (S, contrat ; provisoire)** Source dérivée d'une autre. Contrat : la fille est une fonction déterministe de l'état de la mère, et la dérivation avance la mère d'un nombre fixe de pas ; ce nombre fait partie de la fidélité et sera fixé par sonde ([R1] signale seulement que cette consommation doit être reproduite). Provisoire : la mère fournit un `nextLong`, la fille est `Init64` de ce long pour X128 et la graine R2 de ce long pour G48 (soit un pas X128, deux pas G48).
+
+**R29 (S, contrat ; provisoire ; hors fidélité M1)** Source par position. Contrat : fonction déterministe d'une graine de dérivation `d` et d'une position entière `(x, y, z)`, définie pour toutes les valeurs `int`, négatives comprises, sans division ; des positions voisines donnent des flux distincts. L'empreinte de position du jeu est inconnue (Q1). Cette spec en est propriétaire : la spec `core-math` (sa règle d'empreinte de position) y renvoie, car il s'agit probablement de la même fonction ; une seule question, Q1, couvre les deux. Provisoire, étiqueté comme tel dans le code : empreinte `hp(x, y, z) = mélange(mélange(mélange(x) XOR y) XOR z)`, les coordonnées étant étendues en signe à 64 bits, et source = `Init64(d XOR hp(x, y, z))`. Vecteurs provisoires (C, non dorés) : V-X6. Le sous-ensemble « source par position » est exclu de la fidélité M1 : il passe à `implémenté` au mieux tant que Q1 n'est pas levée.
 
 ### D. Séquences nommées et commande `/random`
 
-**R30 (D [E1] pour la syntaxe ; D (W) [W1], [W2] pour les défauts et la sémantique, défauts recoupés par [R1])** Le monde porte trois réglages de séquences : `salt` (entier 32 bits, défaut 0), `include_world_seed` (défaut vrai), `include_sequence_id` (défaut vrai). Syntaxe extraite [E1] :
+**R30 (D [E1] pour la syntaxe ; S, documenté [W1], [W2], pour les défauts et la sémantique, défauts recoupés par [R1])** Le monde porte trois réglages de séquences : `salt` (entier 32 bits, défaut 0), `include_world_seed` (défaut vrai), `include_sequence_id` (défaut vrai). Syntaxe extraite [E1] :
 
 - `/random value <range> [<sequence>]` et `/random roll <range> [<sequence>]` : `<range>` de type `minecraft:int_range`, `<sequence>` de type `minecraft:resource_location` ; l'argument `<sequence>` exige le niveau de permission `gamemasters` ;
 - `/random reset (* | <sequence>) [<seed> [<includeWorldSeed> [<includeSequenceId>]]]` : `<seed>` de type `brigadier:integer`, les deux drapeaux de type `brigadier:bool` ; toute la branche `reset` exige `gamemasters`.
 
 Selon [W1] : `value` ne répond qu'à l'émetteur, `roll` diffuse ; `reset *` supprime toutes les séquences et, avec `<seed>`, fixe les réglages du monde ; `reset <sequence>` recrée la séquence avec les réglages du monde ou ceux fournis ; une séquence inconnue citée par `value` ou `roll` est créée avec les réglages du monde ; la valeur de retour de `value` et `roll` est l'entier tiré.
 
-**R31 (D (W) [W2] pour les étapes 1 à 3 ; S pour l'ordre du mélange et l'extension du sel)** État initial d'une séquence d'identifiant `id`, avec réglages `(salt, W, I)` et graine du monde `ws` :
+**R31 (S, documenté [W2] pour les étapes 1 à 3 ; S, [R1] seul, pour la place du mélange et l'extension du sel)** État initial d'une séquence d'identifiant `id`, avec réglages `(salt, W, I)` et graine du monde `ws` :
 
 1. `v = (W ? ws : 0) XOR salt`, le sel étant étendu en signe à 64 bits (S, [R1] « sel entier signé » ; contre-hypothèse : extension par des zéros, cas N3z) ;
 2. `(lo, hi)` = expansion non mélangée de `v` (R22) ;
@@ -166,9 +169,15 @@ Selon [W1] : `value` ne répond qu'à l'émetteur, `roll` diffuse ; `reset *` su
 
 Vecteurs V-X5. Sondes : P1 et P2.
 
-**R32 (D (W) [W2] pour le format ; S pour le sens)** Les séquences sont enregistrées dans `data/random_sequences.dat` du monde : NBT compressé GZip, racine `{data: {salt: Int, include_world_seed: Byte, include_sequence_id: Byte, sequences: {<id>: {source: [L; mot_bas, mot_haut]}}}, DataVersion: Int}`. Hypothèse (S, [R1] « état persistant ») : `source` est l'état courant du générateur, et non la graine initiale ; il survit à la sauvegarde et au rechargement, la suite reprenant là où elle s'était arrêtée. Sonde : P1 et P2 (comparaison de `source` avant et après tirages).
+**R32 (S, documenté [W2] pour le format ; S, [R1], pour le sens)** Les séquences sont enregistrées dans `data/random_sequences.dat` du monde : NBT compressé GZip, racine `{data: {salt: Int, include_world_seed: Byte, include_sequence_id: Byte, sequences: {<id>: {source: [L; mot_bas, mot_haut]}}}, DataVersion: Int}`. Hypothèse (S, [R1] « état persistant ») : `source` est l'état courant du générateur, et non la graine initiale ; il survit à la sauvegarde et au rechargement, la suite reprenant là où elle s'était arrêtée. Sonde : P1 et P2 (comparaison de `source` avant et après tirages).
 
-**R33 (S)** `/random value min..max <sequence>` rend `min + nextInt(max - min + 1)` tiré de la séquence (R18), un seul tirage borné par commande. Limites de l'intervalle : [W1] annonce une taille `max - min + 1` comprise entre 2 et 2147483646, mais les messages extraits [E2] disent « at least 1 » et « at most 2147483647 » ; la borne exacte et l'objet mesuré (taille ou écart) sont à fixer par P4.
+**R33 (S)** `/random value min..max <sequence>` (et `roll`) suit la règle d'intervalle R12, appliquée au générateur de la séquence (R18). Cette spec est propriétaire de ce comportement, y compris du cas `min == max` que d'autres specs utilisent (`core-math` y renvoie). Hypothèses à départager par P4 :
+
+- `max - min + 1 >= 2` : un seul tirage borné, valeur `min + nextInt(max - min + 1)` ;
+- `min == max` (par exemple `5..5`) : trois issues possibles, à mesurer et non à supposer. H-R33a : commande refusée sans tirage ([W1] : « taille entre 2 et 2147483646 ») ; H-R33b : acceptée, rend `min` sans tirage (R12) ; H-R33c : acceptée, rend `min` après un tirage `nextInt(1)` (un pas sous H-X2). Les messages extraits [E2] (« must be at least 1 ») ne tranchent pas : ils peuvent viser l'écart `max - min` ou la taille ;
+- limite haute : [W1] annonce 2147483646 pour la taille, [E2] dit « at most 2147483647 » ; la borne et l'objet mesuré (taille ou écart) sont fixés par P4, de même que le comportement en cas de débordement de `max - min + 1`.
+
+L'extrait [E1] ne contraint pas l'intervalle (`minecraft:int_range` accepte `5..5`) : le refus éventuel vient de l'exécution, ce que P4 observe.
 
 **R34 (S, [R1] chapitre 103 et annexe)** Hors commande, le butin choisit sa source ainsi : une graine explicite non nulle donne un G48 initialisé avec elle (0 signifie « absente ») ; sinon la séquence nommée de la table si elle en déclare une ; sinon la source du niveau. Utile ici pour la sonde P5 ; la règle appartient à la spec loot.
 
@@ -189,7 +198,7 @@ Vecteurs V-X5. Sondes : P1 et P2.
 | `nextFloat()` | float | multiples de 2^-24 dans [0, 1) |
 | `nextDouble()` | double | multiples de 2^-53 dans [0, 1) |
 | `nextGaussian()` | double | non borné |
-| Position (fabrique) | trois int | négatifs inclus (R29) |
+| Position (source par position) | trois int | négatifs inclus (R29) |
 
 Exigences d'interface du moteur (pour la testabilité, pas un comportement du jeu) : chaque générateur compte ses pas depuis sa création ou sa dernière initialisation, et ce compteur est lisible par les tests ; `skip(n)` existe pour les deux familles ; aucun générateur ne s'appuie sur `java.util.Random`, `Math.random`, `ThreadLocalRandom` ou l'horloge (`docs/ARCHITECTURE.md`). `java.util.Random` reste permis dans les tests comme référence de R1 à R7.
 
@@ -208,7 +217,8 @@ Exigences d'interface du moteur (pour la testabilité, pas un comportement du je
 - Sel -1 : `0xFFFFFFFFFFFFFFFF` si étendu en signe, `0x00000000FFFFFFFF` sinon (N3 contre N3z).
 - Graine du monde négative et sel non nul combinés par XOR, sans addition (R31, cas N7).
 - `/random value` avec `min = -2^31` ou `max = 2^31 - 1` : le calcul de `max - min + 1` déborde en 32 bits ; le comportement est fixé par P4, pas supposé.
-- Coordonnées de fabrique positionnelle négatives (R29) : à couvrir dès que `h` est connue.
+- `/random value 5..5` (`min == max`) : refus, valeur sans tirage ou valeur avec un tirage (R33, H-R33a à c) ; P4 tranche.
+- Source par position avec coordonnées négatives et extrêmes (R29) : couvertes par les vecteurs provisoires V-X6 ; à reprendre avec l'empreinte fidèle quand Q1 sera levée.
 
 ## Vecteurs de test
 
@@ -225,8 +235,9 @@ Dans [core-random-vectors.md](core-random-vectors.md), avec les scripts et la co
 | V-L7 | sensibilité de la gaussienne au logarithme | C |
 | V-X1 | xoroshiro128++ sur 4 états bruts, 5 sorties et état final | D |
 | V-X2 | mélange R23 | D |
-| V-X3 | initialisation par graine 64 bits | S |
+| V-X3 | initialisation par graine 64 bits | C pour la fonction (recoupée JDK), S pour son emploi par le jeu |
 | V-X4 | empreintes MD5 et mots selon l'ordre des octets | D (MD5) / S (ordre) |
+| V-X6 | source par position provisoire (R29), non dorée | C (provisoire) |
 | V-X5 | séquences nommées N1 à N7 et contre-hypothèses : état initial, `/random value` prédites, état après 5 tirages | S |
 | O-1 à O-5 | emplacements réservés aux vecteurs de l'oracle | M une fois remplis |
 
@@ -236,25 +247,27 @@ Commande de reproduction (calcul) : `jshell -q --add-modules jdk.random --add-ex
 
 Préparation commune : serveur 26.3 lancé par `tools/oracle` (EULA acceptée par le propriétaire), monde neuf, `level-seed=12345` dans `server.properties`, RCON avec niveau d'opérateur suffisant. Vérifier d'abord `/seed` = 12345. Les fichiers NBT sont lus par le lecteur propre de `tools/oracle` (VERIFICATION, indépendance de l'instrument).
 
-- **P1 (lève R22, R24, R26, R31, R32 ; vecteur O-1).** Pour chaque cas Nk de V-X5 : `/random reset <id> <salt> <W> <I>` (par exemple `/random reset probe:a 0 false false` pour N1), puis `/save-all flush`, puis lire `data.sequences."<id>".source` dans `world/data/random_sequences.dat`. Comparer à la colonne « état initial ». N7 se joue deux fois, avec `minecraft:test` puis `test`. Si la séquence n'apparaît pas dans le fichier tant qu'aucun tirage n'a eu lieu, passer à P2 et comparer l'état après tirages. Un écart sur N1 seul met en cause R22 à R24 ; N1 juste et N3 faux tranche l'extension du sel ; N1 juste et N4 faux tranche l'ordre des octets (comparer à N4le).
-- **P2 (lève R13 dans le jeu, R16 à R18, R33 ; vecteur O-2).** Réinitialiser comme en P1, puis cinq fois `/random value 0..2147483645 probe:a` (résultat lu dans le message `Randomized value: %s` ou par `/execute store result storage probe:out v int 1 run random value 0..2147483645 probe:a`), puis `/save-all flush` et relire `source`. Comparer aux colonnes de V-X5 et aux contre-hypothèses H-X2b et H-X2c. L'état après 5 tirages confirme un pas par tirage. Jouer N1, N4 et N6.
+- **P1 (lève R25, R26, R30, R31, R32 ; vecteur O-1).** Pour chaque cas Nk de V-X5 : `/random reset <id> <salt> <W> <I>` (par exemple `/random reset probe:a 0 false false` pour N1), puis `/save-all flush`, puis lire `data.sequences."<id>".source` dans `world/data/random_sequences.dat`. Comparer à la colonne « état initial ». N7 se joue deux fois, avec `minecraft:test` puis `test`. Si la séquence n'apparaît pas dans le fichier tant qu'aucun tirage n'a eu lieu, passer à P2 et comparer l'état après tirages. Un écart sur N1 seul met en cause l'emploi de R22 à R24 par le jeu (R25) ; N1 juste et N3 faux tranche l'extension du sel ; N1 juste et N4 faux tranche l'ordre des octets (comparer à N4le).
+- **P2 (lève R14, R16 à R18, R33 ; vecteur O-2).** Réinitialiser comme en P1, puis cinq fois `/random value 0..2147483645 probe:a` (résultat lu dans le message `Randomized value: %s` ou par `/execute store result storage probe:out v int 1 run random value 0..2147483645 probe:a`), puis `/save-all flush` et relire `source`. Comparer aux colonnes de V-X5 et aux contre-hypothèses H-X2b et H-X2c. L'état après 5 tirages confirme un pas par tirage. Jouer N1, N4 et N6.
 - **P3 (lève R18 pour les puissances de deux ; vecteur O-3).** Depuis N1 réinitialisé : dix fois `/random value 0..15 probe:a` ; réinitialiser ; dix fois `/random value 1..6 probe:a`.
-- **P4 (lève R33 ; vecteur O-4).** `/random value` sans séquence sur chacun des intervalles de O-4 ; noter succès ou message exact d'erreur.
-- **P5 (lève R8, R34, R35 ; vecteur O-5).** Datapack `probe` avec `data/probe/loot_table/legacy_rolls.json` = `{"pools": [{"rolls": {"type": "minecraft:uniform", "min": 1, "max": 27}, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}]}]}`. Pour chaque graine `s` de V-L6 : poser un coffre portant cette table et la graine de butin `s` (champs NBT `LootTable` et `LootTableSeed` ; le premier est présent dans les structures extraites, le second est S), déclencher le remplissage sans joueur (entonnoir posé dessous, ou destruction par `/setblock ... air destroy`) et compter le total d'objets. Comparer à V-L6. Le total ne dépend ni du mélange des emplacements ni du découpage en piles, tant qu'il reste au plus 27 piles.
+- **P4 (lève R33 et le cas `min == max` de R12 ; vecteur O-4).** Deux parties.
+  1. Acceptation : `/random value <intervalle>` sans séquence sur chacun des intervalles de O-4 (dont `5..5`) ; noter succès ou message exact d'erreur, et la valeur de retour par `/execute store success` et `store result`.
+  2. Consommation du cas `min == max`, seulement si `5..5` est accepté : `/random reset probe:a 0 false false`, puis `/random value 5..5 probe:a`, puis `/random value 0..2147483645 probe:a`. Si la seconde commande rend 2067245245 (première valeur de N1), le cas `5..5` n'a rien consommé (H-R33b) ; si elle rend 390848952 (deuxième valeur de N1), il a consommé un pas (H-R33c, sous H-X2). Confirmer par `source` après `/save-all flush` : état N1 inchangé, ou état N1 avancé d'un pas. Si `5..5` est refusé, vérifier de même que le refus ne consomme rien.
+- **P5 (lève R8, R34, R35 ; vecteur O-5).** Datapack `probe` avec `data/probe/loot_table/legacy_rolls.json` = `{"pools": [{"rolls": {"type": "minecraft:uniform", "min": 1, "max": 27}, "entries": [{"type": "minecraft:item", "name": "minecraft:stick"}]}]}`. Pour chaque graine `s` de V-L6 : poser un coffre portant cette table et la graine de butin `s` (champs NBT `LootTable` et `LootTableSeed` ; le premier est présent dans les structures extraites, le second est S), déclencher le remplissage sans joueur et compter le total d'objets. Méthode de comptage : poser sous le coffre un entonnoir orienté vers le bas, au-dessus d'un bloc plein sans inventaire, pour que rien ne quitte le système coffre + entonnoir ; laisser passer au moins 8 ticks ; vérifier par `/data get block <coffre>` que le champ `LootTable` a disparu (remplissage effectué) ; puis lire `Items` du coffre et de l'entonnoir par `/data get block` et sommer les champs de quantité des deux. Ne pas utiliser `/setblock ... destroy` : les objets tomberaient en entités, plus difficiles à compter. Que l'entonnoir déclenche le remplissage est lui-même S ; s'il ne le fait pas, la sonde le montre (champ `LootTable` toujours présent) et il faudra un autre déclencheur. Comparer à V-L6. Le total ne dépend ni du mélange des emplacements ni du découpage en piles, tant qu'il reste au plus 27 piles.
 - **P6 (lève R19 H-X3, exploratoire).** Table de butin `probe:float_probe` déclarant `"random_sequence": "probe:f"`, `rolls` constant 1, une entrée unique, fonction `minecraft:set_attributes` avec un seul modificateur dont le montant est `{"type": "minecraft:uniform", "min": 0, "max": 1}` ; `/random reset probe:f 0 false false`, puis `/loot spawn <x> <y> <z> loot probe:float_probe` et lecture du montant par `/data get entity` sur l'objet apparu. Le montant doit égaler l'un des `nextFloat()` prédits depuis l'état N1 (V-X5) ; sa position dans la liste révèle le nombre de tirages consommés avant lui. La sonde n'est concluante que si le montant est conservé sans arrondi supplémentaire (à vérifier sur la sortie).
-- **P7 (recoupement indirect de R8, dans la spec worldgen).** Le candidat `random_spread` calculé par [R2] 10.1.2 (graine 42, région (0, 0), village : chunk (9, 11)) n'est qu'un candidat ; la comparaison avec `/locate` relève de la spec worldgen.
+- **P7 (recoupement indirect de R8, dans la spec worldgen).** Prédiction de [R2] 10.1.2 : graine 42, set `villages`, région (0, 0), candidat au chunk (9, 11). Ce n'est qu'un candidat ; la comparaison avec `/locate` relève de la spec worldgen (section hors périmètre).
 
 ## Questions ouvertes
 
 | Id | Règle | Question | Comment la lever |
 |---|---|---|---|
-| Q1 | R29, R27 | Empreinte de position `h(x, y, z)`, mot combiné, opération ; combinaison chaîne/fabrique | Aucune source autorisée ne la donne. Décision du propriétaire sur ADR 0002 point 2a-bis (appel direct) ; sinon déduction depuis l'état final de chunks générés (spec worldgen), coûteuse |
+| Q1 | R29, R27 (et l'empreinte de position de `core-math`) | Construction fidèle des sources par position et par nom, dont l'empreinte de position | Aucune source autorisée ne la donne. Décision du propriétaire sur ADR 0002 point 2a-bis (appel direct) ; sinon déduction depuis l'état final de chunks générés (spec worldgen), coûteuse. En attendant : comportement provisoire R29, hors fidélité M1 |
 | Q2 | R15 | Valeur de remplacement d'un état X128 tout nul | Inaccessible par les initialisations connues ; 2a-bis seulement. Impact pratique nul si R24 et R31 sont confirmées |
 | Q3 | R9, R20 | Logarithme de la gaussienne (`StrictMath` ou `Math`) | Pas de sonde directe ; à rechercher par les consommateurs qui utilisent la gaussienne, ou 2a-bis |
-| Q4 | R33 | Limites exactes de l'intervalle de `/random value` | P4 |
+| Q4 | R33, R12 | Limites exactes de l'intervalle de `/random value`, acceptation et consommation de `min == max` | P4 |
 | Q5 | R26, R31 | Ordre des octets du MD5, texte haché, extension du sel, place du mélange | P1 |
 | Q6 | R32 | `source` = état courant ou graine ? | P1 puis P2 |
-| Q7 | R28 | Consommation et construction d'un fork | Indirect (worldgen) ou 2a-bis |
+| Q7 | R28 | Consommation et construction d'une source dérivée | Indirect (worldgen) ou 2a-bis |
 | Q8 | R19 | Bits utilisés par `nextBoolean` et `nextDouble` de X128 | Indirect (consommateurs) ou 2a-bis |
 | Q9 | R8, R12 | Égalité complète de G48 du jeu avec `java.util.Random` | P5, puis recoupements worldgen (P7) |
 
@@ -266,15 +279,14 @@ Préparation commune : serveur 26.3 lancé par `tools/oracle` (EULA acceptée pa
 - [W1] (taille entre 2 et 2147483646) et [E2] (« at least 1 », « at most 2147483647 ») ne décrivent pas la même limite de `/random value`. Q4.
 - [R2] décrit la version 1.21.1, [R1] la 26.3 : leurs formules concordent (`AND (2^48-1)` et `mod 2^48` sont équivalents, C), mais [R2] seul détaille xoroshiro, MD5 et mélange, pour une autre version.
 
-## Hors périmètre / pour la spec worldgen
+## Hors périmètre : à traiter par la spec worldgen via des sondes
 
-Indices des rapports, tous de niveau S, à reprendre dans la spec worldgen sans les présumer :
+Seuls figurent ici des effets observables et des données extraites ; la construction interne de ces graines n'est pas reprise. Tout est S, sauf les valeurs lues dans les fichiers (D).
 
-- Choix de famille du générateur de bruit par `legacy_random_source` (R14) ; le placement `random_spread` des structures emploie séparément la famille 48 bits, initialisée puis réinitialisée par position ([R1] chapitre 018 et synthèse).
-- Graine de placement `random_spread` : graine du monde `+ 341873128712 * rX + 132897987541 * rZ + salt`, en arithmétique 64 bits, avec `rX = floorDiv(chunkX, spacing)` et `rZ = floorDiv(chunkZ, spacing)` ; position candidate = région * spacing + décalage tiré selon le type de dispersion ([R1] synthèse, [R2] 10.1.2). Calcul de contrôle de [R2] : graine 42, région (0, 0), set `villages` (spacing 34, separation 8, salt 10387312), état initial 25206888951, tirages de 31 bits 1588324201 et 1949981161, candidat chunk (9, 11). Conséquence notée par [R2] : des graines congrues modulo 2^48 donnent les mêmes candidats.
-- Graine de décoration : repart de la graine du monde, tire deux longs rendus impairs, combine `x * a + z * b` puis XOR graine du monde ([R1] synthèse) ; la signification exacte de `x`, `z` est à établir chez les appelants.
-- Graine de feature : graine de décoration `+ index + 10000 * étape`, le produit étant calculé en entier 32 bits avant conversion ([R1] synthèse, [R2] 2.3).
-- Choix d'une variante de structure dans un set : famille 48 bits ([R2] 2.4).
-- Dérivations nommées du bruit (par exemple `minecraft:aquifer`, `minecraft:ore`) par la fabrique R27 ([R2] 2.3).
-- Graines des carvers et des grandes features, chunks à slimes : absents des rapports, à rechercher.
-- Rejets conditionnels qui ne consomment pas de tirage (minerais exposés à l'air avec probabilité 0 ou 1, [R1] chapitre 6) : exemple de règle de consommation propre aux consommateurs.
+- **Famille du bruit.** `legacy_random_source` (valeurs D [E3], voir R14) sélectionnerait la famille de générateur du bruit du monde (S). Sonde : comparaison bit à bit de chunks générés par l'oracle et par le moteur, pour une dimension de chaque valeur du drapeau.
+- **Placement des structures `random_spread`.** Données D : chaque `worldgen/structure_set/*.json` de type `minecraft:random_spread` fournit `spacing`, `separation` et `salt` (par exemple `villages` : 34, 8, 10387312). Effet attendu (S) : la position candidate d'une structure dépend de la graine du monde, de la région de `spacing` x `spacing` chunks qui la contient (coordonnées négatives comprises) et du sel, et la famille 48 bits y interviendrait ([R1], [R2]). Prédiction vérifiable (S, [R2] 10.1.2) : graine 42, set `villages`, région (0, 0), candidat au chunk (9, 11). Sondes : `/locate structure` sur plusieurs graines ; deux mondes dont les graines diffèrent de 2^48 (par exemple 42 et 42 + 2^48) devraient proposer les mêmes candidats si la famille 48 bits est bien en jeu, sans garantir les mêmes structures acceptées (biomes et relief diffèrent).
+- **Décoration et features.** Effet attendu (S, [R1], [R2]) : le résultat de la décoration d'un chunk dépend de la graine du monde, de la position du chunk, de l'étape de décoration et du rang de la feature dans la liste du biome ; changer l'ordre des features d'un biome par datapack change donc le résultat. Sonde : deux datapacks qui ne diffèrent que par l'ordre de deux features, comparaison des chunks produits.
+- **Variantes d'un set de structures, sources nommées du bruit** (par exemple `minecraft:aquifer`, `minecraft:ore`, cités par [R2] 2.3) : relèvent des contrats R27 et R28 ; leur construction fidèle est à établir par la spec worldgen.
+- **Non documentés par les rapports** : graines des carvers et des grandes features, chunks à slimes.
+- **Consommation conditionnelle** : certains consommateurs sautent un tirage selon une probabilité de 0 ou 1 (minerais exposés à l'air, [R1] chapitre 6). Chaque spec consommatrice décrit ses propres règles de consommation ; cette spec ne fournit que le compteur de pas pour les tester.
+

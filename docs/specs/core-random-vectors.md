@@ -16,7 +16,10 @@ Ce fichier contient les vecteurs de la spec `core-random`, les deux scripts qui 
 | V-L6 (prédiction de la sonde P5) | S | Chaîne d'hypothèses R8, R35 et ordre des tirages du butin |
 | V-X1 (xoroshiro128++ publié) | D | Réimplémentation Python recoupée avec la classe xoroshiro128++ du module `jdk.random` du JDK |
 | V-X2 (mélange de Stafford) | D | Recoupé avec `java.util.SplittableRandom` du JDK (voir R23) |
-| V-X3 à V-X5 (expansion, MD5, séquences nommées) | S | Calcul sous les hypothèses de la spec ; seule une sonde de l'oracle les lèvera |
+| V-X3 (expansion d'une graine 64 bits) | C pour la fonction R22 à R24 ; S pour son emploi par le jeu (R25) | Réimplémentation Python recoupée avec le constructeur à graine 64 bits du xoroshiro128++ du JDK (lignes `X seed64`) |
+| V-X4 (MD5) | D pour l'empreinte ; S pour l'ordre des octets | `hashlib` |
+| V-X5 (séquences nommées) | S | Calcul sous les hypothèses de la spec ; seule une sonde de l'oracle les lèvera |
+| V-X6 (source par position provisoire) | C, provisoire, non doré | Contrat provisoire R29 ; ne prouve rien sur le jeu |
 | O-1 à O-5 (oracle) | M une fois remplis | Réservés, à remplir par l'`oracle-differ` |
 
 ## Reproduire
@@ -28,7 +31,7 @@ jshell -q --add-modules jdk.random --add-exports jdk.random/jdk.random=ALL-UNNAM
 python -I vectors.py > python.txt
 ```
 
-Chaque ligne de sortie a la forme `étiquette | valeur affichée | clé`. La clé est l'entier décimal, ou le motif IEEE 754 en hexadécimal pour un flottant. Contrôle croisé : les lignes commençant par `L ` ou `X ` doivent avoir des clés identiques dans les deux fichiers (vérifié le 2026-10-28 avec OpenJDK 21.0.10 et Python 3.14.7 sous Windows x86_64 : 413 lignes communes, 411 identiques ; les 2 écarts sont `seed=42 gauss#0` et `gauss#1`, d'une unité du dernier chiffre binaire, voir V-L7). Les valeurs Java font foi : elles suivent la spécification publique de `java.util.Random`, qui impose `StrictMath`. Les lignes `P ` (comptage de pas) et `H ` (hypothèses) ne viennent que de Python. La classe xoroshiro128++ appelée par le script JShell est celle du module `jdk.random` d'OpenJDK (implémentation publique de [BV]), sans lien avec le jeu.
+Chaque ligne de sortie a la forme `étiquette | valeur affichée | clé`. La clé est l'entier décimal, ou le motif IEEE 754 en hexadécimal pour un flottant. Contrôle croisé : les lignes commençant par `L ` ou `X ` doivent avoir des clés identiques dans les deux fichiers (vérifié le 2026-10-28 avec OpenJDK 21.0.10 et Python 3.14.7 sous Windows x86_64 : 418 lignes communes, dont les 5 lignes `X seed64` de V-X3, et 416 identiques ; les 2 écarts sont `seed=42 gauss#0` et `gauss#1`, d'une unité du dernier chiffre binaire, voir V-L7). Les valeurs Java font foi : elles suivent la spécification publique de `java.util.Random`, qui impose `StrictMath`. Les lignes `P ` (comptage de pas) et `H ` (hypothèses) ne viennent que de Python. La classe xoroshiro128++ appelée par le script JShell est celle du module `jdk.random` d'OpenJDK (implémentation publique de [BV]), sans lien avec le jeu.
 
 ## Vecteurs du générateur 48 bits et de xoroshiro128++
 
@@ -275,7 +278,10 @@ Sorties de 64 bits en entier signé, état initial (s0, s1) donné. Recoupé ave
 | 0x084160217307451E | 0x63CFC62A2B097592 |
 | 0xFFFFFFFFFFFFFFFF | 0xB4D055FCF2CBBD7B |
 
-### V-X3 Expansion d'une graine 64 bits (R22 à R24, niveau S)
+### V-X3 Initialisation par une graine 64 bits (R22 à R24 : fonction C, emploi par le jeu S)
+
+La colonne des trois premiers `nextLong()` est reproduite à l'identique par `java.util.random.RandomGeneratorFactory.of("Xoroshiro128PlusPlus").create(graine)` (lignes `X seed64` du contrôle croisé).
+
 
 | Graine | Mots non mélangés (lo, hi) | État après mélange (s0, s1) | 3 premiers `nextLong()` |
 |---|---|---|---|
@@ -291,6 +297,21 @@ Sorties de 64 bits en entier signé, état initial (s0, s1) donné. Recoupé ave
 |---|---|---|---|
 | `probe:a` | 27cdd0728604f33df0084ce9792a919d | (0x27CDD0728604F33D, 0xF0084CE9792A919D) | (0x3DF3048672D0CD27, 0x9D912A79E94C08F0) |
 | `minecraft:test` | 1a2b64f5d3bdb4612e96d0a422fe68a7 | (0x1A2B64F5D3BDB461, 0x2E96D0A422FE68A7) | (0x61B4BDD3F5642B1A, 0xA768FE22A4D0962E) |
+
+### V-X6 Source par position provisoire (R29, C, non dorée)
+
+Contrat provisoire du moteur, sans valeur de preuve sur le jeu : `hp(x, y, z) = mélange(mélange(mélange(x) XOR y) XOR z)` (coordonnées étendues en signe à 64 bits), source = `Init64(d XOR hp)`. Ces vecteurs servent seulement à tester l'implémentation provisoire ; ils seront remplacés quand Q1 sera levée.
+
+| `d` | Position (x, y, z) | `hp` | Premier `nextLong()` |
+|---|---|---|---|
+| 0 | (0, 0, 0) | 0x0000000000000000 | 3038984756725240190 |
+| 0 | (1, 2, 3) | 0xA55BDF37C08724B5 | 1595374214425681131 |
+| 0 | (-1, -64, -1) | 0xA0C6E26C8ED33FBB | 2798568289328956981 |
+| 0 | (2147483647, 319, -2147483648) | 0x32B5375958F68299 | 2052514311196887087 |
+| 12345 | (0, 0, 0) | 0x0000000000000000 | -8118485274630516485 |
+| 12345 | (1, 2, 3) | 0xA55BDF37C08724B5 | -1563368128130346438 |
+| 12345 | (-1, -64, -1) | 0xA0C6E26C8ED33FBB | -4312487232099831939 |
+| 12345 | (2147483647, 319, -2147483648) | 0x32B5375958F68299 | 1896549530065401711 |
 
 ### V-X5 Séquences nommées : prédictions à confronter à l'oracle (niveau S)
 
@@ -377,6 +398,15 @@ Mesure sur 1 571 801 paires acceptées (graine 42) : `Math.log` et `StrictMath.l
 | `0..2147483646` | 2147483647 | à remplir |
 | `-2147483648..-3` | 2147483646 | à remplir |
 | `-2147483648..2147483647` | 2^32 | à remplir |
+| `5..5` | 1 | à remplir |
+
+Consommation du cas `5..5` (seulement s'il est accepté) : après `/random reset probe:a 0 false false`, `/random value 5..5 probe:a`, puis `/random value 0..2147483645 probe:a`.
+
+| Valeur de la seconde commande | Interprétation |
+|---|---|
+| 2067245245 | `5..5` sans tirage (H-R33b) |
+| 390848952 | `5..5` avec un tirage (H-R33c, sous H-X2) |
+| observé : à remplir | |
 
 ### O-5 (sonde P5) : graine de butin d'un conteneur
 
@@ -652,7 +682,17 @@ for s in [0, 1, -1, 12345, -(1 << 63)]:
     x = Xoro(stafford13(lo), stafford13(hi))
     out("H seed64=%d unmixed" % s, "-", "(%s,%s)" % (h64(lo), h64(hi)))
     out("H seed64=%d state" % s, "-", "(%s,%s)" % (h64(x.lo), h64(x.hi)))
-    out("H seed64=%d longs#0-2" % s, "-", " ".join(str(x.next_long()) for _ in range(3)))
+    v = " ".join(str(x.next_long()) for _ in range(3))
+    out("H seed64=%d longs#0-2" % s, "-", v)
+    out("X seed64=%d longs#0-2" % s, v, v)
+
+# Provisional position source (spec R29): engine contract only, not game behaviour.
+for d in [0, 12345]:
+    for px, py, pz in [(0, 0, 0), (1, 2, 3), (-1, -64, -1), ((1 << 31) - 1, 319, -(1 << 31))]:
+        hp = stafford13(stafford13(stafford13(px & M64) ^ (py & M64)) ^ (pz & M64))
+        lo, hi = expand_unmixed(d ^ hp)
+        x = Xoro(stafford13(lo), stafford13(hi))
+        out("H pos d=%d (%d,%d,%d)" % (d, px, py, pz), h64(hp), x.next_long())
 
 for text in ["probe:a", "minecraft:test"]:
     for order in ["BE", "LE"]:
@@ -758,6 +798,11 @@ for (long s = 0; s < 16; s++) {
 for (long[] st : new long[][] {{1L, 2L}, {0x0123456789ABCDEFL, 0xFEDCBA9876543210L}, {0L, 1L}, {-1L, -1L}}) {
     var x = new jdk.random.Xoroshiro128PlusPlus(st[0], st[1]);
     for (int i = 0; i < 5; i++) outI(String.format("X raw state=(0x%016X,0x%016X) #%d", st[0], st[1], i), x.nextLong());
+}
+for (long s : new long[] {0L, 1L, -1L, 12345L, Long.MIN_VALUE}) {
+    var g = java.util.random.RandomGeneratorFactory.of("Xoroshiro128PlusPlus").create(s);
+    String v = g.nextLong() + " " + g.nextLong() + " " + g.nextLong();
+    out("X seed64=" + s + " longs#0-2", v, v);
 }
 /exit
 ```

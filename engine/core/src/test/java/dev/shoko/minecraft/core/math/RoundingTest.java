@@ -142,7 +142,16 @@ class RoundingTest {
 
   // spec: core-math R7, vector V10
   @ParameterizedTest(name = "fractionalPart({0}) = {1}")
-  @CsvSource({"-0.25, 0.75", "2.75, 0.75", "0.0, 0.0", "-3.0, 0.0", "-1e-20, 1.0"})
+  // 3.00000000025E9 is above Integer.MAX_VALUE: the floor must be taken in long (R7)
+  @CsvSource({
+    "-0.25, 0.75",
+    "2.75, 0.75",
+    "0.0, 0.0",
+    "-3.0, 0.0",
+    "-1e-20, 1.0",
+    "3.00000000025E9, 0.25",
+    "-3.00000000025E9, 0.75"
+  })
   void fractionalPartIsMeasuredFromTheFloor(double x, double expected) {
     assertSameDouble(Rounding.fractionalPart(x), expected);
   }

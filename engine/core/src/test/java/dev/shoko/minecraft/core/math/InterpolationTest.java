@@ -78,6 +78,24 @@ class InterpolationTest {
     assertSameDouble(Interpolation.trilinear(0.25, 0.5, 0.75, corners), 5.25);
   }
 
+  // spec: core-math R12 (S): V11 is symmetric in the axis order; this vector is not. Computed
+  // independently with form A: x first gives -0.1324 (0xbfc0f27bb2fec56d), y first
+  // -0.13239999999999996 (0xbfc0f27bb2fec56c), tx and ty swapped 0.1176.
+  @Test
+  void provisionalBilinearAxisOrderIsXThenY() {
+    double result = Interpolation.bilinear(0.3, 0.1, 0.1, -0.9, 0.35, 0.77);
+    assertThat(Double.doubleToRawLongBits(result)).isEqualTo(0xbfc0f27bb2fec56dL);
+  }
+
+  // spec: core-math R12 (S): asymmetric vector, computed independently with form A. x, y, z gives
+  // 0.1742 (0x3fc64c2f837b4a23); y, x, z gives 0x...22 and z, y, x gives 0x...24.
+  @Test
+  void provisionalTrilinearAxisOrderIsXThenYThenZ() {
+    CubeCorners corners = new CubeCorners(0.1, -0.9, 0.35, 0.77, -0.2, 0.6, 0.45, -0.33);
+    double result = Interpolation.trilinear(0.3, 0.7, 0.9, corners);
+    assertThat(Double.doubleToRawLongBits(result)).isEqualTo(0x3fc64c2f837b4a23L);
+  }
+
   // spec: core-math R12 (S): each corner is reached at its own parameters
   @Test
   void provisionalTrilinearReturnsEachCornerAtItsParameters() {
@@ -135,6 +153,12 @@ class InterpolationTest {
   void provisionalClampedInterpolateReturnsTheEndpointItself() {
     assertSameDouble(Interpolation.clampedInterpolate(-1, -0.0, 5), -0.0);
     assertSameDouble(Interpolation.clampedInterpolate(2, 1e20, 1), 1.0);
+  }
+
+  // spec: core-math R11, R14 (S): t = 1 is not > 1, so form A is evaluated and does not snap to b
+  @Test
+  void provisionalClampedInterpolateAtOneUsesFormA() {
+    assertSameDouble(Interpolation.clampedInterpolate(1, 1e20, 1), 0.0);
   }
 
   // spec: core-math R16 (S), vector V13 column Horner (provisional)

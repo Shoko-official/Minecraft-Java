@@ -136,12 +136,14 @@ public final class SnbtParser {
   }
 
   private NbtTag readOperation(String name) throws NbtException {
+    enterLevel();
     cursor.expect('(');
     cursor.skipBlanks();
     int argumentStart = cursor.position();
     NbtTag argument = readValue();
     cursor.skipBlanks();
     cursor.expect(')');
+    depth--;
     if (name.equals("bool") && argument instanceof NumericTag number) {
       return number.doubleValue() != 0 ? TRUE : FALSE;
     }
@@ -164,14 +166,19 @@ public final class SnbtParser {
    * (R58).
    */
   private NbtTag readContainer() throws NbtException {
+    enterLevel();
+    NbtTag value = cursor.peek() == '{' ? readCompound() : readListOrArray();
+    depth--;
+    return value;
+  }
+
+  /** Opens a level at the cursor, which sits on the character that opens it (R58). */
+  private void enterLevel() throws NbtException {
     if (depth == MAX_DEPTH) {
       throw cursor.error(
           Reason.TOO_DEEP, cursor.position(), "more than " + MAX_DEPTH + " nested levels");
     }
     depth++;
-    NbtTag value = cursor.peek() == '{' ? readCompound() : readListOrArray();
-    depth--;
-    return value;
   }
 
   private CompoundTag readCompound() throws NbtException {

@@ -58,9 +58,10 @@ public enum Rotation {
   /**
    * Rotates a value of the 16-step {@code rotation} block property: a clockwise quarter turn adds 4
    * modulo 16, so this returns {@code floorMod(value + 4 * k, 16)} with {@code k} the number of
-   * clockwise quarter turns, 0 to 3 (R38, provisional).
+   * clockwise quarter turns, 0 to 3 (R38, provisional). The modulo is a mask {@code & 15}, which
+   * equals {@code floorMod} for every {@code int}, negative values included.
    *
-   * @param value property value, normally in {@code [0, 15]}
+   * @param value property value, normally in {@code [0, 15]}, any {@code int} accepted
    * @return the rotated value, in {@code [0, 15]}
    */
   public int rotateSixteenths(int value) {

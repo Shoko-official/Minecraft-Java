@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.data.pack.meta;
 
+import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /**
@@ -14,7 +15,17 @@ public final class FilterRule {
   /** Expression standing for an expression absent from {@code pack.mcmeta}: it matches any text. */
   public static final String MATCH_ALL = ".*";
 
-  private FilterRule() {}
+  private final String namespacePattern;
+  private final String pathPattern;
+  private final Pattern namespace;
+  private final Pattern path;
+
+  private FilterRule(String namespacePattern, String pathPattern) {
+    this.namespacePattern = namespacePattern;
+    this.pathPattern = pathPattern;
+    this.namespace = Pattern.compile(namespacePattern, Pattern.DOTALL);
+    this.path = Pattern.compile(pathPattern, Pattern.DOTALL);
+  }
 
   /**
    * Builds a rule from the two expressions, using {@link #MATCH_ALL} for an absent one (R47).
@@ -25,7 +36,7 @@ public final class FilterRule {
    * @throws PatternSyntaxException when an expression is not a valid regular expression
    */
   public static FilterRule of(String namespacePattern, String pathPattern) {
-    return Skeleton.throwNotImplemented();
+    return new FilterRule(namespacePattern, pathPattern);
   }
 
   /**
@@ -34,7 +45,7 @@ public final class FilterRule {
    * @return the expression text
    */
   public String namespacePattern() {
-    return Skeleton.throwNotImplemented();
+    return namespacePattern;
   }
 
   /**
@@ -43,7 +54,7 @@ public final class FilterRule {
    * @return the expression text
    */
   public String pathPattern() {
-    return Skeleton.throwNotImplemented();
+    return pathPattern;
   }
 
   /**
@@ -54,6 +65,6 @@ public final class FilterRule {
    * @return whether both expressions match the whole text
    */
   public boolean matches(String namespace, String path) {
-    return Skeleton.throwNotImplemented();
+    return this.namespace.matcher(namespace).matches() && this.path.matcher(path).matches();
   }
 }

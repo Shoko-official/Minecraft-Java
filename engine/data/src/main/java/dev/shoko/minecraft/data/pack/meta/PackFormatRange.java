@@ -21,6 +21,12 @@ public record PackFormatRange(PackFormat min, PackFormat max) {
    *     when {@code min > target}, otherwise {@link PackCompatibility#COMPATIBLE}
    */
   public PackCompatibility compatibilityWith(PackFormat target) {
-    return Skeleton.throwNotImplemented();
+    if (min.compareTo(max) > 0) {
+      return PackCompatibility.BROKEN;
+    }
+    if (max.compareTo(target) < 0) {
+      return PackCompatibility.TOO_OLD;
+    }
+    return min.compareTo(target) > 0 ? PackCompatibility.TOO_NEW : PackCompatibility.COMPATIBLE;
   }
 }

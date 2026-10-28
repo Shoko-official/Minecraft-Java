@@ -1,7 +1,11 @@
 package dev.shoko.minecraft.data.pack.meta;
 
+import dev.shoko.minecraft.data.diag.Diagnostic;
+import dev.shoko.minecraft.data.diag.DiagnosticCode;
 import dev.shoko.minecraft.data.diag.Outcome;
 import dev.shoko.minecraft.data.json.JsonNode;
+import dev.shoko.minecraft.data.json.JsonObject;
+import java.util.List;
 
 /** Reads a {@code pack.mcmeta} tree into a {@link PackMeta} (R2, R4, R5, R7, R47, R48). */
 public final class PackMetaReader {
@@ -33,6 +37,35 @@ public final class PackMetaReader {
    * @return the metadata, or empty when the file is not a pack, with the diagnostics found
    */
   public static Outcome<PackMeta> read(JsonNode root) {
-    return Skeleton.throwNotImplemented();
+    if (!(root instanceof JsonObject object)
+        || !(object.members().get("pack") instanceof JsonObject pack)) {
+      String message = "not a pack: pack.mcmeta has no pack object";
+      return Outcome.failure(
+          List.of(
+              new Diagnostic(DiagnosticCode.PACK_INVALID, root.origin(), root.path(), message)));
+    }
+    MetaProblems problems = new MetaProblems(root.origin());
+    MetaSections sections = new MetaSections(problems);
+    PackSection section = new PackSection(problems);
+    for (var member : object.members().entrySet()) {
+      switch (member.getKey()) {
+        case "pack" -> section.read(pack);
+        case "features" -> sections.features(member.getValue());
+        case "filter" -> sections.filter(member.getValue());
+        case "overlays" -> sections.overlays(member.getValue());
+        default -> {
+          // unknown keys are ignored (R4, R63 c)
+        }
+      }
+    }
+    PackMeta meta =
+        new PackMeta(
+            section.description(),
+            section.formats(),
+            problems.any(),
+            sections.flags(),
+            sections.filters(),
+            sections.overlays());
+    return Outcome.success(meta, problems.all());
   }
 }

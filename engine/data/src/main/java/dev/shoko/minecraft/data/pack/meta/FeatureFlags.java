@@ -2,7 +2,11 @@ package dev.shoko.minecraft.data.pack.meta;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
 import java.util.SequencedCollection;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * A set of feature flags, such as {@code minecraft:trade_rebalance} (R44). Immutable; iteration
@@ -14,7 +18,16 @@ import java.util.SequencedCollection;
  */
 public final class FeatureFlags {
 
-  private FeatureFlags() {}
+  private static final FeatureFlags VANILLA =
+      new FeatureFlags(List.of(Identifier.minecraft("vanilla")));
+
+  private final List<Identifier> sorted;
+  private final Set<Identifier> members;
+
+  private FeatureFlags(List<Identifier> sorted) {
+    this.sorted = sorted;
+    this.members = new HashSet<>(sorted);
+  }
 
   /**
    * Returns the flags a world always has: {@code minecraft:vanilla} (R45, provisional).
@@ -22,7 +35,7 @@ public final class FeatureFlags {
    * @return the set holding only the vanilla flag
    */
   public static FeatureFlags vanilla() {
-    return Skeleton.throwNotImplemented();
+    return VANILLA;
   }
 
   /**
@@ -32,7 +45,7 @@ public final class FeatureFlags {
    * @return the set; later changes to {@code flags} do not affect it
    */
   public static FeatureFlags of(Collection<Identifier> flags) {
-    return Skeleton.throwNotImplemented();
+    return new FeatureFlags(List.copyOf(new TreeSet<>(flags)));
   }
 
   /**
@@ -41,7 +54,7 @@ public final class FeatureFlags {
    * @return an unmodifiable collection
    */
   public SequencedCollection<Identifier> flags() {
-    return Skeleton.throwNotImplemented();
+    return sorted;
   }
 
   /**
@@ -51,7 +64,7 @@ public final class FeatureFlags {
    * @return whether the set holds it
    */
   public boolean contains(Identifier flag) {
-    return Skeleton.throwNotImplemented();
+    return members.contains(flag);
   }
 
   /**
@@ -61,7 +74,7 @@ public final class FeatureFlags {
    * @return whether this set holds all of them
    */
   public boolean containsAll(FeatureFlags required) {
-    return Skeleton.throwNotImplemented();
+    return members.containsAll(required.members);
   }
 
   /**
@@ -71,7 +84,9 @@ public final class FeatureFlags {
    * @return the set holding the flags of both
    */
   public FeatureFlags union(FeatureFlags other) {
-    return Skeleton.throwNotImplemented();
+    TreeSet<Identifier> all = new TreeSet<>(sorted);
+    all.addAll(other.sorted);
+    return new FeatureFlags(List.copyOf(all));
   }
 
   /**
@@ -82,7 +97,7 @@ public final class FeatureFlags {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof FeatureFlags that && sorted.equals(that.sorted);
   }
 
   /**
@@ -92,6 +107,11 @@ public final class FeatureFlags {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return sorted.hashCode();
+  }
+
+  @Override
+  public String toString() {
+    return sorted.toString();
   }
 }

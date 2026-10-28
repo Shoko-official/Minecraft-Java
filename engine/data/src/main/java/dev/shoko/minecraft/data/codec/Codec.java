@@ -39,6 +39,13 @@ public abstract class Codec<T> {
    * @return a codec giving {@code conversion} applied to the value, with the same diagnostics
    */
   public final <R> Codec<R> map(Function<? super T, ? extends R> conversion) {
-    return Skeleton.throwNotImplemented();
+    return new FunctionCodec<>(
+        (node, access) -> {
+          Outcome<T> decoded = decode(node, access);
+          return decoded
+              .value()
+              .map(value -> Outcome.<R>success(conversion.apply(value), decoded.diagnostics()))
+              .orElseGet(() -> Outcome.failure(decoded.diagnostics()));
+        });
   }
 }

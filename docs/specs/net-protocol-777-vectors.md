@@ -162,8 +162,9 @@ K02 blocks, 4096 entries, bits  5: 12 per long,  342 longs,  2736 bytes
 K03 blocks, 4096 entries, bits  6: 10 per long,  410 longs,  3280 bytes
 K04 blocks, 4096 entries, bits  7:  9 per long,  456 longs,  3648 bytes
 K05 blocks, 4096 entries, bits  8:  8 per long,  512 longs,  4096 bytes
-K06 blocks, 4096 entries, bits 15:  4 per long, 1024 longs,  8192 bytes
+K06 blocks, 4096 entries, bits 16:  4 per long, 1024 longs,  8192 bytes
 K07 biomes, 64 entries: bits 1 -> 1 long, bits 2 -> 2 longs, bits 3 -> 4 longs, bits 7 -> 8 longs
+K06b direct bits: blocks ceil(log2(35723)) = 16 (2^15 = 32768 < 35723), biomes ceil(log2(67)) = 7
 K08 heightmap, world height  32: bits 6, 10 per long, 26 longs
 K09 heightmap, world height 256: bits 9, 7 per long, 37 longs
 K10 heightmap, world height 384: bits 9, 7 per long, 37 longs
@@ -177,6 +178,8 @@ K12 light masks for 24 sections: 26 bits -> BitSet of 1 long(s)
 K12 light masks for 16 sections: 18 bits -> BitSet of 1 long(s)
 K12 mask with bits 0 and 25 set (24 sections): BitSet 01 00 00 00 00 02 00 00 01
 ```
+
+K06 : palier direct des blocs. Le registre compte 35 723 états, plus que 2^15 = 32 768 : `ceil(log2(35723))` = 16 bits, pas 15 ; les 4096 entrées tiennent à 4 par Long, soit 1024 Long (8192 octets). Le palier direct des biomes est `ceil(log2(67))` = 7 (K07). La commande `ids` recompte les états et les biomes dans les données extraites.
 
 K11e : octets d'un conteneur indirect de 4 bits, palette `[0, 1]` : `04` (bits), `02` (taille de palette), `00 01` (palette), puis 256 Long de 8 octets, 2052 octets au total.
 
@@ -246,6 +249,7 @@ D01 block y -> section index (overworld, min_y -64): y=-64 -> 0, y=-49 -> 0, y=-
 
 ```
 block states: 35723 contiguous from 0: True
+direct palette bits: blocks 35723 states -> 16 (constant 35723), biomes 67 -> 7 (constant 67)
 blocks in registry order own consecutive state ranges: True blocks: 1286
 minecraft:block                       1286 entries, ids contiguous from 0: True
 minecraft:item                        1658 entries, ids contiguous from 0: True
@@ -362,7 +366,7 @@ Lève R43, R62 à R66, R92, R93, Q2.
 
 ### PN5 : entrée en jeu (R44, R68 à R73, R78, R82, R83, R96)
 
-Après PN4, accepter la configuration (`finish_configuration`), puis enregistrer tout le flux de jeu pendant 600 ticks : ordre exact des 47 étapes de R44, champs de `login`, `commands` (comptes de nœuds), `player_position`, `player_info_update`, `set_time`, `game_event` 13, lots de chunks (taille des lots, intervalle, nombre de chunks avant la première réponse), un chunk complet (octets des sections, nombre de fluides, cartes de hauteur, lumière). Répondre `accept_teleportation`, `chunk_batch_received` (valeurs 1, 9, 100), `player_loaded`. Refaire avec `client_tick_end` absent, avec `player_loaded` absent. Lève R44, R68 à R73, R78, R82, R83, R96, Q1, Q3, Q11, Q12.
+Après PN4, accepter la configuration (`finish_configuration`), puis enregistrer tout le flux de jeu pendant 600 ticks : ordre exact des 47 étapes de R44, champs de `login`, `commands` (comptes de nœuds), `player_position`, `player_info_update`, `set_time`, `game_event` 13, lots de chunks (taille des lots, intervalle, nombre de chunks avant la première réponse), un chunk complet (octets des sections, nombre de fluides, cartes de hauteur, lumière) et un chunk dense préparé avant la connexion : une section de 256 états de blocs distincts, une de 257 (un état distinct par `setblock`, un seul bloc par état), une section de 8 biomes distincts et une de 9 (`fillbiome`). Relever l'octet de bits par entrée de chaque conteneur, la présence d'une palette et la taille du tableau de Long. Attendu provisoire (R69) : 8 puis 16 pour les blocs, 3 puis 7 pour les biomes, aucune valeur de 9 à 15 pour les blocs. Répondre `accept_teleportation`, `chunk_batch_received` (valeurs 1, 9, 100), `player_loaded`. Refaire avec `client_tick_end` absent, avec `player_loaded` absent. Lève R44, R68 à R73, R78, R82, R83, R96, Q1, Q3, Q11, Q12.
 
 ### PN6 : entrées invalides de transport et d'état (R27, R30, R35, R36, R49, R85)
 
@@ -611,14 +615,26 @@ def pack_longs(entries, bpe):
     return longs
 
 
+BLOCK_STATES = 35723  # R61, checked against blocks.json by the ids sub-command
+BIOMES = 67  # R62, checked against the datapack files by the ids sub-command
+
+
+def direct_bits(registry_size):
+    return (registry_size - 1).bit_length()  # ceil(log2(size))
+
+
 def cmd_palette():
     k = 1
-    for bpe in (4, 5, 6, 7, 8, 15):
+    direct_blocks = direct_bits(BLOCK_STATES)
+    direct_biomes = direct_bits(BIOMES)
+    for bpe in (4, 5, 6, 7, 8, direct_blocks):
         per = 64 // bpe
         print("K%02d blocks, 4096 entries, bits %2d: %2d per long, %4d longs, %5d bytes" % (k, bpe, per, -(-4096 // per), -(-4096 // per) * 8))
         k += 1
-    print("K%02d biomes, 64 entries: bits 1 -> %d long, bits 2 -> %d longs, bits 3 -> %d longs, bits 7 -> %d longs" % (k, -(-64 // 64), -(-64 // 32), -(-64 // 21), -(-64 // 9)))
+    per = 64 // direct_biomes
+    print("K%02d biomes, 64 entries: bits 1 -> %d long, bits 2 -> %d longs, bits 3 -> %d longs, bits %d -> %d longs" % (k, -(-64 // 64), -(-64 // 32), -(-64 // 21), direct_biomes, -(-64 // per)))
     k += 1
+    print("K06b direct bits: blocks ceil(log2(%d)) = %d (2^15 = %d < %d), biomes ceil(log2(%d)) = %d" % (BLOCK_STATES, direct_blocks, 1 << 15, BLOCK_STATES, BIOMES, direct_biomes))
     for h in (32, 256, 384):
         bpe = math.ceil(math.log2(h + 1))
         per = 64 // bpe
@@ -781,6 +797,11 @@ def cmd_ids():
         reg = json.load(f)
     ids = sorted(s["id"] for v in blocks.values() for s in v["states"])
     print("block states:", len(ids), "contiguous from 0:", ids == list(range(len(ids))))
+    biome_dir = os.path.join(ref, "resources", "data", "minecraft", "worldgen", "biome")
+    n_biomes = sum(1 for _, _, fs in os.walk(biome_dir) for f in fs if f.endswith(".json"))
+    print("direct palette bits: blocks %d states -> %d (constant %d), biomes %d -> %d (constant %d)" % (
+        len(ids), direct_bits(len(ids)), BLOCK_STATES, n_biomes, direct_bits(n_biomes), BIOMES))
+    assert (len(ids), n_biomes) == (BLOCK_STATES, BIOMES)
     order = sorted(reg["minecraft:block"]["entries"].items(), key=lambda kv: kv[1]["protocol_id"])
     prev = -1
     ok = True

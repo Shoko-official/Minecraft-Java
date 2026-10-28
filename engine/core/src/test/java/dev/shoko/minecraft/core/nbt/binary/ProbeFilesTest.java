@@ -3,6 +3,7 @@ package dev.shoko.minecraft.core.nbt.binary;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.shoko.minecraft.core.nbt.Hex;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -67,6 +68,41 @@ class ProbeFilesTest {
     // spec: core-nbt-vectors PB1 table, p19 (67 109 020 bytes)
     assertThat(Hex.sha256(ProbeFiles.p19Stream()))
         .isEqualTo("567fb12d47b6e603f4d13f89583d9b69fb641c6c0f3454acba2a43ab3580a2aa");
+  }
+
+  @Test
+  void p20MatchesSpecDigest() {
+    // spec: core-nbt-vectors PB1 table, p20 (20 000 157 bytes)
+    assertThat(Hex.sha256(ProbeFiles.p20Stream()))
+        .isEqualTo("13d8131eaf3eaba05e3cd8f2441b1d6b17504079f8eb58363e029936e73f4b53");
+  }
+
+  @Test
+  void storedContainersMatchSpecDigests() {
+    // spec: core-nbt-vectors table C (C08 to C12), built from F1 with stored DEFLATE blocks
+    byte[] gzip = Containers.gzipStored(ProbeFiles.f1());
+    byte[] zlib = Containers.zlibStored(ProbeFiles.f1());
+    assertThat(gzip).hasSize(171);
+    assertThat(Hex.sha256(gzip))
+        .isEqualTo("df59c0fb96f2764d7e1dbda1d623a84575778d2c9ef0d740336f78054fdbf0b5");
+    assertThat(Hex.sha256(ProbeFiles.c09()))
+        .isEqualTo("85194b67e4cc2736f9ccad9766c44c43c58a5723c3304a0160d3d9fd2be87487");
+    assertThat(zlib).hasSize(159);
+    assertThat(Hex.sha256(zlib))
+        .isEqualTo("4373a2cd155f013bab1ad836df8050b5e79847e1793b64e071679c95908e5f37");
+    assertThat(Hex.sha256(Containers.invert(zlib, 155, 159)))
+        .isEqualTo("caceeba85434e249d316e0ab5b4eb9e0b8b8b71aad38c95f8b299919e0b0b8d3");
+    assertThat(Hex.sha256(Arrays.copyOf(zlib, 155)))
+        .isEqualTo("80399581468da3d89fedc7d09ee717c95c0989c2df5a312d706bf03b73ea009e");
+  }
+
+  @Test
+  void writerDepthVectorW4MatchesSpecDigest() {
+    // spec: core-nbt-vectors W4 (2571 bytes): expected output of the writer, built by hand
+    byte[] w4 = BinaryVectors.w4Bytes();
+    assertThat(w4).hasSize(2571);
+    assertThat(Hex.sha256(w4))
+        .isEqualTo("a3a60b2570cb6abc9e115e64bc8579ee4f92ff42b6233f07b84edfe5425e6169");
   }
 
   @Test

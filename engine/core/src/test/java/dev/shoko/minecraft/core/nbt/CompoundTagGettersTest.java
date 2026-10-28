@@ -111,10 +111,11 @@ class CompoundTagGettersTest {
   }
 
   @Test
-  void booleanOfOtherNumericTypeTestsItsByteConversion() {
-    // spec: core-nbt R36, R38; API: getBoolean(key) is getByte(key) != 0, provisional
+  void booleanOfOtherNumericTypeTestsItsOriginalValue() {
+    // spec: core-nbt R36 (revised: original value non-zero, no conversion to Byte first; Int 256
+    // was false under the former getByte(key) != 0), provisional; vectors in CompoundTagBooleanTest
     var tag = compound("int256", intTag(256), "int1", intTag(1), "text", stringTag("true"));
-    assertThat(tag.getBoolean("int256")).isFalse();
+    assertThat(tag.getBoolean("int256")).isTrue();
     assertThat(tag.getBoolean("int1")).isTrue();
     assertThat(tag.getBoolean("text")).isFalse();
   }

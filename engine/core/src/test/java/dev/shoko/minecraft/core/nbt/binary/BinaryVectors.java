@@ -24,9 +24,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Binary vectors V02 to V23 of {@code docs/specs/core-nbt-vectors.md}, with the value each one
- * decodes to. V01 (absent root), V20 (unnamed root) and V24 (rewritten differently) are tested on
- * their own. Expected values are built lazily so that each parameterized case fails on its own.
+ * Binary vectors V02 to V23, V25 and V26 of {@code docs/specs/core-nbt-vectors.md}, with the value
+ * each one decodes to. V01 (absent root), V20 (unnamed root) and V24 (rewritten differently) are
+ * tested on their own. Expected values are built lazily so that each parameterized case fails on
+ * its own.
  */
 final class BinaryVectors {
 
@@ -54,7 +55,7 @@ final class BinaryVectors {
     return all;
   }
 
-  // spec: core-nbt R1, R3, R4, R5, R35 (V02 to V07, V22, V23)
+  // spec: core-nbt R1, R3, R4, R5, R35 (V02 to V07, V22, V23, V25, V26)
   static List<Vector> scalars() {
     return List.of(
         new Vector("V02 Byte -1 named b", "01 00 01 62 ff", () -> new NamedTag("b", byteTag(-1))),
@@ -74,7 +75,13 @@ final class BinaryVectors {
         new Vector(
             "V23 Double +infinity",
             "06 00 00 7f f0 00 00 00 00 00 00",
-            () -> root(new DoubleTag(0x7ff0000000000000L))));
+            () -> root(new DoubleTag(0x7ff0000000000000L))),
+        new Vector(
+            "V25 Float NaN 7fc00001", "05 00 00 7f c0 00 01", () -> root(new FloatTag(0x7fc00001))),
+        new Vector(
+            "V26 Double NaN 7ff0000000000001",
+            "06 00 00 7f f0 00 00 00 00 00 01",
+            () -> root(new DoubleTag(0x7ff0000000000001L))));
   }
 
   // spec: core-nbt R10, R11 (V09, V15 to V18)
@@ -129,6 +136,17 @@ final class BinaryVectors {
   static byte[] nestedListsRoot(int n) {
     return Hex.concat(
         Hex.bytes("09 00 00"), Hex.repeat(Hex.bytes("09 00 00 00 01"), n - 1), new byte[5]);
+  }
+
+  /**
+   * Expected bytes of vector W4 (R57, R63): a root List, 509 more nested lists, then at level 511
+   * the heterogeneous list [1b, 2] written as [{"": 1b}, {"": 2}].
+   */
+  static byte[] w4Bytes() {
+    return Hex.concat(
+        Hex.bytes("09 00 00"),
+        Hex.repeat(Hex.bytes("09 00 00 00 01"), 510),
+        Hex.bytes("0a 00 00 00 02 01 00 00 01 00 03 00 00 00 00 00 02 00"));
   }
 
   /** {@code n} nested compounds as a named root, each child under the empty key. */

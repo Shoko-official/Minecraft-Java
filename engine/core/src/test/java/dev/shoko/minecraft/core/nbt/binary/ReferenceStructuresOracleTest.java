@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.core.nbt.binary;
 
+import static dev.shoko.minecraft.core.nbt.Failures.assertFails;
+import static dev.shoko.minecraft.core.nbt.Failures.assertFailsWithoutOffset;
 import static dev.shoko.minecraft.core.nbt.Tags.doubleTag;
 import static dev.shoko.minecraft.core.nbt.Tags.intTag;
 import static dev.shoko.minecraft.core.nbt.Tags.list;
@@ -13,6 +15,7 @@ import dev.shoko.minecraft.core.nbt.IntArrayTag;
 import dev.shoko.minecraft.core.nbt.ListTag;
 import dev.shoko.minecraft.core.nbt.NamedTag;
 import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtException.Reason;
 import dev.shoko.minecraft.core.nbt.TagType;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -131,6 +134,61 @@ class ReferenceStructuresOracleTest {
     assertThat(tag.getList("entities").elements()).hasSize(entities);
     assertThat(tag.getList("blocks").elements()).hasSize(blocks);
     assertThat(tag.getList("palette").elements()).hasSize(palette);
+  }
+
+  static byte[] containerVector(String id, byte[] raw) {
+    int n = raw.length;
+    return switch (id) {
+      case "C01" -> raw;
+      case "C02" -> Containers.invert(raw, n - 8, n - 4);
+      case "C03" -> Containers.invert(raw, n - 4, n);
+      case "C04" -> Arrays.copyOf(raw, n - 8);
+      case "C05" -> Arrays.copyOf(raw, n - 4);
+      case "C06" -> {
+        byte[] flagged = raw.clone();
+        flagged[3] = (byte) (flagged[3] | 0x20);
+        yield flagged;
+      }
+      case "C07" -> Arrays.copyOf(raw, n + 4);
+      default -> throw new IllegalArgumentException(id);
+    };
+  }
+
+  @ParameterizedTest(name = "{0}")
+  @CsvSource({
+    "C01, 97acb694f31451123cad2c8a4e4af638fbf3bc9e4282da2ea9a2a8d38cfe5022, true",
+    "C02, 83b61d068343916c7e6c8d28c8473aa6cad0aa704a5dfbcb6452d5aefe3af9e2, false",
+    "C03, 94b8b57a3e190a8723b3de52893ec98e1dd67dce1f8decd18a67a5ac15364b19, false",
+    "C04, 6084901128dff1f341fa9dd119fcd652820905de399c5b83eb219ca77e134c55, false",
+    "C05, 46d87a4a0938b543bff21bcf001b36e87e4f726c8a1fc2168f99155bd8991e3e, false",
+    "C06, 7d116b17af0f77be85d6b75b4c78f8f082f125b1cbb610c68cf33906e621f5d7, true",
+    "C07, cba7c4991cddca8e0cd1fee1db27a14f99514ec8ddb144d02e8966e861aaa124, true"
+  })
+  void containerVectorOfEmptyStructure(String id, String sha256, boolean accepted)
+      throws IOException, NbtException {
+    // spec: core-nbt R61, R62, core-nbt-vectors table C (C01 to C07, from empty.nbt)
+    byte[] raw = Files.readAllBytes(requireStructures().resolve("empty.nbt"));
+    byte[] vector = containerVector(id, raw);
+    assertThat(Hex.sha256(vector)).isEqualTo(sha256);
+    if (accepted) {
+      var tag =
+          (CompoundTag) NbtReader.of(NbtCompression.GZIP).readNamed(vector).orElseThrow().tag();
+      assertThat(tag.getInt("DataVersion")).isEqualTo(5023);
+    } else {
+      assertFailsWithoutOffset(
+          () -> NbtReader.of(NbtCompression.GZIP).readNamed(vector), Reason.CORRUPT_CONTAINER);
+    }
+  }
+
+  @Test
+  void heaviestReferenceFileCountsDocumentedUnits() throws IOException, NbtException {
+    // spec: core-nbt R32, R60 (air_base.nbt: 5 390 251 units, under the default quota)
+    byte[] file =
+        Files.readAllBytes(requireStructures().resolve("bastion/hoglin_stable/air_base.nbt"));
+    assertThat(NbtReader.of(NbtCompression.GZIP).readNamed(file)).isPresent();
+    assertThat(NbtReader.of(NbtCompression.GZIP, 5_390_251L).readNamed(file)).isPresent();
+    assertFails(
+        () -> NbtReader.of(NbtCompression.GZIP, 5_390_250L).readNamed(file), Reason.TOO_LARGE);
   }
 
   @Test

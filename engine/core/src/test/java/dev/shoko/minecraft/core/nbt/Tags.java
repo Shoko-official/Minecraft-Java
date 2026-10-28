@@ -63,6 +63,15 @@ public final class Tags {
     return CompoundTag.of(entries);
   }
 
+  /** Returns {@code levels} nested lists, the deepest one (at level {@code levels}) given. */
+  public static ListTag nestedLists(int levels, ListTag innermost) {
+    ListTag tree = innermost;
+    for (int level = 1; level < levels; level++) {
+      tree = ListTag.of(List.of(tree));
+    }
+    return tree;
+  }
+
   /** Returns the value as a root with the empty name, as in reference files (R14). */
   public static NamedTag root(NbtTag tag) {
     return new NamedTag("", tag);

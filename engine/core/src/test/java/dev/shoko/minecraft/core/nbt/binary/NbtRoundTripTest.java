@@ -134,11 +134,32 @@ class NbtRoundTripTest {
 
   @Test
   void heterogeneousListReadsBackAsWrappedCompounds() throws NbtException {
-    // spec: core-nbt R47, API of ListTag: reading the binary form gives the list of compounds
+    // spec: core-nbt R47, R63 (provisional: no unwrapping on reading, the round trip is not
+    // reversible)
     byte[] written =
         NbtWriter.of(NbtCompression.NONE).writeNamed(root(list(intTag(1), stringTag("a"))));
     var read = NbtReader.of(NbtCompression.NONE).readNamed(written).orElseThrow();
     assertThat(read.tag()).isEqualTo(list(compound("", intTag(1)), compound("", stringTag("a"))));
+    assertThat(read.tag()).isNotEqualTo(list(intTag(1), stringTag("a")));
+  }
+
+  @Test
+  void compoundElementOfHeterogeneousListReadsBackWrapped() throws NbtException {
+    // spec: core-nbt R63 (elements already Compound are wrapped too), provisional
+    byte[] written =
+        NbtWriter.of(NbtCompression.NONE)
+            .writeNamed(root(list(compound("a", intTag(1)), intTag(2))));
+    var read = NbtReader.of(NbtCompression.NONE).readNamed(written).orElseThrow();
+    assertThat(read.tag())
+        .isEqualTo(list(compound("", compound("a", intTag(1))), compound("", intTag(2))));
+  }
+
+  @Test
+  void wrappedListIsRewrittenAsIs() throws NbtException {
+    // spec: core-nbt R63: the read-back list of wrappers is an ordinary list of compounds, so a
+    // second round trip gives the same bytes (no double wrapping, no unwrapping)
+    byte[] once = NbtWriter.of(NbtCompression.NONE).writeNamed(root(list(byteTag(1), intTag(2))));
+    assertThat(Hex.format(rewrite(once))).isEqualTo(Hex.format(once));
   }
 
   @Test

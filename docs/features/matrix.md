@@ -23,10 +23,12 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Génération Overworld : features et minerais | M4 | A | spécifié | `docs/specs/worldgen-features-structures.md` (brouillon, règles S) |
 | Génération Overworld : structures | M4 | A | spécifié | `docs/specs/worldgen-features-structures.md` (brouillon, règles S) |
 | Génération Overworld : séquencement des statuts | M4 | A | spécifié | `docs/specs/worldgen-pipeline.md` (brouillon, règles S) |
-| Lumière | M5 | A | non-spécifié | |
-| Fluides | M5 | A | non-spécifié | |
-| Ticks planifiés et aléatoires | M5 | A | non-spécifié | |
-| Redstone | M5 | A | non-spécifié | |
+| Lumière | M5 | A | spécifié | `docs/specs/sim-light.md` (brouillon, règles S) |
+| Fluides | M5 | A | spécifié | `docs/specs/sim-fluids.md` (brouillon, règles S) |
+| Ticks planifiés et aléatoires | M5 | A | spécifié | `docs/specs/sim-ticks-updates.md` (brouillon, règles S) |
+| Mises à jour de blocs | M5 | A | spécifié | `docs/specs/sim-ticks-updates.md` (brouillon, règles S) |
+| Croissance et propagation | M5 | A | spécifié | `docs/specs/sim-growth-redstone.md` (brouillon, règles S) |
+| Redstone | M5 | A | spécifié | `docs/specs/sim-growth-redstone.md` (brouillon, règles S) |
 | Objets et composants | M6 | B | spécifié | `docs/specs/item-components-inventory.md` (brouillon, règles S) |
 | Recettes | M6 | B | spécifié | `docs/specs/item-recipes.md` (brouillon, règles S) |
 | Tables de butin | M6 | A | spécifié | `docs/specs/loot-tables.md` (brouillon, règles S) |

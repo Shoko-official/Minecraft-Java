@@ -23,7 +23,7 @@ public record DivergenceReport(
   public DivergenceReport {
     hypotheses = List.copyOf(hypotheses);
     for (String line : List.of(subject, reference, stage)) {
-      if (line.isBlank() || line.contains("\n")) {
+      if (line.isBlank() || line.contains("\n") || line.contains("\r")) {
         throw new IllegalArgumentException("report fields are non-blank single lines: " + line);
       }
     }
@@ -43,38 +43,45 @@ public record DivergenceReport(
     return text.toString();
   }
 
+  /** Verdict in French, IDENTIQUE or DIVERGENT, with counts in singular or plural. */
   private static String verdict(Comparison comparison) {
-    String expected = grouped(comparison.expectedSize());
+    String entry = "entr" + E_ACUTE + "e";
+    int expected = comparison.expectedSize();
     if (comparison.verdict() == Comparison.Verdict.IDENTICAL) {
-      return "IDENTICAL (" + expected + " entr" + E_ACUTE + "es)";
+      return "IDENTIQUE (" + counted(expected, entry) + ")";
     }
     String text =
         "DIVERGENT ("
-            + grouped(comparison.count())
-            + " "
-            + E_ACUTE
-            + "cart"
-            + (comparison.count() > 1 ? "s" : "")
+            + counted(comparison.count(), E_ACUTE + "cart")
             + " sur "
-            + expected
-            + " entr"
-            + E_ACUTE
-            + "es attendues";
-    if (comparison.actualSize() != comparison.expectedSize()) {
-      text += ", " + grouped(comparison.actualSize()) + " obtenues";
+            + counted(expected, entry)
+            + plural(expected, " attendue");
+    if (comparison.actualSize() != expected) {
+      text += ", " + grouped(comparison.actualSize()) + plural(comparison.actualSize(), " obtenue");
     }
     return text + ")";
   }
 
-  /** One line locating a divergence: key, then expected and actual values. */
+  /** A count and its noun, singular for 0 and 1 as in French. */
+  private static String counted(int count, String noun) {
+    return grouped(count) + " " + noun + plural(count, "");
+  }
+
+  private static String plural(int count, String word) {
+    return count > 1 ? word + "s" : word;
+  }
+
+  /**
+   * One line locating a divergence: key, then expected and actual values, or for a moved entry its
+   * expected and actual positions.
+   */
   static String describe(Divergence divergence) {
     if (divergence.kind() == Divergence.Kind.ORDER) {
-      return "ordre en position "
+      return escape(divergence.key())
+          + " hors d'ordre : position attendue "
           + divergence.expectedIndex()
-          + " attendu "
-          + escape(divergence.expected())
-          + " obtenu "
-          + escape(divergence.actual());
+          + " obtenue "
+          + divergence.actualIndex();
     }
     return escape(divergence.key())
         + " attendu "

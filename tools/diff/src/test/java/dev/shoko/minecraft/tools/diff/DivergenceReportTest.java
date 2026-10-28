@@ -54,7 +54,7 @@ class DivergenceReportTest {
 
     String text = REPORT.render(comparison);
 
-    assertThat(text).contains(fr("Verdict    : IDENTICAL (44 entr{e}es)\n"));
+    assertThat(text).contains(fr("Verdict    : IDENTIQUE (44 entr{e}es)\n"));
     assertThat(text).contains(fr("Premier {e}cart : aucun\n"));
   }
 
@@ -79,11 +79,41 @@ class DivergenceReportTest {
   }
 
   @Test
-  void describesAnOrderDivergenceByPosition() {
-    Divergence order = new Divergence(Divergence.Kind.ORDER, "a/b", "a/b", "a/c", 7, 7);
+  void picksTheEarliestOfSeveralDivergencesAsTheFirst() {
+    List<CanonicalState.Entry> actual = WorldFixture.entries();
+    String late = "chunk(3,-1)/section(5)/block(48,86,-12)";
+    actual.set(indexOf(actual, late), entry(late, "minecraft:gold_block"));
+    String early = "chunk(2,-1)/section(5)/block(33,87,-11)";
+    actual.set(indexOf(actual, early), entry(early, "minecraft:diamond_block"));
+    Comparison comparison =
+        StateComparator.compare(WorldFixture.reference(), WorldFixture.state(actual));
+
+    assertThat(REPORT.render(comparison))
+        .contains(fr("DIVERGENT (2 {e}carts sur 44 entr{e}es attendues)\n"))
+        .contains(fr("Premier {e}cart : " + early + " attendu "))
+        .contains("obtenu minecraft:diamond_block\n")
+        .doesNotContain("gold_block");
+  }
+
+  @Test
+  void usesTheSingularForOneEntry() {
+    CanonicalState one = CanonicalState.builder().add("a", "1").build();
+    CanonicalState none = CanonicalState.builder().build();
+
+    assertThat(REPORT.render(StateComparator.compare(one, one)))
+        .contains(fr("IDENTIQUE (1 entr{e}e)"));
+    assertThat(REPORT.render(StateComparator.compare(one, none)))
+        .contains(fr("DIVERGENT (1 {e}cart sur 1 entr{e}e attendue, 0 obtenue)"));
+    assertThat(REPORT.render(StateComparator.compare(none, one)))
+        .contains(fr("DIVERGENT (1 {e}cart sur 0 entr{e}e attendue, 1 obtenue)"));
+  }
+
+  @Test
+  void describesAMovedEntryByItsPositions() {
+    Divergence order = new Divergence(Divergence.Kind.ORDER, "a/b", "7", "9", 7, 9);
 
     assertThat(DivergenceReport.describe(order))
-        .isEqualTo("ordre en position 7 attendu a/b obtenu a/c");
+        .isEqualTo("a/b hors d'ordre : position attendue 7 obtenue 9");
   }
 
   @Test
@@ -99,6 +129,10 @@ class DivergenceReportTest {
     assertThatThrownBy(() -> new DivergenceReport("a\nb", "r", "s", List.of()))
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> new DivergenceReport("a", " ", "s", List.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new DivergenceReport("a", "r", "s\rt", List.of()))
+        .isInstanceOf(IllegalArgumentException.class);
+    assertThatThrownBy(() -> new DivergenceReport("a\rb", "r", "s", List.of()))
         .isInstanceOf(IllegalArgumentException.class);
   }
 }

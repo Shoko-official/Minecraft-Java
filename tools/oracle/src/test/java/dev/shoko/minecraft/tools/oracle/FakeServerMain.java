@@ -9,20 +9,22 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.concurrent.CountDownLatch;
 
 /**
  * Stand-in for the reference server, started as a separate process by the lifecycle tests. It reads
  * {@code server.properties} from its working directory like the real server does.
  *
  * <p>Modes: {@code ready} prints the ready line, serves RCON and exits on {@code stop}; {@code
- * ignore-stop} does the same but never exits by itself; {@code never-ready} prints startup noise
- * and waits forever; {@code crash} exits with code 3 before being ready.
+ * ignore-stop} does the same but never exits by itself; {@code stubborn} is ready, then blocks
+ * without reading its console, so only a kill ends it; {@code never-ready} prints startup noise and
+ * waits forever; {@code crash} exits with code 3 before being ready.
  */
 public final class FakeServerMain {
 
   private FakeServerMain() {}
 
-  public static void main(String[] args) throws IOException {
+  public static void main(String[] args) throws IOException, InterruptedException {
     String mode = args[0];
     System.out.println("[00:00:00] [Server thread/INFO]: Starting fake server");
     if (mode.equals("crash")) {
@@ -43,6 +45,9 @@ public final class FakeServerMain {
               command -> "ran: " + command,
               FakeRconServer.Behavior.STANDARD);
       System.out.println("[00:00:01] [Server thread/INFO]: Done (0.123s)! For help, type \"help\"");
+    }
+    if (mode.equals("stubborn")) {
+      new CountDownLatch(1).await();
     }
     BufferedReader console =
         new BufferedReader(new InputStreamReader(System.in, StandardCharsets.UTF_8));

@@ -2,12 +2,8 @@ package dev.shoko.minecraft.tools.oracle;
 
 import dev.shoko.minecraft.tools.oracle.rcon.RconAuthenticationException;
 import dev.shoko.minecraft.tools.oracle.rcon.RconClient;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.Writer;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -24,14 +20,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
-import java.util.regex.Pattern;
 
 /**
  * One running reference server, driven as a black box (ADR 0002, point 2a): properties in, console
  * log, RCON responses and region files out.
  *
- * <p>The RCON password is random for each run and lives only in {@code server.properties} and in
- * memory; it is never logged nor passed on the command line.
+ * <p>The RCON password is random for each run, never logged nor passed on the command line. It is
+ * written to {@code server.properties} for the server to read, and emptied there once the process
+ * has exited, whatever the outcome. The run directory keeps {@code eula.txt}, {@code
+ * server.properties} (seed included, so that a world can be reused with the same seed), the console
+ * log and the world. If the JVM ends without {@link #stop()}, a shutdown hook destroys the server;
+ * a JVM killed outright runs no hook and leaves the server and its password behind.
  */
 public final class OracleServer implements AutoCloseable {
 
@@ -48,32 +47,29 @@ public final class OracleServer implements AutoCloseable {
   static final String CONSOLE_LOG = "oracle-console.log";
   static final String EULA_FILE = "eula.txt";
 
-  /** Console line printed by the server once it accepts commands. */
-  private static final Pattern READY = Pattern.compile("Done \\([^)]*\\)! For help, type \"help\"");
-
   private static final Duration RCON_TIMEOUT = Duration.ofMinutes(2);
   private static final Duration EXIT_GRACE = Duration.ofSeconds(5);
   private static final long RCON_RETRY_MILLIS = 200;
   private static final int PASSWORD_BYTES = 24;
 
-  private final Process process;
-  private final Thread pump;
+  /** A started process and what must be undone when it ends. */
+  private record Run(
+      Path runDir, Process process, Thread pump, Thread hook, Consumer<String> log) {}
+
+  private final Run run;
   private final RconClient rcon;
   private final Duration stopTimeout;
-  private final Consumer<String> log;
   private StopOutcome outcome;
 
-  private OracleServer(
-      Process process, Thread pump, RconClient rcon, Duration stopTimeout, Consumer<String> log) {
-    this.process = process;
-    this.pump = pump;
+  private OracleServer(Run run, RconClient rcon, Duration stopTimeout) {
+    this.run = run;
     this.rcon = rcon;
     this.stopTimeout = stopTimeout;
-    this.log = log;
   }
 
   /**
-   * Prepares the run directory, starts the server and waits until it is ready and RCON answers.
+   * Checks the jar, prepares the run directory, starts the server and waits until it is ready and
+   * RCON answers.
    *
    * @throws EulaNotAcceptedException when {@code options.acceptEula()} is false; nothing is written
    */
@@ -82,6 +78,7 @@ public final class OracleServer implements AutoCloseable {
     if (!options.acceptEula()) {
       throw new EulaNotAcceptedException();
     }
+    options.command().reference().verify();
     Path runDir = options.runDir().toAbsolutePath();
     checkReusableWorld(runDir, options.settings());
     int[] ports = freePorts();
@@ -98,30 +95,35 @@ public final class OracleServer implements AutoCloseable {
             + ")\neula=true\n",
         StandardCharsets.UTF_8);
 
-    log.accept("oracle: starting server in " + runDir);
+    log.accept("oracle: starting " + options.command().reference().describe() + " in " + runDir);
     Process process =
-        new ProcessBuilder(options.command())
+        new ProcessBuilder(options.command().args())
             .directory(runDir.toFile())
             .redirectErrorStream(true)
             .start();
+    Thread hook = new Thread(() -> kill(process), "oracle-shutdown");
+    Runtime.getRuntime().addShutdownHook(hook);
     CompletableFuture<Void> ready = new CompletableFuture<>();
     Path consoleLog = runDir.resolve(CONSOLE_LOG);
-    Thread pump =
-        Thread.ofPlatform()
-            .daemon()
-            .name("oracle-console")
-            .start(() -> pumpConsole(process.getInputStream(), consoleLog, ready, log));
+    Thread pump = ConsolePump.start(process.getInputStream(), consoleLog, ready, log);
+    Run run = new Run(runDir, process, pump, hook, log);
     long deadline = System.nanoTime() + options.startupTimeout().toNanos();
     try {
-      awaitReady(process, ready, options.startupTimeout(), consoleLog);
-      RconClient rcon = connectRcon(process, ports[1], password, deadline);
+      awaitReady(run.process(), ready, options.startupTimeout(), consoleLog);
+      RconClient rcon = connectRcon(run.process(), ports[1], password, deadline);
       log.accept("oracle: ready, RCON on 127.0.0.1:" + ports[1]);
-      return new OracleServer(process, pump, rcon, options.stopTimeout(), log);
+      return new OracleServer(run, rcon, options.stopTimeout());
     } catch (IOException | RuntimeException | InterruptedException e) {
-      kill(process);
-      pump.join(options.stopTimeout().toMillis());
+      kill(run.process());
+      run.process().waitFor(options.stopTimeout().toMillis(), TimeUnit.MILLISECONDS);
+      finish(run, options.stopTimeout());
       throw e;
     }
+  }
+
+  /** Process id of the server, for diagnostics. */
+  public long pid() {
+    return run.process().pid();
   }
 
   /** Runs a console command through RCON and returns the whole response. */
@@ -137,10 +139,11 @@ public final class OracleServer implements AutoCloseable {
     if (outcome != null) {
       return outcome;
     }
+    Process process = run.process();
     try {
       rcon.close();
     } catch (IOException e) {
-      log.accept("oracle: closing RCON failed: " + e.getMessage());
+      run.log().accept("oracle: closing RCON failed: " + e.getMessage());
     }
     if (!process.isAlive()) {
       outcome = StopOutcome.ALREADY_EXITED;
@@ -149,7 +152,7 @@ public final class OracleServer implements AutoCloseable {
       if (process.waitFor(stopTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
         outcome = StopOutcome.STOPPED;
       } else {
-        log.accept("oracle: server ignored stop for " + stopTimeout + ", destroying it");
+        run.log().accept("oracle: server ignored stop for " + stopTimeout + ", destroying it");
         process.descendants().forEach(ProcessHandle::destroy);
         process.destroy();
         if (!process.waitFor(stopTimeout.toMillis(), TimeUnit.MILLISECONDS)) {
@@ -159,8 +162,8 @@ public final class OracleServer implements AutoCloseable {
         outcome = StopOutcome.DESTROYED;
       }
     }
-    pump.join(stopTimeout.toMillis());
-    log.accept("oracle: server " + outcome.name().toLowerCase(Locale.ROOT));
+    finish(run, stopTimeout);
+    run.log().accept("oracle: server " + outcome.name().toLowerCase(Locale.ROOT));
     return outcome;
   }
 
@@ -170,18 +173,33 @@ public final class OracleServer implements AutoCloseable {
     try {
       stop();
     } catch (InterruptedException e) {
-      kill(process);
+      kill(run.process());
       Thread.currentThread().interrupt();
+    }
+  }
+
+  /** Once the process has exited: drop the hook, wait for the console, empty the password. */
+  private static void finish(Run run, Duration timeout) throws InterruptedException {
+    try {
+      Runtime.getRuntime().removeShutdownHook(run.hook());
+    } catch (IllegalStateException e) {
+      // The JVM is already shutting down: the hook runs anyway.
+    }
+    run.pump().join(timeout.toMillis());
+    try {
+      ServerProperties.redactPassword(run.runDir());
+    } catch (IOException e) {
+      run.log().accept("oracle: could not empty the RCON password: " + e.getMessage());
     }
   }
 
   private void sendConsole(String command) {
     try {
-      OutputStream stdin = process.getOutputStream();
+      OutputStream stdin = run.process().getOutputStream();
       stdin.write((command + "\n").getBytes(StandardCharsets.UTF_8));
       stdin.flush();
     } catch (IOException e) {
-      log.accept("oracle: could not write to the server console: " + e.getMessage());
+      run.log().accept("oracle: could not write to the server console: " + e.getMessage());
     }
   }
 
@@ -238,31 +256,6 @@ public final class OracleServer implements AutoCloseable {
         }
         Thread.sleep(RCON_RETRY_MILLIS);
       }
-    }
-  }
-
-  /**
-   * Copies the console to the log file byte for byte (ISO-8859-1 maps every byte to one char) and
-   * completes {@code ready} on the ready line, or exceptionally when the console ends first.
-   */
-  private static void pumpConsole(
-      InputStream console, Path logFile, CompletableFuture<Void> ready, Consumer<String> log) {
-    try (BufferedReader reader =
-            new BufferedReader(new InputStreamReader(console, StandardCharsets.ISO_8859_1));
-        Writer writer = Files.newBufferedWriter(logFile, StandardCharsets.ISO_8859_1)) {
-      String line;
-      while ((line = reader.readLine()) != null) {
-        writer.write(line);
-        writer.write('\n');
-        writer.flush();
-        if (!ready.isDone() && READY.matcher(line).find()) {
-          ready.complete(null);
-        }
-      }
-      ready.completeExceptionally(new IOException("server console closed"));
-    } catch (IOException e) {
-      ready.completeExceptionally(e);
-      log.accept("oracle: console copy to " + logFile + " failed: " + e.getMessage());
     }
   }
 

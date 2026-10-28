@@ -117,6 +117,59 @@ class RconClientTest {
   }
 
   @Test
+  void refusesAResponseThatIsNotValidUtf8InsteadOfReplacingIt() throws IOException {
+    byte[] invalid = {(byte) 0xa7, 'c', 'R', 'e', 'd'};
+    try (FakeRconServer server =
+            FakeRconServer.withRawResponses(
+                PASSWORD, cmd -> invalid, FakeRconServer.Behavior.STANDARD);
+        RconClient client = connect(server, PASSWORD)) {
+      assertThatThrownBy(() -> client.command("x"))
+          .isInstanceOf(IOException.class)
+          .hasMessageContaining("not valid UTF-8: byte 0xa7 at offset 0");
+    }
+  }
+
+  @Test
+  void decodesPacketsStrictly() {
+    byte[] bytes = HexFormat.of().parseHex("0b000000" + "01000000" + "00000000" + "a7" + "0000");
+
+    assertThatThrownBy(() -> RconPacket.read(new ByteArrayInputStream(bytes)))
+        .hasMessageContaining("byte 0xa7 at offset 0");
+  }
+
+  @Test
+  void limitsTheCommandSize() throws IOException {
+    try (FakeRconServer server = server(cmd -> "ok", FakeRconServer.Behavior.STANDARD);
+        RconClient client = connect(server, PASSWORD)) {
+      assertThat(client.command("a".repeat(1446))).isEqualTo("ok");
+      assertThatThrownBy(() -> client.command("a".repeat(1447)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("1447 bytes exceeds 1446 bytes");
+      assertThatThrownBy(() -> client.command("\u00e9".repeat(724)))
+          .isInstanceOf(IllegalArgumentException.class)
+          .hasMessageContaining("1448 bytes");
+    }
+  }
+
+  @Test
+  void acceptsAnotherCommandLimitAndMarkerType() throws IOException {
+    RconClient.Options options = new RconClient.Options(TIMEOUT, 0x7ead, 10);
+    try (FakeRconServer server = server(cmd -> "ran " + cmd, FakeRconServer.Behavior.STANDARD);
+        RconClient client =
+            RconClient.connect(
+                new InetSocketAddress(InetAddress.getLoopbackAddress(), server.port()),
+                PASSWORD,
+                options)) {
+      assertThat(client.command("list")).isEqualTo("ran list");
+      assertThatThrownBy(() -> client.command("a".repeat(11)))
+          .isInstanceOf(IllegalArgumentException.class);
+      assertThat(server.markerTypes()).containsExactly(0x7ead);
+    }
+    assertThatThrownBy(() -> new RconClient.Options(TIMEOUT, RconPacket.TYPE_COMMAND, 10))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void returnsAnEmptyResponse() throws IOException {
     try (FakeRconServer server = server(cmd -> "", FakeRconServer.Behavior.STANDARD);
         RconClient client = connect(server, PASSWORD)) {

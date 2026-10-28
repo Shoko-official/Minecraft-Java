@@ -9,14 +9,14 @@ import java.util.regex.Pattern;
  * How to run one oracle server.
  *
  * @param runDir working directory of the server: properties, world and console log
- * @param command process to start, run from {@code runDir}
+ * @param command process to start from {@code runDir}, with the check of its jar
  * @param acceptEula true only when the repository owner accepted the Minecraft EULA in person
  * @param startupTimeout time allowed until the server is ready and RCON answers
  * @param stopTimeout time allowed after {@code stop}, then again after a polite destroy
  */
 public record OracleOptions(
     Path runDir,
-    List<String> command,
+    ServerCommand command,
     ServerSettings settings,
     boolean acceptEula,
     Duration startupTimeout,
@@ -30,10 +30,6 @@ public record OracleOptions(
   private static final Duration DEFAULT_STOP = Duration.ofSeconds(60);
 
   public OracleOptions {
-    command = List.copyOf(command);
-    if (command.isEmpty()) {
-      throw new IllegalArgumentException("command must not be empty");
-    }
     if (startupTimeout.isNegative() || startupTimeout.isZero()) {
       throw new IllegalArgumentException("startup timeout must be positive");
     }
@@ -44,17 +40,20 @@ public record OracleOptions(
 
   /**
    * Runs the official server bundle of the cache, {@code <cache>/downloads/server-26.3.jar}, with
-   * the Java of the current JVM, in {@code <cache>/oracle/run-<name>/}.
+   * the Java of the current JVM, in {@code <cache>/oracle/run-<name>/}, once {@link ReferenceJar}
+   * has checked it against the bootstrap state.
    */
   public static OracleOptions defaults(
       Path cacheDir, String runName, ServerSettings settings, boolean acceptEula) {
     return new OracleOptions(
         runDir(cacheDir, runName),
-        List.of(
-            currentJava().toString(),
-            "-jar",
-            serverJar(cacheDir).toAbsolutePath().toString(),
-            "nogui"),
+        new ServerCommand(
+            List.of(
+                currentJava().toString(),
+                "-jar",
+                serverJar(cacheDir).toAbsolutePath().toString(),
+                "nogui"),
+            ReferenceJar.inCache(cacheDir)),
         settings,
         acceptEula,
         DEFAULT_STARTUP,

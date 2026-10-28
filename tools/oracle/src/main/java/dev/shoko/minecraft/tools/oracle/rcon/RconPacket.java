@@ -6,6 +6,10 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.CharBuffer;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CoderResult;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 
 /**
@@ -58,8 +62,30 @@ public record RconPacket(int requestId, int type, String payload) {
   /** Reads one whole packet, waiting for every fragment of it to arrive. */
   public static RconPacket read(InputStream in) throws IOException {
     Frame frame = readFrame(in);
-    return new RconPacket(
-        frame.requestId(), frame.type(), new String(frame.payload(), StandardCharsets.UTF_8));
+    return new RconPacket(frame.requestId(), frame.type(), decodeStrict(frame.payload()));
+  }
+
+  /** Decodes UTF-8 and fails on the first invalid byte instead of replacing it. */
+  static String decodeStrict(byte[] bytes) throws IOException {
+    CharsetDecoder decoder =
+        StandardCharsets.UTF_8
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT);
+    ByteBuffer input = ByteBuffer.wrap(bytes);
+    CharBuffer output = CharBuffer.allocate(bytes.length);
+    CoderResult result = decoder.decode(input, output, true);
+    if (!result.isError()) {
+      result = decoder.flush(output);
+    }
+    if (result.isError()) {
+      int offset = input.position();
+      throw new IOException(
+          String.format(
+              "RCON payload is not valid UTF-8: byte 0x%02x at offset %d",
+              bytes[offset] & 0xff, offset));
+    }
+    return output.flip().toString();
   }
 
   /**

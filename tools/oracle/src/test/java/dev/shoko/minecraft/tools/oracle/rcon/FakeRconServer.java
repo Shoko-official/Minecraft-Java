@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.tools.oracle.rcon;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -7,8 +9,11 @@ import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.Function;
 import java.util.function.UnaryOperator;
 
 /**
@@ -29,16 +34,34 @@ public final class FakeRconServer implements AutoCloseable {
 
   private final ServerSocket server;
   private final String password;
-  private final UnaryOperator<String> handler;
+  private final Function<String, byte[]> handler;
   private final Behavior behavior;
+  private final List<Integer> markerTypes = Collections.synchronizedList(new ArrayList<>());
 
   public FakeRconServer(int port, String password, UnaryOperator<String> handler, Behavior behavior)
+      throws IOException {
+    this(port, password, behavior, command -> handler.apply(command).getBytes(UTF_8));
+  }
+
+  private FakeRconServer(
+      int port, String password, Behavior behavior, Function<String, byte[]> handler)
       throws IOException {
     this.server = new ServerSocket(port, 4, InetAddress.getLoopbackAddress());
     this.password = password;
     this.handler = handler;
     this.behavior = behavior;
     Thread.ofPlatform().daemon().name("fake-rcon").start(this::acceptLoop);
+  }
+
+  /** A server whose responses are raw bytes, possibly not valid UTF-8. */
+  public static FakeRconServer withRawResponses(
+      String password, Function<String, byte[]> handler, Behavior behavior) throws IOException {
+    return new FakeRconServer(0, password, behavior, handler);
+  }
+
+  /** Types of the packets received that were neither login nor command. */
+  public List<Integer> markerTypes() {
+    return List.copyOf(markerTypes);
   }
 
   public int port() {
@@ -65,6 +88,7 @@ public final class FakeRconServer implements AutoCloseable {
         }
         case RconPacket.TYPE_COMMAND -> respond(out, request.requestId(), request.payload());
         default -> {
+          markerTypes.add(request.type());
           if (behavior.answerMarker()) {
             String text = "Unknown request " + Integer.toHexString(request.type());
             send(out, new RconPacket(request.requestId(), RconPacket.TYPE_RESPONSE, text));
@@ -75,7 +99,7 @@ public final class FakeRconServer implements AutoCloseable {
   }
 
   private void respond(OutputStream out, int id, String command) throws IOException {
-    byte[] response = handler.apply(command).getBytes(StandardCharsets.UTF_8);
+    byte[] response = handler.apply(command);
     int offset = 0;
     do {
       int length = Math.min(behavior.fragmentBytes(), response.length - offset);

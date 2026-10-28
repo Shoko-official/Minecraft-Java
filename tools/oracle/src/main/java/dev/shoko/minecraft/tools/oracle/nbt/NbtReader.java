@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.tools.oracle.nbt;
 
 import java.io.BufferedInputStream;
+import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.EOFException;
 import java.io.IOException;
@@ -11,31 +12,40 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
-import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.InflaterInputStream;
+import java.util.Optional;
 
 /**
  * Minimal read-only NBT decoder. It shares no code with the engine on purpose: a reading bug shared
- * by the engine and the oracle would make the comparison blind (docs/VERIFICATION.md).
+ * by the engine and the oracle would make the comparison blind (docs/VERIFICATION.md). Its behavior
+ * follows docs/specs/core-nbt.md, including the provisional rules.
  *
  * <p>Tags map to plain Java values: byte {@link Byte}, short {@link Short}, int {@link Integer},
  * long {@link Long}, float {@link Float}, double {@link Double}, string {@link String}, byte, int
  * and long arrays {@code byte[]}, {@code int[]}, {@code long[]}, list an unmodifiable {@link List},
- * compound an unmodifiable {@link Map} in file order. The reader is strict: duplicate compound
- * keys, negative lengths, unknown tag ids, non-empty lists of the end tag and trailing bytes after
- * the root are rejected; compressed input is read to its end so that its checksum is verified.
+ * compound an unmodifiable {@link Map} in file order.
+ *
+ * <p>Accepted as the spec says: an empty list of any known element type (R23), a list with a
+ * negative length read as empty (R25), a duplicate compound key whose last value wins at the
+ * position of the first (R27), a lone surrogate in a string (R12), bytes after the root (R34).
+ * Refused: an unknown tag id, also as a list element type (R33), a non-empty list of end tags
+ * (R24), a negative array length (R25), a raw 00 byte, a 4-byte sequence or a truncated sequence in
+ * a string (R12), truncated data (R33), more than 512 nested lists and compounds, root included
+ * (R31). Gzip and zlib input is decompressed to its end and its trailer verified. Errors name the
+ * path of the tag and the offset of the decoded byte where reading stopped.
  */
 public final class NbtReader {
 
-  /** Nesting limit of the reference format for compounds and lists. */
+  /** Nesting limit of R31, root included. */
   public static final int DEFAULT_MAX_DEPTH = 512;
 
-  /** Limit on the decoded size, which also bounds decompression bombs. */
-  public static final long DEFAULT_MAX_BYTES = 64L * 1024 * 1024;
+  /**
+   * Limit on the decoded size, which bounds decompression bombs. R32 sets no limit for files; this
+   * instrument keeps one, above the largest reference file and the 64 MiB probe of the spec.
+   */
+  public static final long DEFAULT_MAX_BYTES = 256L * 1024 * 1024;
 
   private static final int GZIP_MAGIC_FIRST = 0x1f;
   private static final int GZIP_MAGIC_SECOND = 0x8b;
@@ -56,17 +66,36 @@ public final class NbtReader {
     this.maxBytes = maxBytes;
   }
 
-  /** Reads an uncompressed named root compound. */
+  /** Root tag of any type: its id, its name (empty for a network root) and its value. */
+  record NamedTag(int type, String name, Object value) {}
+
+  /** Reads an uncompressed named root, which must be a compound. */
   public NamedCompound read(InputStream uncompressed) throws IOException {
-    return new Session(uncompressed).readRoot();
+    Session session = new Session(uncompressed);
+    NamedTag root =
+        session.readRoot(true).orElseThrow(() -> session.malformed("no root tag (end tag)"));
+    if (root.type() != NbtTag.COMPOUND) {
+      throw session.malformed("root tag must be a compound, found tag id " + root.type());
+    }
+    @SuppressWarnings("unchecked")
+    Map<String, Object> value = (Map<String, Object>) root.value();
+    return new NamedCompound(root.name(), value);
   }
 
   public NamedCompound readGzip(InputStream compressed) throws IOException {
-    return read(new GZIPInputStream(compressed));
+    return read(new ByteArrayInputStream(Containers.gunzip(compressed, maxBytes)));
   }
 
   public NamedCompound readZlib(InputStream compressed) throws IOException {
-    return read(new InflaterInputStream(compressed));
+    return read(new ByteArrayInputStream(Containers.inflateZlib(compressed, maxBytes)));
+  }
+
+  /**
+   * Reads a root of any type, named (files) or unnamed (network, R20). Empty when the root is a
+   * lone end tag.
+   */
+  Optional<NamedTag> readAnyRoot(InputStream uncompressed, boolean named) throws IOException {
+    return new Session(uncompressed).readRoot(named);
   }
 
   /** Reads a file, detecting gzip, zlib or no compression from its first bytes. */
@@ -100,19 +129,15 @@ public final class NbtReader {
       this.in = new DataInputStream(budget);
     }
 
-    NamedCompound readRoot() throws IOException {
+    Optional<NamedTag> readRoot(boolean named) throws IOException {
       try {
         int type = in.readUnsignedByte();
-        if (type != NbtTag.COMPOUND) {
-          throw malformed("root tag must be a compound, found tag id " + type);
+        if (type == NbtTag.END) {
+          return Optional.empty();
         }
-        String name = in.readUTF();
-        NamedCompound root = new NamedCompound(name, readCompound(1));
-        // Reading to the end also makes gzip and zlib verify their checksums.
-        if (in.read() != -1) {
-          throw malformed("trailing data after the root compound");
-        }
-        return root;
+        String name = named ? readString() : "";
+        // Bytes after the root are ignored (R34).
+        return Optional.of(new NamedTag(type, name, readPayload(type, 0)));
       } catch (EOFException e) {
         throw malformed("truncated data");
       }
@@ -127,7 +152,7 @@ public final class NbtReader {
         case NbtTag.FLOAT -> in.readFloat();
         case NbtTag.DOUBLE -> in.readDouble();
         case NbtTag.BYTE_ARRAY -> readByteArray();
-        case NbtTag.STRING -> in.readUTF();
+        case NbtTag.STRING -> readString();
         case NbtTag.LIST -> readList(depth + 1);
         case NbtTag.COMPOUND -> readCompound(depth + 1);
         case NbtTag.INT_ARRAY -> readIntArray();
@@ -144,11 +169,9 @@ public final class NbtReader {
         if (type == NbtTag.END) {
           return Collections.unmodifiableMap(entries);
         }
-        String name = in.readUTF();
-        if (entries.containsKey(name)) {
-          throw malformed("duplicate key '" + name + "'");
-        }
+        String name = readString();
         path.addLast(name);
+        // A duplicate key keeps its first position and takes the last value (R27).
         entries.put(name, readPayload(type, depth));
         path.removeLast();
       }
@@ -157,13 +180,17 @@ public final class NbtReader {
     private List<Object> readList(int depth) throws IOException {
       checkDepth(depth);
       int type = in.readUnsignedByte();
-      int length = readLength();
-      if (type == NbtTag.END && length > 0) {
+      int length = in.readInt();
+      if (type > NbtTag.LONG_ARRAY) {
+        throw malformed("unknown list element type " + type);
+      }
+      if (length <= 0) {
+        return List.of();
+      }
+      if (type == NbtTag.END) {
         throw malformed("list of end tags with " + length + " elements");
       }
-      if (type != NbtTag.END) {
-        reserve(length, NbtTag.minimumPayloadSize(type), "list");
-      }
+      reserve(length, NbtTag.minimumPayloadSize(type), "list");
       List<Object> elements = new ArrayList<>(Math.min(length, 1024));
       for (int i = 0; i < length; i++) {
         path.addLast("[" + i + "]");
@@ -174,7 +201,7 @@ public final class NbtReader {
     }
 
     private byte[] readByteArray() throws IOException {
-      int length = readLength();
+      int length = readArrayLength();
       reserve(length, Byte.BYTES, "byte array");
       byte[] values = new byte[length];
       in.readFully(values);
@@ -182,7 +209,7 @@ public final class NbtReader {
     }
 
     private int[] readIntArray() throws IOException {
-      int length = readLength();
+      int length = readArrayLength();
       reserve(length, Integer.BYTES, "int array");
       int[] values = new int[length];
       for (int i = 0; i < length; i++) {
@@ -192,7 +219,7 @@ public final class NbtReader {
     }
 
     private long[] readLongArray() throws IOException {
-      int length = readLength();
+      int length = readArrayLength();
       reserve(length, Long.BYTES, "long array");
       long[] values = new long[length];
       for (int i = 0; i < length; i++) {
@@ -201,12 +228,22 @@ public final class NbtReader {
       return values;
     }
 
-    private int readLength() throws IOException {
+    private int readArrayLength() throws IOException {
       int length = in.readInt();
       if (length < 0) {
-        throw malformed("negative length " + length);
+        throw malformed("negative array length " + length);
       }
       return length;
+    }
+
+    private String readString() throws IOException {
+      byte[] bytes = new byte[in.readUnsignedShort()];
+      in.readFully(bytes);
+      try {
+        return ModifiedUtf8.decode(bytes);
+      } catch (IllegalArgumentException e) {
+        throw malformed("invalid string: " + e.getMessage());
+      }
     }
 
     /** Refuses a length whose smallest possible encoding already exceeds the byte budget. */
@@ -224,8 +261,9 @@ public final class NbtReader {
       }
     }
 
-    private IOException malformed(String problem) {
-      return new IOException("Malformed NBT at " + describePath() + ": " + problem);
+    IOException malformed(String problem) {
+      return new IOException(
+          "Malformed NBT at " + describePath() + " (byte " + budget.consumed() + "): " + problem);
     }
 
     private String describePath() {
@@ -233,12 +271,12 @@ public final class NbtReader {
         return "<root>";
       }
       StringBuilder text = new StringBuilder();
-      for (Iterator<String> it = path.iterator(); it.hasNext(); ) {
-        String part = it.next();
-        if (!text.isEmpty() && !part.startsWith("[")) {
-          text.append('.');
+      for (String part : path) {
+        if (part.startsWith("[")) {
+          text.append(part);
+        } else {
+          text.append(text.isEmpty() ? "" : ".").append(part.isEmpty() ? "\"\"" : part);
         }
-        text.append(part);
       }
       return text.toString();
     }

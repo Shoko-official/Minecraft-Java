@@ -12,6 +12,7 @@ import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 class NbtReaderTest {
@@ -130,31 +131,31 @@ class NbtReaderTest {
   }
 
   @Test
-  void rejectsTruncatedData() {
+  void rejectsTruncatedDataAndNamesWhereItStopped() {
     byte[] whole = NbtBytes.rootWithInt("v", 42);
     byte[] truncated = Arrays.copyOf(whole, whole.length - 3);
 
     assertThatThrownBy(() -> read(truncated))
         .isInstanceOf(IOException.class)
+        .hasMessageContaining("Malformed NBT at v (byte ")
         .hasMessageContaining("truncated");
   }
 
   @Test
-  void rejectsTrailingDataAfterTheRoot() {
-    byte[] bytes = new NbtBytes().named(10, "").end().u8(0).toByteArray();
+  void ignoresBytesAfterTheRoot() throws IOException {
+    byte[] bytes =
+        new NbtBytes().named(10, "").named(1, "a").u8(1).end().raw(0, 7, 9).toByteArray();
 
-    assertThatThrownBy(() -> read(bytes)).hasMessageContaining("trailing data");
+    assertThat(read(bytes).value()).containsExactly(Map.entry("a", (byte) 1));
   }
 
   @Test
-  void verifiesTheGzipChecksum() {
-    byte[] gzip = NbtBytes.gzip(NbtBytes.rootWithInt("v", 42));
-    // The gzip trailer ends with CRC-32 then size: flip a CRC byte.
-    gzip[gzip.length - 8] ^= 0x01;
+  void showsTheRootWhenThePathIsEmpty() {
+    byte[] bytes = new NbtBytes().named(13, "").toByteArray();
 
-    assertThatThrownBy(() -> new NbtReader().readGzip(new ByteArrayInputStream(gzip)))
-        .isInstanceOf(IOException.class)
-        .hasMessageContaining("trailer");
+    assertThatThrownBy(() -> new NbtReader().readAnyRoot(new ByteArrayInputStream(bytes), true))
+        .hasMessageStartingWith("Malformed NBT at <root> (byte ")
+        .hasMessageContaining("unknown tag id 13");
   }
 
   @Test
@@ -185,18 +186,47 @@ class NbtReaderTest {
   }
 
   @Test
-  void rejectsDuplicateKeys() {
+  void keepsTheLastValueOfADuplicateKeyAtItsFirstPosition() throws IOException {
     byte[] bytes =
-        new NbtBytes().named(10, "").named(3, "a").i32(1).named(3, "a").i32(2).end().toByteArray();
+        new NbtBytes()
+            .named(10, "")
+            .named(3, "a")
+            .i32(1)
+            .named(3, "b")
+            .i32(5)
+            .named(3, "a")
+            .i32(2)
+            .end()
+            .toByteArray();
 
-    assertThatThrownBy(() -> read(bytes)).hasMessageContaining("duplicate key 'a'");
+    assertThat(read(bytes).value()).containsExactly(Map.entry("a", 2), Map.entry("b", 5));
   }
 
   @Test
-  void rejectsNegativeLengths() {
-    byte[] bytes = new NbtBytes().named(10, "").named(11, "ia").i32(-1).end().toByteArray();
+  void rejectsNegativeArrayLengths() {
+    for (int type : new int[] {7, 11, 12}) {
+      byte[] bytes = new NbtBytes().named(10, "").named(type, "arr").i32(-1).end().toByteArray();
 
-    assertThatThrownBy(() -> read(bytes)).hasMessageContaining("negative length -1");
+      assertThatThrownBy(() -> read(bytes))
+          .as("array type %d", type)
+          .hasMessageContaining("negative array length -1");
+    }
+  }
+
+  @Test
+  void readsANegativeListLengthAsAnEmptyList() throws IOException {
+    byte[] bytes = new NbtBytes().named(10, "").named(9, "l").u8(0).i32(-5).end().toByteArray();
+
+    assertThat(read(bytes).value().get("l")).isEqualTo(List.of());
+  }
+
+  @Test
+  void rejectsAnUnknownListElementTypeEvenWhenEmpty() {
+    byte[] bytes = new NbtBytes().named(10, "").named(9, "l").u8(99).i32(0).end().toByteArray();
+
+    assertThatThrownBy(() -> read(bytes))
+        .hasMessageContaining("at l (byte ")
+        .hasMessageContaining("unknown list element type 99");
   }
 
   @Test
@@ -204,6 +234,56 @@ class NbtReaderTest {
     byte[] bytes = new NbtBytes().named(10, "").named(9, "l").u8(0).i32(3).end().toByteArray();
 
     assertThatThrownBy(() -> read(bytes)).hasMessageContaining("list of end tags");
+  }
+
+  @Test
+  void rejectsInvalidStringBytesWithTheirPath() {
+    byte[] rawNul = new NbtBytes().named(10, "").named(8, "s").i16(1).raw(0).end().toByteArray();
+    byte[] fourBytes =
+        new NbtBytes()
+            .named(10, "")
+            .named(8, "s")
+            .i16(4)
+            .raw(0xf0, 0x9f, 0x98, 0x80)
+            .end()
+            .toByteArray();
+    byte[] cut =
+        new NbtBytes().named(10, "").named(8, "s").i16(2).raw(0xe2, 0x82).end().toByteArray();
+
+    assertThatThrownBy(() -> read(rawNul))
+        .hasMessageContaining("Malformed NBT at s")
+        .hasMessageContaining("raw 00 byte, byte 0x00 at offset 0");
+    assertThatThrownBy(() -> read(fourBytes))
+        .hasMessageContaining("Malformed NBT at s")
+        .hasMessageContaining("byte 0xf0 at offset 0");
+    assertThatThrownBy(() -> read(cut)).hasMessageContaining("truncated group");
+  }
+
+  @Test
+  void keepsALoneSurrogate() throws IOException {
+    byte[] bytes =
+        new NbtBytes().named(10, "").named(8, "s").i16(3).raw(0xed, 0xa0, 0xbd).end().toByteArray();
+
+    assertThat(read(bytes).value().get("s")).isEqualTo(String.valueOf((char) 0xd83d));
+  }
+
+  @Test
+  void acceptsExactly512NestedContainersRootIncluded() throws IOException {
+    assertThat(read(nestedCompounds(512)).value()).containsOnlyKeys("c");
+    assertThatThrownBy(() -> read(nestedCompounds(513)))
+        .hasMessageContaining("nesting deeper than 512");
+  }
+
+  /** A root compound holding nested compounds named c, {@code containers} in all. */
+  private static byte[] nestedCompounds(int containers) {
+    NbtBytes bytes = new NbtBytes().named(10, "");
+    for (int i = 1; i < containers; i++) {
+      bytes.named(10, "c");
+    }
+    for (int i = 0; i < containers; i++) {
+      bytes.end();
+    }
+    return bytes.toByteArray();
   }
 
   @Test
@@ -215,32 +295,23 @@ class NbtReaderTest {
   }
 
   @Test
-  void refusesNestingDeeperThanTheLimit() {
-    NbtBytes bytes = new NbtBytes().named(10, "").named(9, "l");
-    for (int i = 0; i < 600; i++) {
-      bytes.u8(9).i32(1);
-    }
-
-    assertThatThrownBy(() -> read(bytes.toByteArray()))
-        .hasMessageContaining("nesting deeper than 512");
-  }
-
-  @Test
+  @Timeout(10)
   void boundsTheDecodedSizeOfManySmallTags() {
     NbtBytes bytes = new NbtBytes().named(10, "");
     for (int i = 0; i < 150_000; i++) {
       bytes.named(1, "k" + i).u8(0);
     }
-    byte[] compressed = NbtBytes.gzip(bytes.end().toByteArray());
+    byte[] plain = bytes.end().toByteArray();
     NbtReader reader = new NbtReader(NbtReader.DEFAULT_MAX_DEPTH, 1_000_000);
 
-    assertThatThrownBy(() -> reader.readGzip(new ByteArrayInputStream(compressed)))
+    assertThatThrownBy(() -> reader.read(new ByteArrayInputStream(plain)))
         .isInstanceOf(IOException.class)
         .hasMessageContaining("exceeds the limit of 1000000 bytes");
   }
 
   @Test
-  void refusesAnArrayLargerThanTheRemainingBudget() {
+  @Timeout(10)
+  void boundsTheSizeOfADecompressionBomb() {
     byte[] bomb =
         new NbtBytes()
             .named(10, "")
@@ -249,12 +320,14 @@ class NbtReaderTest {
             .raw(new int[4_000_000])
             .end()
             .toByteArray();
-    byte[] compressed = NbtBytes.gzip(bomb);
+    byte[] gzip = NbtBytes.gzip(bomb);
+    byte[] zlib = NbtBytes.zlib(bomb);
     NbtReader reader = new NbtReader(NbtReader.DEFAULT_MAX_DEPTH, 1_000_000);
 
-    assertThat(compressed.length).isLessThan(100_000);
-    assertThatThrownBy(() -> reader.readGzip(new ByteArrayInputStream(compressed)))
-        .isInstanceOf(IOException.class)
-        .hasMessageContaining("limit");
+    assertThat(gzip.length).isLessThan(100_000);
+    assertThatThrownBy(() -> reader.readGzip(new ByteArrayInputStream(gzip)))
+        .hasMessageContaining("decompressed data exceeds 1000000 bytes");
+    assertThatThrownBy(() -> reader.readZlib(new ByteArrayInputStream(zlib)))
+        .hasMessageContaining("decompressed data exceeds 1000000 bytes");
   }
 }

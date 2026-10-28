@@ -215,4 +215,90 @@ class RegionFileTest {
     assertThatThrownBy(() -> RegionFile.read(badName)).hasMessageContaining("not a region file");
     assertThatThrownBy(() -> RegionFile.read(shortFile)).hasMessageContaining("shorter than");
   }
+
+  private static byte[] positioned(int chunkX, int chunkZ) {
+    return new NbtBytes()
+        .named(10, "")
+        .named(3, "xPos")
+        .i32(chunkX)
+        .named(3, "zPos")
+        .i32(chunkZ)
+        .end()
+        .toByteArray();
+  }
+
+  @Test
+  void refusesSectorsSharedByTwoChunks() throws IOException {
+    RegionFile region =
+        new RegionBytes(5)
+            .location(0, 2, 2)
+            .location(33, 3, 1)
+            .chunk(2, 3, marker(1))
+            .chunk(3, 3, marker(2))
+            .open(0, 0);
+
+    assertThatThrownBy(() -> region.chunk(0, 0))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("chunk (0,0)")
+        .hasMessageContaining("sectors 2..3 overlap those of chunk (1,1)");
+    assertThatThrownBy(() -> region.chunk(1, 1))
+        .hasMessageContaining("overlap those of chunk (0,0)");
+  }
+
+  @Test
+  void acceptsAdjacentChunksThatDoNotOverlap() throws IOException {
+    RegionFile region =
+        new RegionBytes(5)
+            .location(0, 2, 2)
+            .location(33, 4, 1)
+            .chunk(2, 3, marker(1))
+            .chunk(4, 3, marker(2))
+            .open(0, 0);
+
+    assertThat(region.chunk(0, 0)).isPresent();
+    assertThat(region.chunk(1, 1)).isPresent();
+  }
+
+  @Test
+  void readsAChunkSpanningSeveralSectors() throws IOException {
+    byte[] large =
+        new NbtBytes()
+            .named(10, "")
+            .named(7, "data")
+            .i32(9000)
+            .raw(new int[9000])
+            .named(3, "marker")
+            .i32(77)
+            .end()
+            .toByteArray();
+    RegionFile region = new RegionBytes(5).location(0, 2, 3).chunk(2, 3, large).open(0, 0);
+
+    assertThat(large.length).isGreaterThan(2 * RegionFile.SECTOR_BYTES);
+    assertThat(region.chunk(0, 0).orElseThrow().value()).containsEntry("marker", 77);
+  }
+
+  @Test
+  void exposesTimestampsAsUnsignedSeconds() throws IOException {
+    RegionFile region = new RegionBytes(2).timestamp(0, -1).open(0, 0);
+
+    assertThat(region.timestamp(0, 0)).isEqualTo(4_294_967_295L);
+  }
+
+  @Test
+  void checksTheChunkPositionWrittenInItsNbt() throws IOException {
+    RegionFile region =
+        new RegionBytes(4)
+            .location(1023, 2, 1)
+            .location(0, 3, 1)
+            .chunk(2, 3, positioned(-1, -1))
+            .chunk(3, 3, positioned(-1, -1))
+            .open(-1, -1);
+
+    assertThat(region.chunkCheckingPosition(-1, -1).orElseThrow().value())
+        .containsEntry("xPos", -1);
+    assertThatThrownBy(() -> region.chunkCheckingPosition(-32, -32))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("chunk (-32,-32): its NBT says xPos=-1 zPos=-1");
+    assertThat(region.chunkCheckingPosition(-2, -1)).isEmpty();
+  }
 }

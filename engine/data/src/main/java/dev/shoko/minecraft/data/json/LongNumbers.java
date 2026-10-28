@@ -1,7 +1,9 @@
 package dev.shoko.minecraft.data.json;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Takes the long numeric literals out of a text before the library reads it. The streaming reader
@@ -22,10 +24,13 @@ final class LongNumbers {
   private final String libraryText;
   // Rank among the numbers of the text -> literal; looked up by key only.
   private final Map<Integer, String> literals;
+  // Ranks of the short runs that are not numbers: the library may read a number out of them.
+  private final Set<Integer> malformed;
 
-  private LongNumbers(String libraryText, Map<Integer, String> literals) {
+  private LongNumbers(String libraryText, Map<Integer, String> literals, Set<Integer> malformed) {
     this.libraryText = libraryText;
     this.literals = literals;
+    this.malformed = malformed;
   }
 
   /**
@@ -34,6 +39,7 @@ final class LongNumbers {
    */
   static LongNumbers scan(String text) {
     Map<Integer, String> literals = new HashMap<>();
+    Set<Integer> malformed = new HashSet<>();
     StringBuilder library = null;
     int copied = 0;
     int rank = 0;
@@ -54,6 +60,8 @@ final class LongNumbers {
             }
             library.append(text, copied, i).append(PLACEHOLDER);
             copied = end;
+          } else if (!isNumber(text.substring(i, end))) {
+            malformed.add(rank);
           }
           rank++;
         }
@@ -61,9 +69,10 @@ final class LongNumbers {
       }
     }
     if (library == null) {
-      return new LongNumbers(text, literals);
+      return new LongNumbers(text, literals, malformed);
     }
-    return new LongNumbers(library.append(text, copied, text.length()).toString(), literals);
+    return new LongNumbers(
+        library.append(text, copied, text.length()).toString(), literals, malformed);
   }
 
   /** The text to give to the library. */
@@ -74,6 +83,15 @@ final class LongNumbers {
   /** The long literal that is the number of this rank, or null when the library reads it. */
   String literalAt(int rank) {
     return literals.get(rank);
+  }
+
+  /**
+   * Tells whether the short run of this rank is not a number although the library read one out of
+   * it, because the character that ends the number for the library is not one that ends it in JSON
+   * (a form feed, for instance). The run is then a syntax error, found before any range check.
+   */
+  boolean isMalformed(int rank) {
+    return malformed.contains(rank);
   }
 
   /** Tells whether a literal follows the JSON number grammar. */

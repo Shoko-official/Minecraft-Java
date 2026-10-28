@@ -120,8 +120,10 @@ final class TreeParser {
 
   private JsonNumber number(JsonPath path) throws IOException, ParseFailure {
     String read = in.nextString();
-    String longLiteral = longNumbers.literalAt(numbers++);
-    if (longLiteral != null && !LongNumbers.isNumber(longLiteral)) {
+    int rank = numbers++;
+    String longLiteral = longNumbers.literalAt(rank);
+    if (longNumbers.isMalformed(rank)
+        || (longLiteral != null && !LongNumbers.isNumber(longLiteral))) {
       throw new ParseFailure(DiagnosticCode.JSON_SYNTAX, path);
     }
     JsonNumber number = new JsonNumber(origin, path, longLiteral != null ? longLiteral : read);

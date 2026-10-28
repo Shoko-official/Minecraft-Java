@@ -1,5 +1,9 @@
 package dev.shoko.minecraft.data.diag;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.Objects;
+
 /**
  * A path inside a JSON document: the root, then object keys and array indices. Immutable. Its text
  * form (R61) is {@code $} for the root, {@code .name} for an object member and {@code [i]} for an
@@ -10,7 +14,23 @@ package dev.shoko.minecraft.data.diag;
  */
 public final class JsonPath {
 
-  private JsonPath() {}
+  private static final JsonPath ROOT = new JsonPath(null, null, -1);
+
+  private final JsonPath parent;
+  // Exactly one of key (non-null) and index (non-negative) describes the last step; the root has
+  // neither.
+  private final String key;
+  private final int index;
+  private final int depth;
+  private final int hash;
+
+  private JsonPath(JsonPath parent, String key, int index) {
+    this.parent = parent;
+    this.key = key;
+    this.index = index;
+    this.depth = parent == null ? 0 : parent.depth + 1;
+    this.hash = parent == null ? 0 : 31 * parent.hash + (key != null ? key.hashCode() : ~index);
+  }
 
   /**
    * Returns the path of the document root.
@@ -18,7 +38,7 @@ public final class JsonPath {
    * @return the root path, whose text is {@code $}
    */
   public static JsonPath root() {
-    return Skeleton.throwNotImplemented();
+    return ROOT;
   }
 
   /**
@@ -28,7 +48,7 @@ public final class JsonPath {
    * @return the child path
    */
   public JsonPath field(String key) {
-    return Skeleton.throwNotImplemented();
+    return new JsonPath(this, Objects.requireNonNull(key), -1);
   }
 
   /**
@@ -39,7 +59,10 @@ public final class JsonPath {
    * @throws IllegalArgumentException when {@code index} is negative
    */
   public JsonPath index(int index) {
-    return Skeleton.throwNotImplemented();
+    if (index < 0) {
+      throw new IllegalArgumentException("negative index: " + index);
+    }
+    return new JsonPath(this, null, index);
   }
 
   /**
@@ -50,7 +73,22 @@ public final class JsonPath {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof JsonPath that) || depth != that.depth || hash != that.hash) {
+      return false;
+    }
+    JsonPath a = this;
+    JsonPath b = that;
+    while (a.parent != null) {
+      if (a.index != b.index || !Objects.equals(a.key, b.key)) {
+        return false;
+      }
+      a = a.parent;
+      b = b.parent;
+    }
+    return true;
   }
 
   /**
@@ -60,7 +98,7 @@ public final class JsonPath {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return hash;
   }
 
   /**
@@ -70,6 +108,18 @@ public final class JsonPath {
    */
   @Override
   public String toString() {
-    return Skeleton.throwNotImplemented();
+    Deque<JsonPath> steps = new ArrayDeque<>();
+    for (JsonPath p = this; p.parent != null; p = p.parent) {
+      steps.push(p);
+    }
+    StringBuilder text = new StringBuilder("$");
+    for (JsonPath step : steps) {
+      if (step.key != null) {
+        text.append('.').append(step.key);
+      } else {
+        text.append('[').append(step.index).append(']');
+      }
+    }
+    return text.toString();
   }
 }

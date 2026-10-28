@@ -15,7 +15,13 @@ public final class Identifier implements Comparable<Identifier> {
   /** Namespace assumed when a value written in JSON has none (R22). */
   public static final String DEFAULT_NAMESPACE = "minecraft";
 
-  private Identifier() {}
+  private final String namespace;
+  private final String path;
+
+  private Identifier(String namespace, String path) {
+    this.namespace = namespace;
+    this.path = path;
+  }
 
   /**
    * Builds an identifier from its two parts, which must already be valid (R20).
@@ -27,7 +33,13 @@ public final class Identifier implements Comparable<Identifier> {
    *     {@code ..}
    */
   public static Identifier of(String namespace, String path) {
-    return Skeleton.throwNotImplemented();
+    if (!isValidNamespace(namespace)) {
+      throw new IllegalArgumentException("invalid namespace: " + namespace);
+    }
+    if (!isValidPath(path)) {
+      throw new IllegalArgumentException("invalid path: " + path);
+    }
+    return new Identifier(namespace, path);
   }
 
   /**
@@ -38,7 +50,7 @@ public final class Identifier implements Comparable<Identifier> {
    * @throws IllegalArgumentException when the path is invalid
    */
   public static Identifier minecraft(String path) {
-    return Skeleton.throwNotImplemented();
+    return of(DEFAULT_NAMESPACE, path);
   }
 
   /**
@@ -52,7 +64,12 @@ public final class Identifier implements Comparable<Identifier> {
    *     {@code a:b:c} or {@code ..:x}
    */
   public static Identifier parse(String text) {
-    return Skeleton.throwNotImplemented();
+    int colon = text.indexOf(':');
+    if (colon < 0) {
+      return of(DEFAULT_NAMESPACE, text);
+    }
+    String namespace = colon == 0 ? DEFAULT_NAMESPACE : text.substring(0, colon);
+    return of(namespace, text.substring(colon + 1));
   }
 
   /**
@@ -62,7 +79,13 @@ public final class Identifier implements Comparable<Identifier> {
    * @return the identifier, or empty when the text is not valid
    */
   public static Optional<Identifier> tryParse(String text) {
-    return Skeleton.throwNotImplemented();
+    int colon = text.indexOf(':');
+    String namespace = colon <= 0 ? DEFAULT_NAMESPACE : text.substring(0, colon);
+    String path = colon < 0 ? text : text.substring(colon + 1);
+    if (!isValidNamespace(namespace) || !isValidPath(path)) {
+      return Optional.empty();
+    }
+    return Optional.of(new Identifier(namespace, path));
   }
 
   /**
@@ -72,7 +95,7 @@ public final class Identifier implements Comparable<Identifier> {
    * @return whether it only uses allowed characters and is not {@code ..}
    */
   public static boolean isValidNamespace(String namespace) {
-    return Skeleton.throwNotImplemented();
+    return !namespace.isEmpty() && !namespace.equals("..") && onlyAllowed(namespace, false);
   }
 
   /**
@@ -82,7 +105,7 @@ public final class Identifier implements Comparable<Identifier> {
    * @return whether it only uses allowed characters
    */
   public static boolean isValidPath(String path) {
-    return Skeleton.throwNotImplemented();
+    return onlyAllowed(path, true);
   }
 
   /**
@@ -91,7 +114,7 @@ public final class Identifier implements Comparable<Identifier> {
    * @return the namespace
    */
   public String namespace() {
-    return Skeleton.throwNotImplemented();
+    return namespace;
   }
 
   /**
@@ -100,7 +123,7 @@ public final class Identifier implements Comparable<Identifier> {
    * @return the path
    */
   public String path() {
-    return Skeleton.throwNotImplemented();
+    return path;
   }
 
   /**
@@ -111,7 +134,9 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public int compareTo(Identifier other) {
-    return Skeleton.throwNotImplemented();
+    // Valid characters are ASCII, so UTF-16 order and code point order agree.
+    int byNamespace = namespace.compareTo(other.namespace);
+    return byNamespace != 0 ? byNamespace : path.compareTo(other.path);
   }
 
   /**
@@ -122,7 +147,7 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof Identifier id && namespace.equals(id.namespace) && path.equals(id.path);
   }
 
   /**
@@ -132,7 +157,7 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return 31 * namespace.hashCode() + path.hashCode();
   }
 
   /**
@@ -142,6 +167,23 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public String toString() {
-    return Skeleton.throwNotImplemented();
+    return namespace + ":" + path;
+  }
+
+  private static boolean onlyAllowed(String text, boolean allowSlash) {
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      boolean allowed =
+          (c >= 'a' && c <= 'z')
+              || (c >= '0' && c <= '9')
+              || c == '_'
+              || c == '-'
+              || c == '.'
+              || (allowSlash && c == '/');
+      if (!allowed) {
+        return false;
+      }
+    }
+    return true;
   }
 }

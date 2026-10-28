@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.data.diag;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -13,7 +14,14 @@ import java.util.Optional;
  */
 public final class Outcome<T> {
 
-  private Outcome() {}
+  // Null when the input produced nothing; never exposed.
+  private final T value;
+  private final List<Diagnostic> diagnostics;
+
+  private Outcome(T value, List<Diagnostic> diagnostics) {
+    this.value = value;
+    this.diagnostics = List.copyOf(diagnostics);
+  }
 
   /**
    * Returns a result with a value and no diagnostic.
@@ -23,7 +31,7 @@ public final class Outcome<T> {
    * @return the result
    */
   public static <T> Outcome<T> success(T value) {
-    return Skeleton.throwNotImplemented();
+    return success(value, List.of());
   }
 
   /**
@@ -35,7 +43,7 @@ public final class Outcome<T> {
    * @return the result; later changes to {@code diagnostics} do not affect it
    */
   public static <T> Outcome<T> success(T value, List<Diagnostic> diagnostics) {
-    return Skeleton.throwNotImplemented();
+    return new Outcome<>(Objects.requireNonNull(value), diagnostics);
   }
 
   /**
@@ -46,7 +54,7 @@ public final class Outcome<T> {
    * @return the result; later changes to {@code diagnostics} do not affect it
    */
   public static <T> Outcome<T> failure(List<Diagnostic> diagnostics) {
-    return Skeleton.throwNotImplemented();
+    return new Outcome<>(null, diagnostics);
   }
 
   /**
@@ -55,7 +63,7 @@ public final class Outcome<T> {
    * @return the value, or empty when the input produced nothing
    */
   public Optional<T> value() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(value);
   }
 
   /**
@@ -64,7 +72,7 @@ public final class Outcome<T> {
    * @return an unmodifiable list
    */
   public List<Diagnostic> diagnostics() {
-    return Skeleton.throwNotImplemented();
+    return diagnostics;
   }
 
   /**
@@ -74,6 +82,6 @@ public final class Outcome<T> {
    * @return whether at least one diagnostic is an error
    */
   public boolean hasErrors() {
-    return Skeleton.throwNotImplemented();
+    return diagnostics.stream().anyMatch(d -> d.code().severity() == Severity.ERROR);
   }
 }

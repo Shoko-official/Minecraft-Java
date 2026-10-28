@@ -1,12 +1,31 @@
 package dev.shoko.minecraft.data.pack;
 
+import dev.shoko.minecraft.data.diag.Diagnostic;
+import dev.shoko.minecraft.data.diag.DiagnosticCode;
+import dev.shoko.minecraft.data.diag.FileOrigin;
+import dev.shoko.minecraft.data.diag.JsonPath;
 import dev.shoko.minecraft.data.diag.Outcome;
+import dev.shoko.minecraft.data.pack.meta.PackCompatibility;
+import dev.shoko.minecraft.data.pack.meta.PackType;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Stream;
+import java.util.zip.ZipException;
 
 /** Finds the packs available on disk (R3, R14, R19, R40). */
 public final class PackDiscovery {
+
+  private static final String VANILLA_ID = "vanilla";
+  private static final String BUILT_IN_FOLDER = "data/minecraft/datapacks";
+  private static final String ARCHIVE_SUFFIX = ".zip";
+  private static final String WORLD_PREFIX = "file/";
 
   private PackDiscovery() {}
 
@@ -25,7 +44,22 @@ public final class PackDiscovery {
    * @throws IOException when a folder cannot be listed
    */
   public static Outcome<List<Pack>> referencePacks(Path resourcesRoot) throws IOException {
-    return Skeleton.throwNotImplemented();
+    PackFiles root = PackFiles.directory(resourcesRoot);
+    List<Pack> packs = new ArrayList<>();
+    packs.add(
+        Pack.implicit(
+            VANILLA_ID, PackOrigin.BUILT_IN, PackType.DATA, root.without(BUILT_IN_FOLDER)));
+    List<Diagnostic> diagnostics = new ArrayList<>();
+    Path builtIn = resourcesRoot.resolve(BUILT_IN_FOLDER);
+    if (Files.isDirectory(builtIn)) {
+      for (Path folder : sortedChildren(builtIn)) {
+        if (Files.isDirectory(folder)) {
+          String name = folder.getFileName().toString();
+          open(name, PackOrigin.FEATURE, PackFiles.directory(folder), packs, diagnostics);
+        }
+      }
+    }
+    return Outcome.success(packs, diagnostics);
   }
 
   /**
@@ -41,7 +75,7 @@ public final class PackDiscovery {
    *       {@code PACK_INVALID} warning (R7).
    *   <li>The result follows the name of the candidate, compared by Unicode code point, whatever
    *       the file system, the locale or the case rules of the system: {@code Z}, {@code a}, {@code
-   *       p10}, {@code p2}, {@code x.zip}, then {@code é}.
+   *       p10}, {@code p2}, {@code x.zip}, then the name that starts with e-acute.
    *   <li>An incompatible pack (R5) is returned like the others: it stays available (R6).
    * </ul>
    *
@@ -50,7 +84,24 @@ public final class PackDiscovery {
    * @throws IOException when the folder cannot be listed
    */
   public static Outcome<List<Pack>> worldPacks(Path datapacksFolder) throws IOException {
-    return Skeleton.throwNotImplemented();
+    List<Pack> packs = new ArrayList<>();
+    List<Diagnostic> diagnostics = new ArrayList<>();
+    for (Path candidate : sortedChildren(datapacksFolder)) {
+      String name = candidate.getFileName().toString();
+      if (name.startsWith(".")) {
+        continue;
+      }
+      PackFiles files = null;
+      if (Files.isDirectory(candidate)) {
+        files = PackFiles.directory(candidate);
+      } else if (name.endsWith(ARCHIVE_SUFFIX) && Files.isRegularFile(candidate)) {
+        files = PackFiles.archive(candidate);
+      }
+      if (files != null) {
+        open(WORLD_PREFIX + name, PackOrigin.WORLD, files, packs, diagnostics);
+      }
+    }
+    return Outcome.success(packs, diagnostics);
   }
 
   /**
@@ -68,6 +119,48 @@ public final class PackDiscovery {
    * @return the packs to activate, lowest priority first
    */
   public static List<Pack> activationOrder(List<Pack> discovered, List<String> savedEnabledIds) {
-    return Skeleton.throwNotImplemented();
+    Map<String, Pack> byId = new HashMap<>();
+    for (Pack pack : discovered) {
+      byId.putIfAbsent(pack.id(), pack);
+    }
+    Set<String> chosen = new HashSet<>();
+    List<Pack> order = new ArrayList<>();
+    for (String id : savedEnabledIds) {
+      Pack pack = byId.get(id);
+      if (pack != null && chosen.add(id)) {
+        order.add(pack);
+      }
+    }
+    for (Pack pack : discovered) {
+      boolean compatible = pack.meta().compatibility(pack.type()) == PackCompatibility.COMPATIBLE;
+      if (compatible && chosen.add(pack.id())) {
+        order.add(pack);
+      }
+    }
+    return order;
+  }
+
+  private static void open(
+      String id, PackOrigin origin, PackFiles files, List<Pack> packs, List<Diagnostic> found)
+      throws IOException {
+    try {
+      Outcome<Pack> opened = Pack.open(id, origin, PackType.DATA, files);
+      opened.value().ifPresent(packs::add);
+      found.addAll(opened.diagnostics());
+    } catch (ZipException e) {
+      String message = "unreadable archive: " + e.getMessage();
+      FileOrigin where = new FileOrigin(id, Pack.META_FILE);
+      found.add(new Diagnostic(DiagnosticCode.PACK_INVALID, where, JsonPath.root(), message));
+    }
+  }
+
+  private static List<Path> sortedChildren(Path folder) throws IOException {
+    try (Stream<Path> children = Files.list(folder)) {
+      return children.sorted((a, b) -> PathOrder.compare(name(a), name(b))).toList();
+    }
+  }
+
+  private static String name(Path path) {
+    return path.getFileName().toString();
   }
 }

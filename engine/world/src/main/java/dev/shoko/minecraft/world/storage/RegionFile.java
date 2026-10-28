@@ -11,9 +11,15 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributes;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
@@ -66,8 +72,9 @@ public final class RegionFile implements Closeable {
    */
   public static RegionFile open(Path regionFolder, RegionPos region) throws IOException {
     RegionFile opened = new RegionFile(regionFolder, region);
-    if (Files.exists(opened.file)) {
-      opened.channel = FileChannel.open(opened.file, StandardOpenOption.READ);
+    if (existsAsRegularFile(opened.file)) {
+      opened.channel =
+          FileChannel.open(opened.file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
     }
     return opened;
   }
@@ -119,10 +126,10 @@ public final class RegionFile implements Closeable {
       throw new IllegalArgumentException("negative decompression limit " + decompressionLimit);
     }
     if (channel == null) {
-      if (!Files.exists(file)) {
+      if (!existsAsRegularFile(file)) {
         return new ReadResult.Absent<>(AbsentCause.NO_REGION_FILE, List.of());
       }
-      channel = FileChannel.open(file, StandardOpenOption.READ);
+      channel = FileChannel.open(file, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS);
     }
     int index = chunk.indexInRegion();
     int location = ByteBuffer.wrap(readAt(4L * index, Integer.BYTES)).getInt();
@@ -155,15 +162,15 @@ public final class RegionFile implements Closeable {
     byte[] data;
     if ((type & EXTERNAL_FLAG) != 0) {
       Path external = folder.resolve(WorldLayout.externalChunkFileName(chunk));
-      if (!Files.exists(external)) {
+      if (!existsAsRegularFile(external)) {
         return refused(
             RefusedCause.MISSING_EXTERNAL_FILE, index, external.getFileName() + " does not exist");
       }
       long externalSize = Files.size(external);
-      if (externalSize > externalBound(compression, limit)) {
+      if (externalSize > Math.min(externalBound(compression, limit), OutputPieces.MAX_BYTES)) {
         return refused(RefusedCause.TOO_LARGE, index, external.getFileName() + " is too large");
       }
-      data = Files.readAllBytes(external);
+      data = readExternal(external, (int) externalSize);
     } else {
       if (compression == RegionCompression.NONE && length - 1 > limit) {
         return refused(RefusedCause.TOO_LARGE, index, "raw record exceeds the limit " + limit);
@@ -184,7 +191,50 @@ public final class RegionFile implements Closeable {
   }
 
   private static long externalBound(RegionCompression compression, long limit) {
-    return compression == RegionCompression.NONE ? limit : limit + limit / 16 + MCC_SLACK;
+    if (compression == RegionCompression.NONE) {
+      return limit;
+    }
+    long extra = limit / 16 + MCC_SLACK;
+    return limit > Long.MAX_VALUE - extra ? Long.MAX_VALUE : limit + extra;
+  }
+
+  // Anything that is not a plain file, a symbolic link included, is refused rather than followed.
+  private static boolean existsAsRegularFile(Path path) throws IOException {
+    BasicFileAttributes attributes;
+    try {
+      attributes = Files.readAttributes(path, BasicFileAttributes.class, LinkOption.NOFOLLOW_LINKS);
+    } catch (NoSuchFileException e) {
+      return false;
+    }
+    if (!attributes.isRegularFile()) {
+      throw new FileSystemException(path.toString(), null, "not a regular file");
+    }
+    return true;
+  }
+
+  private static byte[] readExternal(Path path, int size) throws IOException {
+    try (FileChannel external =
+        FileChannel.open(path, StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)) {
+      ByteBuffer buffer = ByteBuffer.allocate(size);
+      while (buffer.hasRemaining() && external.read(buffer) >= 0) {
+        // read until the buffer is full or the file ends
+      }
+      return buffer.position() == size
+          ? buffer.array()
+          : Arrays.copyOf(buffer.array(), buffer.position());
+    }
+  }
+
+  // The stream is complete under its final name before the location points to it.
+  private static void writeExternal(Path path, byte[] payload) throws IOException {
+    Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
+    Files.deleteIfExists(temporary);
+    try {
+      Files.write(temporary, payload, StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE);
+      Files.move(temporary, path, StandardCopyOption.ATOMIC_MOVE);
+    } finally {
+      Files.deleteIfExists(temporary);
+    }
   }
 
   private ReadResult<byte[]> invalidLocation(int index, String detail) {
@@ -253,7 +303,7 @@ public final class RegionFile implements Closeable {
     Path mcc = folder.resolve(WorldLayout.externalChunkFileName(chunk));
     makeWritable();
     if (external) {
-      Files.write(mcc, payload);
+      writeExternal(mcc, payload);
     }
     int sector =
         RegionRecords.firstFit(readAt(0, LOCATIONS * Integer.BYTES), record.length / SECTOR);
@@ -275,9 +325,14 @@ public final class RegionFile implements Closeable {
       channel.close();
     }
     Files.createDirectories(folder);
+    existsAsRegularFile(file);
     channel =
         FileChannel.open(
-            file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+            file,
+            StandardOpenOption.CREATE,
+            StandardOpenOption.READ,
+            StandardOpenOption.WRITE,
+            LinkOption.NOFOLLOW_LINKS);
     writable = true;
     if (channel.size() < HEADER_BYTES) {
       writeAt(HEADER_BYTES - 1L, ByteBuffer.wrap(new byte[1]));

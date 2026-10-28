@@ -36,6 +36,8 @@ public final class Lz4BlockCodec {
   private static final int WRITER_LEVEL = 6;
   private static final int SEED = 0x9747B28C;
   private static final int CHECKSUM_MASK = 0x0FFFFFFF;
+  // A byte of match length extension adds 255 bytes to the output, so no block expands more.
+  private static final long MAX_EXPANSION = 255;
 
   private Lz4BlockCodec() {}
 
@@ -57,7 +59,8 @@ public final class Lz4BlockCodec {
    */
   public static byte[] decode(byte[] stream, long maxOutputBytes)
       throws CorruptStreamException, OutputLimitExceededException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    OutputPieces out = new OutputPieces();
+    long bound = OutputPieces.effectiveLimit(maxOutputBytes);
     int at = 0;
     while (true) {
       if (stream.length - at < HEADER_LENGTH) {
@@ -79,11 +82,15 @@ public final class Lz4BlockCodec {
         return out.toByteArray();
       }
       checkHeader(token, compressed, length);
-      if (length > maxOutputBytes - out.size()) {
+      if (length > bound - out.size()) {
         throw new OutputLimitExceededException(maxOutputBytes);
       }
       if (compressed > stream.length - bodyStart) {
         throw new CorruptStreamException("LZ4 block at byte " + at + " is cut short");
+      }
+      if (method == METHOD_LZ4 && length > MAX_EXPANSION * compressed) {
+        throw new CorruptStreamException(
+            "LZ4 block at byte " + at + " announces an impossible length");
       }
       byte[] block =
           method == METHOD_RAW
@@ -92,7 +99,7 @@ public final class Lz4BlockCodec {
       if ((Xxh32.hash(block, SEED) & CHECKSUM_MASK) != checksum) {
         throw new CorruptStreamException("LZ4 block at byte " + at + " has a wrong checksum");
       }
-      out.writeBytes(block);
+      out.add(block);
       at = bodyStart + compressed;
     }
   }

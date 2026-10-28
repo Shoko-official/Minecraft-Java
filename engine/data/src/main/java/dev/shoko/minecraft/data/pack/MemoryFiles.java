@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.data.pack;
 
+import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
 import java.util.List;
@@ -21,10 +22,13 @@ final class MemoryFiles extends BaseFiles {
   }
 
   @Override
-  public byte[] read(String path) throws NoSuchFileException {
+  public byte[] read(String path) throws IOException {
     byte[] content = files.get(path);
     if (content == null) {
       throw new NoSuchFileException(path);
+    }
+    if (content.length > PackFiles.MAX_FILE_BYTES) {
+      throw BoundedRead.tooLarge(path);
     }
     return content.clone();
   }

@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.data.pack;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.List;
@@ -26,5 +27,10 @@ final class WithoutFiles extends BaseFiles {
       throw new NoSuchFileException(path);
     }
     return parent.read(path);
+  }
+
+  @Override
+  public Closeable keepOpen() throws IOException {
+    return parent.keepOpen();
   }
 }

@@ -7,7 +7,6 @@ import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.data.json.JsonString;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
 /** Reads the optional sections of {@code pack.mcmeta}: features, filter and overlays. */
@@ -93,7 +92,7 @@ final class MetaSections {
       return null;
     }
     try {
-      Pattern.compile(text.value());
+      FilterRule.compile(text.value());
     } catch (PatternSyntaxException e) {
       problems.mismatch(value, "a valid regular expression");
       return null;

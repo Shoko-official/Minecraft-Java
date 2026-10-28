@@ -89,7 +89,7 @@ public final class LoadedData {
   /**
    * Returns the function files kept, not interpreted (R10, R41).
    *
-   * @return the files by identifier in code point order
+   * @return the files by identifier, in code point order of the full text of the identifiers (R30)
    */
   public SequencedMap<Identifier, PackFileRef> functions() {
     return content(FUNCTION);
@@ -98,7 +98,7 @@ public final class LoadedData {
   /**
    * Returns the structure files kept, not interpreted (R10, R41).
    *
-   * @return the files by identifier in code point order
+   * @return the files by identifier, in code point order of the full text of the identifiers (R30)
    */
   public SequencedMap<Identifier, PackFileRef> structures() {
     return content(STRUCTURE);

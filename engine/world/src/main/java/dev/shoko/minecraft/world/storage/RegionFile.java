@@ -2,10 +2,20 @@ package dev.shoko.minecraft.world.storage;
 
 import dev.shoko.minecraft.core.coord.ChunkPos;
 import dev.shoko.minecraft.core.coord.RegionPos;
+import dev.shoko.minecraft.world.AbsentCause;
 import dev.shoko.minecraft.world.ReadResult;
+import dev.shoko.minecraft.world.ReadWarning;
+import dev.shoko.minecraft.world.RefusedCause;
+import dev.shoko.minecraft.world.WarningCode;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * One region file {@code r.<rx>.<rz>.mca}: 32 x 32 chunks behind an 8192 byte header of 1024
@@ -18,10 +28,32 @@ import java.nio.file.Path;
  * fit in 255 sectors is stored in {@code c.<cx>.<cz>.mcc} next to the region file, and its record
  * is only {@code 00 00 00 01} and the compression byte plus 128 (AR-R11, AR-R17). Not thread safe;
  * one owner at a time.
+ *
+ * <p>A file shorter than its 8192 byte header reads as if the missing part were zeros (AR, open
+ * question): nothing there is a failure of the file system.
  */
 public final class RegionFile implements Closeable {
 
-  private RegionFile() {}
+  static final int SECTOR = 4096;
+  static final int HEADER_BYTES = 2 * SECTOR;
+  static final int EXTERNAL_FLAG = 0x80;
+  private static final int RECORD_HEAD = 5;
+  private static final int LOCATIONS = 1024;
+  // A stream that decodes to the limit is at most a few percent larger than it (stored blocks and
+  // block headers); a bigger external file cannot be a stream within the limit.
+  private static final long MCC_SLACK = 4096;
+
+  private final Path folder;
+  private final RegionPos region;
+  private final Path file;
+  private FileChannel channel;
+  private boolean writable;
+
+  private RegionFile(Path folder, RegionPos region) {
+    this.folder = folder;
+    this.region = region;
+    this.file = folder.resolve(WorldLayout.regionFileName(region));
+  }
 
   /**
    * Opens a region file. A missing file is valid: every chunk is absent (AR-R19) and the file is
@@ -33,7 +65,11 @@ public final class RegionFile implements Closeable {
    * @throws IOException if the file exists but cannot be read
    */
   public static RegionFile open(Path regionFolder, RegionPos region) throws IOException {
-    return Skeleton.throwNotImplemented();
+    RegionFile opened = new RegionFile(regionFolder, region);
+    if (Files.exists(opened.file)) {
+      opened.channel = FileChannel.open(opened.file, StandardOpenOption.READ);
+    }
+    return opened;
   }
 
   /**
@@ -46,7 +82,7 @@ public final class RegionFile implements Closeable {
    * @throws IllegalArgumentException if the chunk is in another region
    */
   public ReadResult<byte[]> read(ChunkPos chunk) throws IOException {
-    return Skeleton.throwNotImplemented();
+    return read(chunk, RegionCompression.DEFAULT_DECOMPRESSION_LIMIT);
   }
 
   /**
@@ -78,7 +114,111 @@ public final class RegionFile implements Closeable {
    * @throws IllegalArgumentException if the chunk is in another region or the limit is negative
    */
   public ReadResult<byte[]> read(ChunkPos chunk, long decompressionLimit) throws IOException {
-    return Skeleton.throwNotImplemented();
+    checkRegion(chunk);
+    if (decompressionLimit < 0) {
+      throw new IllegalArgumentException("negative decompression limit " + decompressionLimit);
+    }
+    if (channel == null) {
+      if (!Files.exists(file)) {
+        return new ReadResult.Absent<>(AbsentCause.NO_REGION_FILE, List.of());
+      }
+      channel = FileChannel.open(file, StandardOpenOption.READ);
+    }
+    int index = chunk.indexInRegion();
+    int location = ByteBuffer.wrap(readAt(4L * index, Integer.BYTES)).getInt();
+    if (location == 0) {
+      return new ReadResult.Absent<>(AbsentCause.EMPTY_SLOT, List.of());
+    }
+    long size = channel.size();
+    int offset = location >>> 8;
+    int count = location & 0xFF;
+    if (offset < 2 || count == 0 || (long) (offset + count) * SECTOR > size) {
+      return invalidLocation(index, "location " + offset + "/" + count + " is outside the file");
+    }
+    ByteBuffer head = ByteBuffer.wrap(readAt((long) offset * SECTOR, RECORD_HEAD));
+    int length = head.getInt();
+    int type = head.get() & 0xFF;
+    if (length <= 0 || (long) length + Integer.BYTES > (long) count * SECTOR) {
+      return invalidLocation(index, "record length " + length + " does not fit its sectors");
+    }
+    return decodeRecord(chunk, index, offset, length, type, decompressionLimit);
+  }
+
+  private ReadResult<byte[]> decodeRecord(
+      ChunkPos chunk, int index, int offset, int length, int type, long limit) throws IOException {
+    Optional<RegionCompression> known = RegionCompression.byId(type & ~EXTERNAL_FLAG);
+    if (known.isEmpty()) {
+      return refused(
+          RefusedCause.UNSUPPORTED_COMPRESSION, index, "compression type " + type + " is not read");
+    }
+    RegionCompression compression = known.get();
+    byte[] data;
+    if ((type & EXTERNAL_FLAG) != 0) {
+      Path external = folder.resolve(WorldLayout.externalChunkFileName(chunk));
+      if (!Files.exists(external)) {
+        return refused(
+            RefusedCause.MISSING_EXTERNAL_FILE, index, external.getFileName() + " does not exist");
+      }
+      long externalSize = Files.size(external);
+      if (externalSize > externalBound(compression, limit)) {
+        return refused(RefusedCause.TOO_LARGE, index, external.getFileName() + " is too large");
+      }
+      data = Files.readAllBytes(external);
+    } else {
+      if (compression == RegionCompression.NONE && length - 1 > limit) {
+        return refused(RefusedCause.TOO_LARGE, index, "raw record exceeds the limit " + limit);
+      }
+      data = readAt((long) offset * SECTOR + RECORD_HEAD, length - 1);
+    }
+    try {
+      return new ReadResult.Present<>(compression.decompress(data, limit), List.of());
+    } catch (OutputLimitExceededException e) {
+      return refused(RefusedCause.TOO_LARGE, index, "decompressed output exceeds " + limit);
+    } catch (CorruptStreamException e) {
+      return new ReadResult.Absent<>(
+          AbsentCause.UNREADABLE_RECORD,
+          List.of(
+              new ReadWarning(
+                  WarningCode.UNREADABLE_RECORD, where(index) + ": " + e.getMessage())));
+    }
+  }
+
+  private static long externalBound(RegionCompression compression, long limit) {
+    return compression == RegionCompression.NONE ? limit : limit + limit / 16 + MCC_SLACK;
+  }
+
+  private ReadResult<byte[]> invalidLocation(int index, String detail) {
+    return new ReadResult.Absent<>(
+        AbsentCause.INVALID_LOCATION,
+        List.of(new ReadWarning(WarningCode.INVALID_LOCATION, where(index) + ": " + detail)));
+  }
+
+  private ReadResult<byte[]> refused(RefusedCause cause, int index, String detail) {
+    return new ReadResult.Refused<>(cause, where(index) + ": " + detail);
+  }
+
+  private String where(int index) {
+    return file.getFileName() + " index " + index;
+  }
+
+  /** Reads {@code length} bytes at a position; whatever lies beyond the end of the file is zero. */
+  private byte[] readAt(long position, int length) throws IOException {
+    ByteBuffer buffer = ByteBuffer.allocate(length);
+    long at = position;
+    while (buffer.hasRemaining()) {
+      int read = channel.read(buffer, at);
+      if (read < 0) {
+        break;
+      }
+      at += read;
+    }
+    return buffer.array();
+  }
+
+  private void checkRegion(ChunkPos chunk) {
+    if (!chunk.region().equals(region)) {
+      throw new IllegalArgumentException("chunk " + chunk + " is not in region " + region);
+    }
   }
 
   /**
@@ -100,11 +240,75 @@ public final class RegionFile implements Closeable {
   public void write(
       ChunkPos chunk, byte[] nbt, RegionCompression compression, long timestampSeconds)
       throws IOException {
-    Skeleton.throwNotImplemented();
+    checkRegion(chunk);
+    if (timestampSeconds < 0 || timestampSeconds > 0xFFFF_FFFFL) {
+      throw new IllegalArgumentException("timestamp out of the unsigned 32 bit range");
+    }
+    byte[] payload = compression.compress(nbt);
+    boolean external = payload.length + RECORD_HEAD > 255 * SECTOR;
+    byte[] record =
+        external
+            ? RegionRecords.externalRecord(compression)
+            : RegionRecords.record(compression.id(), payload);
+    Path mcc = folder.resolve(WorldLayout.externalChunkFileName(chunk));
+    makeWritable();
+    if (external) {
+      Files.write(mcc, payload);
+    }
+    int sector =
+        RegionRecords.firstFit(readAt(0, LOCATIONS * Integer.BYTES), record.length / SECTOR);
+    writeAt((long) sector * SECTOR, ByteBuffer.wrap(record));
+    padToWholeSectors();
+    int index = chunk.indexInRegion();
+    writeAt(4L * index, intBuffer((sector << 8) | (record.length / SECTOR)));
+    writeAt(SECTOR + 4L * index, intBuffer((int) timestampSeconds));
+    if (!external) {
+      Files.deleteIfExists(mcc);
+    }
+  }
+
+  private void makeWritable() throws IOException {
+    if (writable) {
+      return;
+    }
+    if (channel != null) {
+      channel.close();
+    }
+    Files.createDirectories(folder);
+    channel =
+        FileChannel.open(
+            file, StandardOpenOption.CREATE, StandardOpenOption.READ, StandardOpenOption.WRITE);
+    writable = true;
+    if (channel.size() < HEADER_BYTES) {
+      writeAt(HEADER_BYTES - 1L, ByteBuffer.wrap(new byte[1]));
+    }
+  }
+
+  private void padToWholeSectors() throws IOException {
+    long size = channel.size();
+    if (size % SECTOR != 0) {
+      writeAt((size / SECTOR + 1) * SECTOR - 1, ByteBuffer.wrap(new byte[1]));
+    }
+  }
+
+  private void writeAt(long position, ByteBuffer buffer) throws IOException {
+    long at = position;
+    while (buffer.hasRemaining()) {
+      at += channel.write(buffer, at);
+    }
+  }
+
+  private static ByteBuffer intBuffer(int value) {
+    return ByteBuffer.allocate(Integer.BYTES).putInt(0, value);
   }
 
   @Override
   public void close() throws IOException {
-    Skeleton.throwNotImplemented();
+    if (channel != null) {
+      FileChannel closing = channel;
+      channel = null;
+      writable = false;
+      closing.close();
+    }
   }
 }

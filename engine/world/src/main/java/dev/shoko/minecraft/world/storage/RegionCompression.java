@@ -1,6 +1,18 @@
 package dev.shoko.minecraft.world.storage;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UncheckedIOException;
 import java.util.Optional;
+import java.util.function.LongSupplier;
+import java.util.zip.DeflaterOutputStream;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.util.zip.Inflater;
+import java.util.zip.InflaterInputStream;
 
 /**
  * Compression types a region file reader accepts and the writer can produce (AR-R13, AR-R14). The
@@ -23,6 +35,8 @@ public enum RegionCompression {
    * of the NBT reader (AR-R29, provisional: a safety ceiling, not the size of a real chunk).
    */
   public static final long DEFAULT_DECOMPRESSION_LIMIT = 134_217_728L;
+
+  private static final int BUFFER_SIZE = 8192;
 
   private final int id;
 
@@ -57,7 +71,92 @@ public enum RegionCompression {
    */
   public byte[] decompress(byte[] data, long maxOutputBytes)
       throws CorruptStreamException, OutputLimitExceededException {
-    return Skeleton.throwNotImplemented();
+    return switch (this) {
+      case NONE -> {
+        if (data.length > maxOutputBytes) {
+          throw new OutputLimitExceededException(maxOutputBytes);
+        }
+        yield data.clone();
+      }
+      case LZ4 -> Lz4BlockCodec.decode(data, maxOutputBytes);
+      case ZLIB -> inflateZlib(data, maxOutputBytes);
+      case GZIP -> inflate(openGzip(data), maxOutputBytes, () -> 0L);
+    };
+  }
+
+  /**
+   * Compresses NBT bytes for a record or a {@code .mcc} file; the output is deterministic.
+   *
+   * @param nbt the uncompressed bytes
+   * @return the stream of this type
+   */
+  byte[] compress(byte[] nbt) {
+    return switch (this) {
+      case NONE -> nbt.clone();
+      case LZ4 -> Lz4BlockCodec.encode(nbt);
+      case ZLIB -> deflate(nbt, false);
+      case GZIP -> deflate(nbt, true);
+    };
+  }
+
+  private static byte[] deflate(byte[] nbt, boolean gzip) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try (OutputStream stream = gzip ? new GZIPOutputStream(out) : new DeflaterOutputStream(out)) {
+      stream.write(nbt);
+    } catch (IOException e) {
+      throw new UncheckedIOException("in-memory compression cannot fail", e);
+    }
+    return out.toByteArray();
+  }
+
+  private static InputStream openGzip(byte[] data) throws CorruptStreamException {
+    try {
+      return new GZIPInputStream(new ByteArrayInputStream(data));
+    } catch (IOException e) {
+      throw new CorruptStreamException("gzip header is invalid", e);
+    }
+  }
+
+  private static byte[] inflateZlib(byte[] data, long limit)
+      throws CorruptStreamException, OutputLimitExceededException {
+    Inflater inflater = new Inflater();
+    try {
+      return inflate(
+          new InflaterInputStream(new ByteArrayInputStream(data), inflater),
+          limit,
+          inflater::getBytesWritten);
+    } finally {
+      inflater.end();
+    }
+  }
+
+  // Reads at most one byte past the limit, so the excess is certain as soon as it is seen. The
+  // zlib trailer is checked by the call that produces the last bytes: when it fails, the bytes the
+  // decoder had already produced tell which event came first.
+  private static byte[] inflate(InputStream stream, long limit, LongSupplier producedSoFar)
+      throws CorruptStreamException, OutputLimitExceededException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    byte[] buffer = new byte[BUFFER_SIZE];
+    long total = 0;
+    try (stream) {
+      while (true) {
+        int wanted = (int) Math.min(buffer.length, limit - total + 1);
+        int read = stream.read(buffer, 0, wanted);
+        if (read < 0) {
+          return out.toByteArray();
+        }
+        total += read;
+        if (total > limit) {
+          throw new OutputLimitExceededException(limit);
+        }
+        out.write(buffer, 0, read);
+      }
+    } catch (IOException e) {
+      if (producedSoFar.getAsLong() > limit) {
+        throw new OutputLimitExceededException(limit);
+      }
+      throw new CorruptStreamException("compressed stream does not decode: " + e.getMessage(), e);
+    }
   }
 
   /**
@@ -67,6 +166,11 @@ public enum RegionCompression {
    * @return the compression, or empty for 127 and unknown values
    */
   public static Optional<RegionCompression> byId(int id) {
-    return Skeleton.throwNotImplemented();
+    for (RegionCompression compression : values()) {
+      if (compression.id == id) {
+        return Optional.of(compression);
+      }
+    }
+    return Optional.empty();
   }
 }

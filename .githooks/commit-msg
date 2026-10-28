@@ -15,7 +15,7 @@ second="$(awk '{ sub(/\r$/, "") } found { print; exit } NF { found = 1 }' "$msg_
 
 if [ -n "$subject" ]; then
   case "$subject" in
-    "Merge branch "*|"Merge remote-tracking branch "*|"Merge commit '"*|"Merge tag '"*|"Revert \""*|"Reapply \""*|"fixup! "*|"squash! "*) ;;
+    "Merge branch "*|"Merge remote-tracking branch "*|"Merge commit '"*|"Merge tag '"*|"Revert \""*|"Reapply \""*|"fixup! "*|"squash! "*|"amend! "*) ;;
     *)
       bash "$root/scripts/check-subject.sh" "$subject"
       # A subject runs into the next line unless a blank (or comment) line follows.

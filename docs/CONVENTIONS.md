@@ -12,7 +12,7 @@ Le dépôt est jeune : ces règles sont la référence. En cas de doute, imiter 
 ## Style Java
 
 - Java 25 : records, sealed interfaces, pattern matching, switch expressions, `var` quand le type est évident.
-- Formatage automatique par Spotless (google-java-format). Ne pas formater à la main.
+- Formatage automatique par Spotless (google-java-format 1.36.1, la 1.37 exige un JVM plus récent que celui de Gradle). Ne pas formater à la main : `./gradlew spotlessApply`.
 - Classes `final` par défaut. Immutabilité préférée ; état mutable confiné et documenté.
 - Pas de réflexion, pas de singletons statiques mutables, pas de `static` global pour l'état de jeu.
 - Pas d'`Optional` en champ ou paramètre ; `null` interdit en API publique sauf annotation explicite.

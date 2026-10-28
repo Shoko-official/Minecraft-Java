@@ -1,7 +1,10 @@
 package dev.shoko.minecraft.data.registry;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.SequencedMap;
@@ -15,7 +18,32 @@ import java.util.SequencedMap;
  */
 public final class Registry<T> {
 
-  private Registry() {}
+  private final RegistryKey<T> key;
+  private final List<Identifier> ids;
+  private final List<Holder<T>> holders;
+  // Lookup only: never iterated, so its order is not observable.
+  private final Map<Identifier, Integer> rawIds;
+  // Null when the registry has no default entry.
+  private final Identifier defaultId;
+
+  private Registry(RegistryKey<T> key, SequencedMap<Identifier, T> values, Identifier defaultId) {
+    if (defaultId != null && !values.containsKey(defaultId)) {
+      throw new IllegalArgumentException("default entry is not in the registry: " + defaultId);
+    }
+    this.key = key;
+    this.defaultId = defaultId;
+    List<Identifier> orderedIds = new ArrayList<>(values.size());
+    List<Holder<T>> orderedHolders = new ArrayList<>(values.size());
+    Map<Identifier, Integer> positions = new HashMap<>();
+    for (Map.Entry<Identifier, T> entry : values.entrySet()) {
+      positions.put(entry.getKey(), orderedIds.size());
+      orderedIds.add(entry.getKey());
+      orderedHolders.add(Holder.bound(key, entry.getKey(), entry.getValue()));
+    }
+    this.ids = List.copyOf(orderedIds);
+    this.holders = List.copyOf(orderedHolders);
+    this.rawIds = positions;
+  }
 
   /**
    * Builds a registry without default entry.
@@ -26,7 +54,7 @@ public final class Registry<T> {
    * @return the registry; later changes to {@code values} do not affect it
    */
   public static <T> Registry<T> of(RegistryKey<T> key, SequencedMap<Identifier, T> values) {
-    return Skeleton.throwNotImplemented();
+    return new Registry<>(key, values, null);
   }
 
   /**
@@ -41,7 +69,7 @@ public final class Registry<T> {
    */
   public static <T> Registry<T> of(
       RegistryKey<T> key, SequencedMap<Identifier, T> values, Identifier defaultId) {
-    return Skeleton.throwNotImplemented();
+    return new Registry<>(key, values, defaultId);
   }
 
   /**
@@ -50,7 +78,7 @@ public final class Registry<T> {
    * @return the key
    */
   public RegistryKey<T> key() {
-    return Skeleton.throwNotImplemented();
+    return key;
   }
 
   /**
@@ -59,7 +87,7 @@ public final class Registry<T> {
    * @return the size, 0 for an empty registry (R28)
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return ids.size();
   }
 
   /**
@@ -68,7 +96,7 @@ public final class Registry<T> {
    * @return an unmodifiable list
    */
   public List<Identifier> ids() {
-    return Skeleton.throwNotImplemented();
+    return ids;
   }
 
   /**
@@ -78,7 +106,7 @@ public final class Registry<T> {
    * @return whether the registry has the entry
    */
   public boolean contains(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return rawIds.containsKey(id);
   }
 
   /**
@@ -88,7 +116,7 @@ public final class Registry<T> {
    * @return the value, or empty when absent
    */
   public Optional<T> get(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return holder(id).map(Holder::value);
   }
 
   /**
@@ -98,7 +126,8 @@ public final class Registry<T> {
    * @return the holder, or empty when absent
    */
   public Optional<Holder<T>> holder(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    Integer position = rawIds.get(id);
+    return position == null ? Optional.empty() : Optional.of(holders.get(position));
   }
 
   /**
@@ -108,7 +137,9 @@ public final class Registry<T> {
    * @return the holder, or empty when out of range
    */
   public Optional<Holder<T>> byRawId(int rawId) {
-    return Skeleton.throwNotImplemented();
+    return rawId >= 0 && rawId < holders.size()
+        ? Optional.of(holders.get(rawId))
+        : Optional.empty();
   }
 
   /**
@@ -118,7 +149,8 @@ public final class Registry<T> {
    * @return the raw id, or empty when absent
    */
   public OptionalInt rawIdOf(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    Integer position = rawIds.get(id);
+    return position == null ? OptionalInt.empty() : OptionalInt.of(position);
   }
 
   /**
@@ -127,6 +159,6 @@ public final class Registry<T> {
    * @return the identifier, or empty when the registry has none
    */
   public Optional<Identifier> defaultId() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(defaultId);
   }
 }

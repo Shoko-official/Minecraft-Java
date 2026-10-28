@@ -6,6 +6,12 @@
   <property name="charset" value="UTF-8"/>
   <property name="severity" value="error"/>
 
+  <!-- Justified budget overruns, one reviewed entry each; see the file for the format. -->
+  <module name="SuppressionFilter">
+    <property name="file" value="${config_loc}/suppressions.xml"/>
+    <property name="optional" value="false"/>
+  </module>
+
   <!-- Size budgets from docs/CONVENTIONS.md; files over the target are listed by scripts/check-hygiene.sh. -->
   <module name="FileLength">
     <property name="max" value="600"/>
@@ -14,10 +20,16 @@
   <module name="TreeWalker">
     <module name="MethodLength">
       <property name="max" value="60"/>
-      <property name="countEmpty" value="false"/>
+      <property name="countEmpty" value="true"/>
+    </module>
+    <module name="LambdaBodyLength">
+      <property name="max" value="40"/>
     </module>
     <module name="ParameterNumber">
       <property name="max" value="6"/>
+    </module>
+    <module name="RecordComponentNumber">
+      <property name="max" value="8"/>
     </module>
     <module name="UnusedImports"/>
     <module name="AvoidStarImport"/>

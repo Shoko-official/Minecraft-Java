@@ -6,7 +6,7 @@ Cible : Minecraft Java 26.3 (data version 5023 et protocole 777 issus des rappor
 
 1. **Données d'abord.** Les définitions vanilla (blocs, biomes, loot, recettes, worldgen JSON) sont chargées depuis les données extraites du jeu de référence, jamais recopiées dans le code. Le code implémente des interprètes et des algorithmes (ADR 0002, ADR 0003).
 2. **Déterminisme.** À entrées égales, sortie identique bit à bit. Voir la section dédiée.
-3. **Dépendances vers le bas.** Un module ne dépend que des modules plus bas dans le graphe. ArchUnit le vérifiera en CI dès le squelette Gradle (jalon M0) ; d'ici là, la règle est appliquée en revue.
+3. **Dépendances vers le bas.** Un module ne dépend que des modules plus bas dans le graphe. ArchUnit le vérifie en CI (`architecture-tests`), et un test échoue si les dépendances directes du tableau des modules ci-dessous diffèrent de celles des règles, ou si la liste des modules Gradle diffère de celle du tableau.
 4. **Moteur sans graphique.** Toute la logique de jeu vit dans `engine/*` et tourne sans fenêtre. Le client n'est qu'une vue.
 5. **Petits modules lisibles.** Budgets de taille dans `docs/CONVENTIONS.md`.
 

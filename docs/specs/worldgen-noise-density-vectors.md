@@ -18,7 +18,7 @@ Ce fichier contient les calculs de la spec `worldgen-noise-density`, les scripts
 | V-W3 (relief des splines) | C **sous H-Sp1, H-Sp2 et H-Bl** | Hermite cubique, extrapolation par la dérivée, `blend_alpha` = 1 (R27, R29) ; tolérance 1e-6 ; **S** tant que WN12 et WN6 n'ont pas répondu |
 | V-W4 (weirdness repliée), V-W7 (discriminants float32) | C | Émulation float32 par nœud (R11) ; **S** pour l'égalité avec le jeu |
 | V-W5 (quantification) | C | Trois définitions concurrentes H-Q1, H-Q2, H-Q3 (R41) ; laquelle est celle du jeu est **S** (WN15) |
-| V-W6 (recherche de biome) | C **sous H-Q1 et la distance de R43** | Sans égalité sauf C12 : indépendant de R44 ; **S** (WN16) |
+| V-W6 (recherche de biome) | C **sous H-Q1 et H-D1** | Sans égalité sauf C12 : indépendant de R44 ; **S** (WN16) |
 | ON-1 à ON-8 (oracle) | M une fois remplis | Réservés, à remplir par l'`oracle-differ` |
 
 Les identifiants de biomes ne sont pas recopiés : on désigne une entrée de la table par son **indice** (R9) dans `generated/reports/biome_parameters/minecraft/overworld.json` (SHA-256 `ca63573e405dba0ef1010d6b324feeaa7d6b5c4dc895ffb6daf0988f1e44ef79`).
@@ -106,7 +106,7 @@ w | ideal 1-|3|w|-2| | double with file decimals | float32 per node
 
 ## V-W5 Quantification des extrémités de la table (R41)
 
-Script S2. Les trois colonnes sont les trois définitions H-Q1 (produit en float32 puis troncature), H-Q2 (produit en double) et H-Q3 (valeur widened en double, produit en double). Résultat :
+Script S2. Trois hypothèses de calcul nommées, toutes de l'analyste (le facteur 10 000 est suggéré par les 4 décimales des valeurs de la table, ni le facteur ni l'arrondi ne viennent d'une source du jeu ; R41, WN15) : H-Q1 (valeur multipliée par 10 000 en float32 puis troncature vers zéro), H-Q2 (produit en double) et H-Q3 (valeur widened en double, produit en double). Les trois colonnes sont ces trois hypothèses. Résultat :
 
 ```
 value    H-Q1(float32 product)  H-Q2(double)  H-Q3(float32 value, double product)
@@ -156,7 +156,7 @@ Le produit de deux float32 est exact en double ; `f32()` arrondit ensuite au flo
 
 ## V-W6 Recherche de biome (R43, R44)
 
-Script S4, sous H-Q1 et la distance de R43. Pour chaque vecteur (température, humidité, continentalité, érosion, weirdness, profondeur) : indice de l'entrée de plus petite distance (plus petit indice en cas d'égalité, comportement provisoire de R44), distance, nombre d'entrées à égalité, distance suivante. Les vecteurs C1 à C11 n'ont **aucune égalité** (leur résultat ne dépend pas de R44) ; **C12 est une égalité** voulue (deux biomes souterrains à distance nulle : R44 la tranche) ; C13 et C11 testent la distance à un intervalle de profondeur. Résultat :
+Script S4, sous H-Q1 et l'hypothèse H-D1 (hypothèse de l'analyste, non fidèle tant que WN16 n'a pas répondu) : distance d'une entrée `i` au vecteur quantifié `c` = somme sur les 6 axes de `d_a^2` plus `offset_i^2`, avec `d_a = max(min_a - c_a, 0, c_a - max_a)` (nulle à l'intérieur de l'intervalle, extrémités incluses) ; calcul sur entiers 64 bits (maximum de l'ordre de 6 x 4 x 10^8). Pour chaque vecteur (température, humidité, continentalité, érosion, weirdness, profondeur) : indice de l'entrée de plus petite distance (plus petit indice en cas d'égalité, comportement provisoire de R44), distance, nombre d'entrées à égalité, distance suivante. Les vecteurs C1 à C11 n'ont **aucune égalité** (leur résultat ne dépend pas de R44) ; **C12 est une égalité** voulue (deux biomes souterrains à distance nulle : R44 la tranche) ; C13 et C11 testent la distance à un intervalle de profondeur. Résultat :
 
 ```
 sha256 ca63573e405dba0ef1010d6b324feeaa7d6b5c4dc895ffb6daf0988f1e44ef79
@@ -414,7 +414,7 @@ HI = [[Q(iv(e["parameters"][k])[1]) for k in AX] for e in E]
 OFF = [Q(e["parameters"]["offset"]) for e in E]
 print("entries", len(E), "biomes", len({e["biome"] for e in E}), "offsets", sorted(set(OFF)))
 
-def fitness(i, p):  # H-Cl1: sum over the 6 axes of the squared distance to the interval, plus offset squared
+def fitness(i, p):  # H-D1: sum over the 6 axes of the squared distance to the interval, plus offset squared
     s = OFF[i] ** 2
     for a in range(6):
         d = max(LO[i][a] - p[a], 0, p[a] - HI[i][a])

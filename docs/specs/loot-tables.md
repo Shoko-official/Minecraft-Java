@@ -3,7 +3,7 @@
 Statut : brouillon
 Jalon : M6
 Risque : A
-Règles : 73 (R1 à R73)
+Règles : R1 à R73 (R4, R5, R14, R19, R44, R57 et R61 sont découpées en sous-règles citables : R4a, R4b, R5a...)
 
 ## Périmètre
 
@@ -33,7 +33,9 @@ Ne couvre pas :
 - **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki, pages "Loot table", "Item modifier", "Predicate". Les pages couvrent 26.3 mais restent muettes sur les valeurs par défaut, les arrondis et l'ordre des tirages ; le contenu retenu est signalé S.
 - **Rapports locaux** (indices, ADR 0002) : `Rapport_Integral_Overworld_Minecraft_Java_26_3.md`, chapitres 94 à 105 (inventaire des données, algorithme de butin, aléa et séquences). Il décrit des comportements observables par inspection (calcul du poids, absence de tirage avec un seul candidat, bornes d'un intervalle uniforme, priorité de la graine) : tous restent S ici.
 - **Spec voisine** : `core-random.md` R12 (intervalle uniforme entier), R14 (séquences nommées), R30 à R35 (commande `/random`, séquences persistantes, choix de la source de butin) ; `data-datapack-loading.md` (chargement, empilement des packs, sondes P4, P11, P12, P16 sur `/loot`).
-- **Sondes de l'oracle** : aucune exécutée. Voir PL1 à PL16.
+- **Sondes de l'oracle** : aucune exécutée. Voir PL1 à PL22.
+
+Reproduction : tous les dénombrements D et C de cette spec sortent du script `loot_stats.py` de l'annexe, lancé avec `python -I loot_stats.py "$REF"` (`REF` = dossier `.cache/reference/26.3`). Les sections de sa sortie portent le numéro de la règle qu'elles étayent (`== R57 ...`). L'empreinte SHA-256 de la sortie complète est épinglée en annexe. **Base de comptage "LEP"** : sauf mention contraire, les occurrences sont comptées dans les dossiers `loot_table`, `enchantment` et `predicate` du pack vanilla ; les avancements, échanges et fournisseurs contextuels sont hors base. Une condition est comptée quand elle est en position de condition (valeur d'une clé `condition`, `requirements`, `terms` ou `term`, ou racine d'un fichier `predicate/`), un modificateur en position de modificateur (clés `modifier`, `on_pass`, `on_fail`, `functions`). Aucune table de données de référence n'est recopiée ici (AGENTS.md) : les tests lisent les fichiers extraits à l'exécution.
 
 Convention de preuve : D valeur lue dans un fichier extrait ; C calcul reproductible sur ces fichiers ; M observé sur l'oracle (non utilisé) ; S documentation publique seule ou hypothèse. Chaque règle S porte un **comportement provisoire**.
 
@@ -43,16 +45,18 @@ Convention de preuve : D valeur lue dans un fichier extrait ; C calcul reproduct
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R1 | Une table est un fichier `data/<espace>/loot_table/<chemin>.json`, d'identifiant `<espace>:<chemin>`. Les 1447 tables vanilla se décomposent par préfixe : `blocks` 1201, `entities` 109, `chests` 58, `gameplay` 26, `shearing` 22, `archaeology` 6, `charged_creeper` 6, `spawners` 5, `dispensers` 3, `equipment` 3, `harvest` 3, et 1 chacun pour `barrels`, `pots`, `brush`, `carve`, `till`. | C |
-| R2 | Clés de table observées : `type` (1447), `random_sequence` (1447), `pools` (1403 ; 44 tables sont sans `pools`), `modifier` (9). Le champ `type` est un identifiant du registre `context_key_set` ; valeurs : `block` 1201, `entity` 115, `chest` 68, `shearing` 22, `gift` 21, `archaeology` 6, `block_interact` 5, `fishing` 4, `equipment` 3, `entity_interact` 1, `barter` 1. Le dossier n'implique pas le type : `chest` 68 = `chests` 58 + `spawners` 5 + `dispensers` 3 + `barrels` 1 + `pots` 1 ; `entity` 115 = `entities` 109 + `charged_creeper` 6 ; `block_interact` 5 = `harvest` 3 + `carve` 1 + `till` 1 ; `entity_interact` = `brush` ; `gameplay` 26 = `gift` 21 + `fishing` 4 + `barter` 1. `type` absent vaut `generic` (S, documentation). | D (observé) ; S (défaut) |
+| R1 | Une table est un fichier `data/<espace>/loot_table/<chemin>.json`, d'identifiant `<espace>:<chemin>`. Les 1447 tables vanilla se décomposent par préfixe : `blocks` 1201, `entities` 109, `chests` 58, `gameplay` 26, `shearing` 22, `archaeology` 6, `charged_creeper` 6, `spawners` 5, `dispensers` 3, `equipment` 3, `harvest` 3, et 1 chacun pour `barrels`, `pots`, `brush`, `carve`, `till`. Commande : section `R1`. | C |
+| R2 | Clés de table observées : `type` (1447), `random_sequence` (1447), `pools` (1403 ; 44 tables sont sans `pools`), `modifier` (9). Le champ `type` est un identifiant du registre `context_key_set` ; valeurs : `block` 1201, `entity` 115, `chest` 68, `shearing` 22, `gift` 21, `archaeology` 6, `block_interact` 5, `fishing` 4, `equipment` 3, `entity_interact` 1, `barter` 1. Le dossier n'implique pas le type : `chest` 68 = `chests` 58 + `spawners` 5 + `dispensers` 3 + `barrels` 1 + `pots` 1 ; `entity` 115 = `entities` 109 + `charged_creeper` 6 ; `block_interact` 5 = `harvest` 3 + `carve` 1 + `till` 1 ; `entity_interact` = `brush` ; `gameplay` 26 = `gift` 21 + `fishing` 4 + `barter` 1. `type` absent vaut `generic` (S, documentation). Commande : section `R2`. | D (observé) ; S (défaut) |
 | R3 | Le format 26.3 utilise `type` comme discriminant de chaque condition, modificateur, entrée et fournisseur (et non `condition` ou `function`), `condition` (singulier) pour une ou plusieurs conditions, `modifier` (singulier) pour un ou plusieurs modificateurs, `terms` pour `all_of` et `any_of`, `term` pour `inverted`. Un décodeur des formes anciennes (`conditions`, `functions`, `function`, `reference`) est hors périmètre. Source documentaire : changements de 26.3 snapshot 4. | D |
-| R4 | `condition` accepte : un objet de condition inline, une chaîne identifiant un prédicat nommé (référence), ou, dans `terms`, une liste de ces éléments. Références observées : `minecraft:tool/can_silk_touch` (162 usages) et `minecraft:tool/can_shear` (52). `modifier` accepte un objet inline ou une liste d'objets (les deux sont observés ; aucune référence à un modificateur nommé dans les données, le registre `item_modifier` n'a aucun fichier vanilla). Une liste de modificateurs s'applique dans l'ordre. Provisoire : une liste de conditions est un `all_of`. | D (formes) ; S (liste de conditions) |
-| R5 | Clés de pool observées sur les 1589 pools : `entries` (1589), `rolls` (1589), `condition` (1029), `modifier` (10). `bonus_rolls` n'apparaît dans aucune table vanilla ; la documentation le donne optionnel de défaut 0.0 (fournisseur de nombre, multiplié par la chance, arrondi vers le bas). Provisoire : `bonus_rolls` défaut 0. Nombre de pools par table : 0 (44), 1 (1272), 2 (97), 3 (21), 4 (8), 5 (3), 6 (1), 7 (1). | D / C ; S (bonus_rolls) |
-| R6 | `rolls` : un nombre (1494 pools à 1, 6 à 3, 5 à 2...) ou un fournisseur (80 pools, tous `uniform` (D) ; formes `{"type":"minecraft:uniform","min":a,"max":b}`). Provisoire : valeur négative ou nulle donne zéro tirage. | D (formes) ; S (reste) |
+| R4a | `condition` (pool, entrée, modificateur) est un objet de condition inline (1389 occurrences dans les tables de butin) ou une chaîne identifiant un prédicat nommé (137) ; aucune occurrence n'est une liste. `terms` accepte des objets et des références. Références observées : `minecraft:tool/can_silk_touch` (162 usages) et `minecraft:tool/can_shear` (52). `modifier` accepte un objet inline (8 pools, 9 tables) ou une liste d'objets (2 pools) ; aucune référence à un modificateur nommé dans les données (le registre `item_modifier` n'a aucun fichier vanilla). Commande : sections `R4`. | D |
+| R4b | Provisoire : une liste de conditions donnée à `condition` (forme absente des données) est un `all_of` ; une liste de modificateurs s'applique dans l'ordre. | S |
+| R5a | Clés de pool observées sur les 1589 pools : `entries` (1589), `rolls` (1589), `condition` (1029), `modifier` (10). `bonus_rolls` n'apparaît dans aucune table vanilla. Nombre de pools par table : 0 (44), 1 (1272), 2 (97), 3 (21), 4 (8), 5 (3), 6 (1), 7 (1). Commande : section `R5-R8`. | D / C |
+| R5b | `bonus_rolls` : la documentation le donne optionnel de défaut 0.0 (fournisseur de nombre, multiplié par la chance, arrondi vers le bas). Provisoire : défaut 0. Sonde PL7. | S |
+| R6 | `rolls` : un nombre (1494 pools à 1, 6 pools à 3, 5 pools à 2, 2 pools à 4, 2 pools à 5) ou un fournisseur (80 pools, tous `uniform` (D) ; formes `{"type":"minecraft:uniform","min":a,"max":b}`). Provisoire : valeur négative ou nulle donne zéro tirage. | D (formes) ; S (reste) |
 | R7 | Types d'entrée enregistrés (`loot_pool_entry_type`, 9) : `empty`, `item`, `loot_table`, `dynamic`, `tag`, `slots`, `alternatives`, `sequence`, `group`. Occurrences dans les données : `item` 2556, `alternatives` 87, `loot_table` 57, `empty` 39, `dynamic` 1, `tag` 1 ; `slots`, `sequence`, `group` : 0. | D |
-| R8 | Champs communs des entrées : `type`, `condition` (223 `item`, 40 `loot_table`, 3 `alternatives`, 1 `dynamic`), `weight` (601 `item`, 9 `loot_table`, 35 `empty`), `quality` (3 `loot_table`, valeurs -2, 2, -1 ; toutes dans `gameplay/fishing`), `modifier` (1071 `item`, 2 `loot_table`). Défaut de `weight` : 1 ; défaut de `quality` : 0 (provisoire). Poids observés : de 2 à 148, un poids de 699. | D / S (défauts) |
+| R8 | Champs communs des entrées : `type`, `condition` (223 `item`, 40 `loot_table`, 3 `alternatives`, 1 `dynamic`), `weight` (601 `item`, 9 `loot_table`, 35 `empty`), `quality` (3 `loot_table`, valeurs -2, 2, -1 ; toutes dans `gameplay/fishing`), `modifier` (1071 `item`, 2 `loot_table`). Défaut de `weight` : 1 ; défaut de `quality` : 0 (provisoire). Poids observés : de 2 à 699 (30 valeurs distinctes sur 645 poids). | D / S (défauts) |
 | R9 | Champs propres : `item` : `name` (identifiant d'objet) ; `loot_table` : `value` (identifiant de table, ou table inline ; 57 usages) ; `dynamic` : `name` (identifiant de source dynamique, vu `minecraft:sherds`) ; `tag` : `items` (étiquette `#...`) et `expand` (booléen, vu `true` pour la table `entities/creeper`) ; `alternatives` : `children` ; `empty` : aucun. Provisoire pour `slots` : `slot_source` (documentation). | D / S |
-| R10 | Les 6 tables de `trial_chambers` incluent des tables imbriquées inline dans `value`. Les entrées d'une table imbriquée ne font pas partie des entrées du pool parent ; le décodeur conserve la table imbriquée comme une valeur. 2741 noeuds d'entrée hors contenu interne (C, parcours `entries` puis `children` seulement). | D (présence) ; C (dénombrement) |
+| R10 | Une seule table vanilla porte des tables imbriquées inline dans `value` : `equipment/trial_chamber`, avec 3 entrées `loot_table` inline (section `R5-R8`). Les 17 fichiers des dossiers `trial_chambers` (chests, dispensers, pots) n'en contiennent aucune. Les entrées d'une table imbriquée ne font pas partie des entrées du pool parent ; le décodeur conserve la table imbriquée comme une valeur. 2741 noeuds d'entrée hors contenu interne (C, parcours `entries` puis `children` seulement). | D (présence) ; C (dénombrement) |
 
 ### Modèle de contexte (ADR 0004)
 
@@ -62,31 +66,35 @@ Le module `loot` déclare les interfaces de lecture et d'action ; `entity` et `g
 |---|---|---|
 | R11 | Un contexte de butin contient : un jeu de paramètres nommés (R12), la chance (flottant), une source d'aléa (R63), le niveau/monde en lecture seule. Il est construit par l'appelant (bloc détruit, entité tuée, coffre ouvert, commande) selon le `type` de la table (R14) et passé inchangé aux tables imbriquées. | S |
 | R12 | Paramètres nommés (provisoire, noms de la documentation et des données) : `origin` (position), `this_entity`, `attacker` (entité à l'origine des dégâts), `direct_attacker` (entité qui a porté le coup, projectile par exemple), `attacking_player` (joueur crédité), `damage_source`, `tool` (pile), `block_state`, `block_entity`, `explosion_radius` (flottant), `enchantment_level`, `enchantment_active`, `target_entity`, `interacting_entity`. Cibles d'entité vues dans les données : `this`, `attacker`, `direct_attacker` (champ `entity` de `entity_properties`) ; la documentation ajoute `attacking_player`, `target_entity`, `interacting_entity`. Source de `copy_components` : `block_entity` (71 usages). | D (cibles vues) ; S (liste) |
-| R13 | Registre `context_key_set` (31 jeux) : `empty`, `generic`, `chest`, `command`, `command_slot_source`, `command_compute_default`, `command_compute_position`, `command_compute_entity`, `selector`, `villager_trade`, `fishing`, `entity`, `equipment`, `archaeology`, `gift`, `barter`, `vault`, `advancement_reward`, `advancement_entity`, `advancement_location`, `block`, `block_use`, `block_interact`, `entity_interact`, `shearing`, `container_process`, `enchanted_damage`, `enchanted_item`, `enchanted_location`, `enchanted_entity`, `hit_block`. Identifiants numériques du registre de 0 à 30. Les paramètres requis et optionnels de chaque jeu ne sont pas dans les données ; ils sont S (la page "Loot table" les renvoie à une page dédiée). | D (noms) ; S (contenu) |
-| R14 | Besoins par type de table, déduits des données (C, parcours des conditions et modificateurs de chaque type de table) : `block` : `origin`, `block_state` (`match_block`, `copy_state`), `tool` (`table_bonus`, `apply_bonus`, `match_tool`, références `tool/can_*`), `explosion_radius` (`survives_explosion`, `explosion_decay`), `block_entity` (`copy_components`), `this_entity` (2 usages) ; `entity` : `this_entity`, `attacker`, `direct_attacker`, `damage_source`, `attacking_player` (`killed_by_player`), niveau d'enchantement d'arme (`enchanted_count_increase`, `random_chance_with_enchanted_bonus`) ; `chest` : `origin` (`location_check`), `this_entity` (chance du joueur) ; `fishing` : `origin`, `this_entity` (le flotteur : `in_open_water`), `tool` ; `shearing` et `gift` : `this_entity` ; `archaeology`, `barter`, `equipment`, `entity_interact` : aucune lecture d'entité ; `block_interact` : `block_state` (`match_block`). | C |
+| R13 | Registre `context_key_set` (31 jeux), dans l'ordre de ses identifiants numériques 0 à 30 : `empty`, `generic`, `chest`, `command`, `command_slot_source`, `command_compute_default`, `command_compute_position`, `command_compute_entity`, `selector`, `villager_trade`, `fishing`, `entity`, `equipment`, `archaeology`, `gift`, `barter`, `vault`, `advancement_reward`, `advancement_entity`, `advancement_location`, `block_use`, `block`, `shearing`, `entity_interact`, `block_interact`, `container_process`, `enchanted_damage`, `enchanted_item`, `enchanted_location`, `enchanted_entity`, `hit_block` (section `R13`). Les paramètres requis et optionnels de chaque jeu ne sont pas dans les données ; ils sont S (la page "Loot table" les renvoie à une page dédiée). | D (noms, ordre) ; S (contenu) |
+| R14a | Types de condition et de modificateur effectivement présents dans les tables de chaque `type` de table (section `R14`, dossier `loot_table` seul) : `block` : conditions `all_of`, `any_of`, `entity_properties`, `inverted`, `location_check`, `match_block`, `match_tool`, `random_chance`, `survives_explosion`, `table_bonus`, modificateurs `apply_bonus`, `copy_components`, `copy_state`, `explosion_decay`, `limit_count`, `set_count` ; `entity` : conditions `all_of`, `any_of`, `damage_source_properties`, `entity_properties`, `inverted`, `killed_by_player`, `random_chance`, `random_chance_with_enchanted_bonus`, modificateurs `enchanted_count_increase`, `furnace_smelt`, `set_count`, `set_ominous_bottle_amplifier`, `set_potion` ; `chest` : conditions `inverted`, `location_check`, `random_chance`, 13 modificateurs dont `enchant_randomly`, `enchant_with_levels`, `exploration_map` ; `fishing` : `entity_properties`, `location_check`, modificateurs `enchant_with_levels`, `set_count`, `set_damage`, `set_potion` ; `gift` et `shearing` : `entity_properties`, `set_count` (et `set_potion` pour `gift`) ; `block_interact` : `match_block`, `set_count` ; `equipment` : `random_chance`, `set_components`, `set_enchantments` ; `archaeology` : `set_stew_effect` ; `barter` : `enchant_randomly`, `set_count`, `set_potion` ; `entity_interact` : aucun. | C |
+| R14b | Paramètres que chaque jeu doit fournir, déduits par hypothèse de ce que chaque type de condition lit (non lus dans les données) : `block` : `origin`, `block_state` (`match_block`, `copy_state`), `tool` (`table_bonus`, `apply_bonus`, `match_tool`, références `tool/can_*`), `explosion_radius` (`survives_explosion`, `explosion_decay`), `block_entity` (`copy_components`), `this_entity` ; `entity` : `this_entity`, `attacker`, `direct_attacker` (cibles de `entity_properties`), `damage_source`, `attacking_player` (`killed_by_player`), niveau d'enchantement d'arme ; `chest` : `origin` (`location_check`) et, par hypothèse, `this_entity` pour la chance du joueur ; `fishing` : `origin`, `this_entity` (le flotteur : `in_open_water`) et, par hypothèse, `tool` ; `shearing` et `gift` : `this_entity` ; `archaeology`, `barter`, `equipment`, `entity_interact` : aucune lecture d'entité ; `block_interact` : `block_state`. Sonde PL18. | S |
 | R15 | Comportement en l'absence d'un paramètre lu par une condition (documentation, S) : `damage_source_properties` et `location_check` (sans `origin`), `match_tool` (sans `tool`), `entity_scores` (sans entité), `enchantment_active_check` (hors `enchanted_location`) et `killed_by_player` (sans `attacking_player`) échouent ; `survives_explosion` sans `explosion_radius` réussit toujours ; `table_bonus` sans `tool` lit le niveau 0 ; `random_chance_with_enchanted_bonus` sans `attacker` lit le niveau 0. Le chargement de la table émet un avertissement si une condition lit un paramètre que le jeu du `type` ne fournit pas ; la table se charge quand même (S). | S |
-| R16 | Ports de lecture (ADR 0004 nomme `EntityView` ; `BlockView` et `ItemView` sont des propositions de cette spec pour le découpage fin que l'ADR renvoie à M6). Surface déduite des prédicats utilisés dans les données vanilla (C, voir R57 à R60) : `EntityView` doit fournir au minimum : type d'entité (étiquettes `#` comprises), drapeaux (`is_on_fire`, `is_on_ground`, `is_flying`...), équipement par slot (pile), position et visibilité du ciel, véhicule (type), composants (`sheep/color`, `mooshroom/variant`), distance horizontale à une position, vitesse horizontale et bloc affectant le mouvement, tick périodique, taille d'un cube mob, capitaine de raid, état de tonte d'un mouton, crochet de pêche (eau libre), foudre (blocs enflammés), bloc sur lequel l'entité se tient. `BlockView` : état du bloc (propriétés), étiquettes, entité de bloc, biome, visibilité du ciel, fumée de feu de camp. `ItemView` : la pile `tool` et les piles d'équipement (R64). | C / S |
+| R16 | Ports de lecture : `loot` ne déclare que `EntityView` (ADR 0004). `BlockView` et `ItemView` ne sont pas retenus, car `loot` dépend directement de `world` et `item` : l'état de bloc, les étiquettes, l'entité de bloc, le biome, la visibilité du ciel et les piles (`tool`, équipement, résultats) se lisent par ces modules sans port. Surface minimale de `EntityView`, déduite des clés de prédicat d'entité de la base LEP (R57a, section `R57`) : type d'entité (étiquettes `#` comprises) ; drapeaux (`is_on_fire`, `is_on_ground`, `is_flying`...) ; équipement par slot (pile de `item`) ; composants lus sur l'entité (`sheep/color`, `mooshroom/variant`) ; position (le bloc à cette position se lit par `world`) ; véhicule ; vitesse horizontale et distance de chute (`movement`) ; tick périodique ; taille d'un cube mob ; capitaine de raid ; état de tonte d'un mouton ; crochet de pêche en eau libre ; sous-prédicat de joueur. Les clés `distance`, `stepping_on`, `type_specific/lightning` et `smokey` ne se lisent que dans des avancements (hors base LEP) et sont hors de cette surface. | C (clés) ; S (découpage) |
 | R17 | Ports d'action (ADR 0004), nécessaires aux effets d'enchantement et non au tirage : `ActionSink` reçoit des intentions (infliger des dégâts, appliquer un effet de statut, enflammer, appliquer une impulsion, exploser, remplacer un bloc ou un disque, invoquer une entité, jouer un son, émettre des particules, exécuter une fonction, modifier des propriétés de bloc). Le tirage de butin pur ne les utilise pas. Les tests de `loot` utilisent des ports factices (liste d'intentions enregistrées). | S |
-| R18 | La chance (`luck`) du contexte vaut : pour un coffre ouvert par un joueur, la valeur de l'attribut chance du joueur ; pour la pêche, chance du joueur plus bonus de pêche de la canne (`fishing_luck_bonus`, enchantement Luck of the Sea, voir `item-enchantments.md`) ; sinon 0. Valeur provisoire : flottant 32 bits. | S |
+| R18 | La chance (`luck`) du contexte vaut : pour un coffre ouvert par un joueur, la valeur de l'attribut chance du joueur ; pour la pêche, chance du joueur plus bonus de pêche de la canne (`fishing_luck_bonus`, enchantement Luck of the Sea, voir `item-enchantments.md`) ; sinon 0. Le type numérique de la chance (flottant) n'est pas spécifié au-delà de R25. | S |
 
 ### Sélection d'un pool
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R19 | Algorithme d'une table (provisoire, hypothèse H-flow) : (1) pour chaque pool dans l'ordre, évaluer `condition` du pool ; échec = pool ignoré sans tirage d'aléa lié au pool ; (2) calculer N, le nombre de tirages : `rolls` + floor(`bonus_rolls` x chance) (R5, R6) ; (3) répéter N fois : développer les entrées du pool, retirer les entrées dont la condition échoue, choisir au hasard pondéré, produire les piles de l'entrée choisie ; (4) appliquer les modificateurs du pool à chaque pile produite par le pool ; (5) appliquer les modificateurs de la table à toutes les piles à la fin. Les modificateurs d'une entrée s'appliquent à la sortie de cette entrée avant ceux du pool. Sondes PL5, PL6, PL7. | S |
+| R19a | Algorithme d'une table (provisoire, hypothèse H-flow) : pour chaque pool dans l'ordre, évaluer `condition` du pool ; un échec ignore le pool sans tirage d'aléa lié au pool. Sonde PL5. | S |
+| R19b | Nombre de tirages N d'un pool : `rolls` + floor(`bonus_rolls` x chance) (R5b, R6). Sonde PL7. | S |
+| R19c | Répéter N fois : développer les entrées du pool, retirer celles dont la condition échoue, choisir au hasard pondéré (R25, R26), produire les piles de l'entrée choisie. Sonde PL5. | S |
+| R19d | Les modificateurs de l'entrée s'appliquent à sa sortie, puis ceux du pool à chaque pile produite par le pool, puis ceux de la table à toutes les piles à la fin (R48). Sonde PL6. | S |
 | R20 | Les entrées d'un pool sont toutes évaluées à chaque tirage (les conditions sont réévaluées à chaque tirage, et peuvent consommer de l'aléa : `random_chance`). Le tirage est avec remise : une entrée peut sortir plusieurs fois. | S |
 | R21 | `alternatives` : seul le premier enfant dont la condition réussit contribue (testé dans l'ordre) ; aucune sortie si aucun ne réussit. `sequence` : les enfants contribuent dans l'ordre jusqu'au premier dont la condition échoue. `group` : tous les enfants contribuent. Les composites se développent en entrées simples avant le tirage ; ils ne portent pas de poids propre. | S |
 | R22 | `tag` avec `expand: true` : un enfant simple par objet de l'étiquette (quantité 1, composants par défaut), de même poids et de même condition que l'entrée ; `expand: false` : une seule entrée qui produit tous les objets de l'étiquette (une pile par objet). `expand` absent : défaut non documenté (provisoire `false`). Les modificateurs d'une entrée `tag` ne s'appliquent pas aux enfants développés (documentation signalant un défaut connu) : provisoire, ils s'appliquent. Sonde PL8. | S |
 | R23 | `loot_table` : évalue la table référencée (ou inline) avec le même contexte et la même source d'aléa (pas de nouvelle séquence, voir R64) et renvoie ses piles ; pas de récursion directe (une table qui se référence elle-même est une erreur de chargement). | S |
 | R24 | `empty` : candidat qui ne produit rien mais qui compte dans le total des poids. `dynamic` : produit des piles fournies par l'émetteur du contexte sous le nom donné (`minecraft:sherds` : les tessons du pot décoré cassé ; `minecraft:contents` : le contenu d'un conteneur) ; sans émetteur il ne produit rien. `item` : une pile de `name` quantité 1 avec les composants par défaut. `slots` : S, voir R71. | D (types) ; S (comportement) |
-| R25 | Poids effectif d'une entrée simple : max(0, floor(poids + qualité x chance)). Calcul en flottants 32 bits selon l'hypothèse la plus prudente : f32(poids) + f32(f32(qualité) x chance), plancher, puis borne à 0. Les entrées de poids effectif 0 sont retirées des candidats. Sondes PL1, PL2. | S |
-| R26 | Tirage entre candidats : si aucun candidat, aucun tirage et aucune sortie ; si un seul candidat, il est choisi sans consommer d'aléa ; si plusieurs, un entier est tiré dans [0, somme des poids effectifs[ et les candidats sont parcourus dans leur ordre de développement en retranchant leur poids ; le premier dont le reste devient négatif est choisi. Trois branches distinctes : une implémentation qui tire "pour rien" décale tous les tirages suivants. Sonde PL5. | S |
-| R27 | Cas de la pêche (C sous R25 et R26, données `gameplay/fishing.json`) : trois entrées `loot_table`, poids/qualité 10/-2 (déchets), 5/+2 (trésor, conditionné à `in_open_water`), 85/-1 (poissons). Avec la chance entière L : poids effectifs 10-2L, 5+2L, 85-L (planchers à 0). En eau libre : L=0 -> 10, 5, 85 (total 100) ; L=1 -> 8, 7, 84 (99) ; L=2 -> 6, 9, 83 (98) ; L=3 -> 4, 11, 82 (97). Hors eau libre à L=0 : 10 et 85 (total 95). Poissons de `gameplay/fishing/fish` : poids 60, 25, 2, 13 (morue, saumon, tropical, globe). | C |
-| R28 | Cas du puits du désert (`archaeology/desert_well`, C sous R26) : 6 entrées, deux tessons de poids 2, quatre autres de poids 1 (brique, émeraude, bâton, soupe suspecte) ; total 8 ; probabilité 25 pour cent par tesson et 12,5 pour cent par autre entrée. Cas des ruines (`trail_ruins_rare`) : 12 entrées de poids égal ; probabilité 1/12 chacune. | C |
+| R25 | Poids effectif d'une entrée simple : le poids de l'entrée augmenté du produit de sa qualité par la chance du contexte, tronqué vers le bas et borné à 0 (documentation publique, page "Loot table"). Les entrées de poids effectif 0 ne sont pas tirées. La précision numérique du calcul n'est pas spécifiée ; elle n'est observable qu'aux frontières entières (sondes PL1, PL2). | S |
+| R26 | Tirage entre candidats : chaque candidat est choisi avec une probabilité proportionnelle à son poids effectif (R25). Sans candidat, rien n'est produit. Avec un seul candidat, le résultat ne dépend pas de l'aléa ; savoir si l'aléa est alors consommé n'est observable que par le décalage des tirages suivants à graine fixée. Hypothèse H-single : il ne l'est pas. La correspondance exacte entre la suite de nombres de la source (R63) et le candidat choisi n'est pas spécifiée ici : elle se retrouve par comparaison avec l'oracle (sonde PL5), pas par prescription. | S |
+| R27 | Cas de la pêche, données (`gameplay/fishing`, section `R27`) : trois entrées `loot_table`, poids/qualité 10/-2 (déchets), 5/+2 (trésor, conditionné à `in_open_water`), 85/-1 (poissons). Poissons de `gameplay/fishing/fish` : poids 60, 25, 2, 13 (morue, saumon, tropical, globe). Valeurs attendues sous R25 et R26 (S) avec la chance entière L : poids effectifs 10-2L, 5+2L, 85-L (planchers à 0). En eau libre : L=0 -> 10, 5, 85 (total 100) ; L=1 -> 8, 7, 84 (99) ; L=2 -> 6, 9, 83 (98) ; L=3 -> 4, 11, 82 (97). Hors eau libre à L=0 : 10 et 85 (total 95). | D (poids, qualités) ; S (valeurs effectives) |
+| R28 | Cas du puits du désert (`archaeology/desert_well`, section `R28`) : 6 entrées, deux tessons de poids 2, quatre autres de poids 1 (brique, émeraude, bâton, soupe suspecte), total 8. Cas des ruines (`trail_ruins_rare`) : 12 entrées de poids égal. Valeurs attendues sous R26 (S) : 25 pour cent par tesson et 12,5 pour cent par autre entrée ; 1/12 chacune pour les ruines. | D (poids) ; S (probabilités) |
 
 ### Conditions
 
-Les conditions sont des données `{"type": ..., ...}` ou des références. 20 types enregistrés ; occurrences dans les tables de butin, les enchantements et les prédicats (D) et champs observés :
+Les conditions sont des données `{"type": ..., ...}` ou des références. 20 types enregistrés ; occurrences dans la base LEP (D, section des conditions de `loot_stats.py`, qui détaille loot_table / enchantment / predicate ; `match_block` vaut 295 hors `predicate/` et `match_tool` 4) et champs observés :
 
 | Type | Occurrences | Champs observés |
 |---|---|---|
@@ -102,8 +110,8 @@ Les conditions sont des données `{"type": ..., ...}` ou des références. 20 ty
 | `inverted` | 31 | `term` |
 | `killed_by_player` | 24 |  |
 | `location_check` | 15 | `offsetY`, `predicate` |
-| `match_block` | 295 | `blocks`, `state` |
-| `match_tool` | 4 | `predicate` |
+| `match_block` | 296 | `blocks`, `state` |
+| `match_tool` | 6 | `predicate` |
 | `random_chance` | 22 | `chance` |
 | `random_chance_with_enchanted_bonus` | 11 | `enchanted_chance`, `enchantment`, `unenchanted_chance` |
 | `survives_explosion` | 914 |  |
@@ -125,7 +133,7 @@ Les conditions sont des données `{"type": ..., ...}` ou des références. 20 ty
 
 ### Modificateurs
 
-42 types enregistrés ; occurrences dans les tables de butin, enchantements et prédicats (D) et champs observés :
+42 types enregistrés ; occurrences dans la base LEP (D, section des modificateurs de `loot_stats.py`) et champs observés :
 
 | Type | Occurrences | Champs observés |
 |---|---|---|
@@ -178,12 +186,22 @@ Les conditions sont des données `{"type": ..., ...}` ou des références. 20 ty
 | R39 | `set_count` : `count` (fournisseur entier) fixe la quantité (provisoire : `add: true` ajoute à la quantité existante ; `add` défaut `false`). Formes de `count` : constante (395), `uniform` (534), `binomial` (18, champs `n` et `p`, par exemple tiges de melon). Arrondi : S ; la quantité résultante peut dépasser la taille de pile (R54). | D (formes) ; S (reste) |
 | R40 | `limit_count` : `limit` entier ou `{min?, max?}` (fournisseurs) ; borne la quantité de chaque pile. Vu : `{"min":0}`, `{"max":9}`, `{"max":4,"min":1}`. | D / S |
 | R41 | `explosion_decay` : s'il existe un rayon d'explosion dans le contexte, chaque unité de la pile est perdue avec la probabilité 1/rayon (un tirage par unité, dans l'ordre) ; sans rayon, pile inchangée. 190 usages. Sonde PL11. | S |
-| R42 | `apply_bonus` : `enchantment` (vu `minecraft:fortune`), `formula`, `parameters`, niveau lu sur `tool`. Formules vues : `minecraft:ore_drops` (17, sans paramètre), `minecraft:uniform_bonus_count` (11, `{"bonusMultiplier": 1 ou 2}`), `minecraft:binomial_with_bonus_count` (4, `{"extra": 3, "probability": 0.5714286}`). Sémantique (documentation) : `ore_drops` : quantité multipliée par max(1, entier tiré dans [0, niveau + 2[) ; `uniform_bonus_count` : ajoute un entier tiré dans [0, niveau x bonusMultiplier] ; `binomial_with_bonus_count` : ajoute binomiale(n = niveau + extra, p = probability). Aux limites : `ore_drops` à niveau 0 ne change pas la quantité. Les tirages exacts (bornes inclusives ou exclusives, nombre de tirages) sont S ; provisoire : `ore_drops` = quantité x max(1, nextInt(niveau + 2)), `uniform_bonus_count` = quantité + nextInt(niveau x mult + 1), `binomial` = quantité + nombre de succès de (niveau + extra) tirages flottants < p. Sondes PL3, PL4. | D (paramètres) ; S (formules) |
+| R42 | `apply_bonus` : `enchantment` (vu `minecraft:fortune`), `formula`, `parameters`, niveau lu sur `tool`. Formules vues : `minecraft:ore_drops` (17, sans paramètre), `minecraft:uniform_bonus_count` (11, `{"bonusMultiplier": 1 ou 2}`), `minecraft:binomial_with_bonus_count` (4, `{"extra": 3, "probability": 0.5714286}`). Sémantique (documentation publique, page "Item modifier", fonction `apply_bonus`) : `ore_drops` : quantité multipliée par max(1, entier tiré dans [0, niveau + 2[) ; `uniform_bonus_count` : ajoute un entier tiré dans [0, niveau x bonusMultiplier] ; `binomial_with_bonus_count` : ajoute binomiale(n = niveau + extra, p = probability). Aux limites : `ore_drops` à niveau 0 ne change pas la quantité. Les tirages exacts (bornes inclusives ou exclusives, nombre de tirages) sont S ; provisoire : `ore_drops` = quantité x max(1, nextInt(niveau + 2)), `uniform_bonus_count` = quantité + nextInt(niveau x mult + 1), `binomial` = quantité + nombre de succès de (niveau + extra) tirages flottants < p. Sondes PL3, PL4. | D (paramètres) ; S (formules) |
 | R43 | `enchanted_count_increase` : `count` (fournisseur flottant), `enchantment` (vu `minecraft:looting`), `limit` (entier, 0 = pas de limite, vu 1 sur 3 usages) : ajoute, pour chaque niveau, un tirage de `count` ; le total est arrondi après multiplication par le niveau (mode d'arrondi non documenté ; provisoire : arrondi vers le bas) ; le niveau est celui de l'arme de l'attaquant (0 sans attaquant). Vu : `uniform 0.0 à 1.0` (79), `uniform 1.0 à 2.0` (1). Sonde PL12. | D (formes) ; S (sens) |
-| R44 | `set_potion` (`id`, identifiant de potion ; `empty` retire), `set_stew_effect` (`effects` liste de {`type`, `duration` fournisseur}), `set_ominous_bottle_amplifier` (`amplifier` fournisseur), `set_instrument` (`options` : étiquette, identifiant ou liste, tirage uniforme), `set_name` (`name` texte, `target` `item_name` ou `custom_name`), `set_damage` (`damage` fournisseur flottant : **fraction** de durabilité restante, 1.0 = neuf ; vu uniform 0.15 à 0.8, `add` défaut false), `set_enchantments` (`enchantments` table identifiant -> fournisseur de niveau, borné à 255 ; `add` défaut false), `set_components` (table de composants, clé `!id` pour retirer ; vu : `minecraft:trim`), `copy_state` (`block`, `properties` : copie les propriétés listées de l'état vers le composant `block_state`), `copy_components` (`source` `block_entity`, `include` liste de composants ; `exclude` optionnel), `furnace_smelt` (applique la recette de fonte à la pile sans changer la quantité ; sans recette : pile inchangée, provisoire). | D (champs) ; S (sens) |
+| R44a | `set_potion` : `id` identifiant de potion ; `empty` retire. | D (champ) ; S (sens) |
+| R44b | `set_stew_effect` : `effects` liste de {`type`, `duration` fournisseur}. | D (champs) ; S (sens) |
+| R44c | `set_ominous_bottle_amplifier` : `amplifier` fournisseur. | D (champ) ; S (sens) |
+| R44d | `set_instrument` : `options` étiquette, identifiant ou liste, tirage uniforme. | D (champ) ; S (sens) |
+| R44e | `set_name` : `name` texte, `target` `item_name` ou `custom_name`. | D (champs) ; S (sens) |
+| R44f | `set_damage` : `damage` fournisseur flottant, **fraction** de durabilité restante (1.0 = neuf ; vu uniform 0.15 à 0.8), `add` défaut false. | D (champs) ; S (sens) |
+| R44g | `set_enchantments` : `enchantments` table identifiant -> fournisseur de niveau, borné à 255 ; `add` défaut false. | D (champs) ; S (sens) |
+| R44h | `set_components` : table de composants, clé `!id` pour retirer (vu : `minecraft:trim`). | D (champs) ; S (sens) |
+| R44i | `copy_state` : `block`, `properties` ; copie les propriétés listées de l'état vers le composant `block_state`. | D (champs) ; S (sens) |
+| R44j | `copy_components` : `source` `block_entity`, `include` liste de composants ; `exclude` optionnel. | D (champs) ; S (sens) |
+| R44k | `furnace_smelt` : applique la recette de fonte à la pile sans changer la quantité ; sans recette, pile inchangée (provisoire). | D (champ) ; S (sens) |
 | R45 | `enchant_randomly` : `options` (étiquette, identifiant ou liste), `only_compatible` (défaut `true`), `include_additional_cost_component` (défaut `false`) : choisit un enchantement uniformément parmi les candidats puis un niveau aléatoire ; un livre devient livre enchanté. `enchant_with_levels` : `levels` (fournisseur entier), `options` (optionnel : tous les enchantements si absent), `include_additional_cost_component` (défaut `false`) : enchante comme une table d'enchantement au niveau donné (`item-enchantments.md` R36 à R40). Vu : `enchant_randomly` 52 (`#minecraft:on_random_loot` 43), `enchant_with_levels` 34 (`levels` constante 30 ou uniforme 20 à 39, 5 à 15, 30 à 50). Sondes PL13, PE1. | D (usage) ; S (algorithme) |
 | R46 | `exploration_map` : `destination` (étiquette de structure), `decoration` (type de marqueur), `zoom` (défaut 2), `search_radius` (défaut 50), `skip_existing_chunks` (défaut true) : crée une carte pointant vers la structure la plus proche (dépend de `/locate`, worldgen M4) ; 18 usages. `filtered` : `item_filter` (prédicat d'objet), `on_pass`, `on_fail` (modificateurs ; l'absent laisse la pile) ; vu : `item_filter` `{"predicates":{"minecraft:map_id":{}}}` et `on_fail` `{"type":"minecraft:discard"}` : supprime la carte si elle n'a pas pu être créée. `discard` : supprime la pile (18 usages). | D (formes) ; S (sens) |
-| R47 | Modificateurs enregistrés sans usage dans les tables de butin, enchantements et prédicats (`set_random_dyes` n'apparaît que dans les échanges de villageois) : `copy_custom_data`, `copy_name`, `fill_player_head`, `modify_contents`, `sequence`, `set_attributes`, `set_banner_pattern`, `set_book_cover`, `set_contents`, `set_custom_data`, `set_custom_model_data`, `set_firework_explosion`, `set_fireworks`, `set_item`, `set_lore`, `set_loot_table`, `set_random_dyes`, `set_random_potion`, `set_writable_book_pages`, `set_written_book_pages`, `toggle_tooltips` (21). Leurs champs, d'après la documentation (S, sans comportement détaillé) : `set_item` {`item`} ; `set_custom_data` {`tag`} ; `copy_custom_data` {`source`, `ops`} ; `set_contents` {`entries`, `component`} ; `modify_contents` {`component`, `modifier`} ; `set_loot_table` {`loot_table_id`, `seed?`} ; `set_lore` {`lore`, `mode`, `offset?`, `size?`} ; `set_attributes` {`modifiers`, `replace?`} ; `set_banner_pattern` {`patterns`, `append`} ; `set_book_cover` {`author?`, `generation?`, `title?`} ; `set_custom_model_data` {`floats`, `flags`, `strings`, `colors`} ; `set_fireworks` {`explosions?`, `flight_duration?`} ; `set_firework_explosion` {`shape`, `colors`, `fade_colors`, `has_trail`, `has_twinkle`} ; `set_random_dyes` ; `set_random_potion` {`options?`} ; `set_writable_book_pages`, `set_written_book_pages` {`pages`, `mode`, `offset?`, `size?`} ; `toggle_tooltips` {`toggles`} ; `copy_name` {`source`} ; `fill_player_head` {`entity`} ; `sequence` {`functions`}. **Divergence à noter** : la documentation donne `id` pour `set_random_dyes`, alors que la donnée vanilla (échange `emerald_dyed_leather_chestplate`) utilise `number_of_dyes` avec un fournisseur `add` d'entrées `[1, binomial(n=2, p=0.75)]`. Les données priment : champ `number_of_dyes`. Ces 21 types sont à implémenter au décodage (R3) et leur comportement est reporté après les sondes PL16. | D (divergence) ; S (le reste) |
+| R47 | Modificateurs enregistrés sans usage dans les tables de butin, enchantements et prédicats (`set_random_dyes` n'apparaît que dans les échanges de villageois) : `copy_custom_data`, `copy_name`, `fill_player_head`, `modify_contents`, `sequence`, `set_attributes`, `set_banner_pattern`, `set_book_cover`, `set_contents`, `set_custom_data`, `set_custom_model_data`, `set_firework_explosion`, `set_fireworks`, `set_item`, `set_lore`, `set_loot_table`, `set_random_dyes`, `set_random_potion`, `set_writable_book_pages`, `set_written_book_pages`, `toggle_tooltips` (21). Leurs champs, d'après la documentation (S, sans comportement détaillé) : `set_item` {`item`} ; `set_custom_data` {`tag`} ; `copy_custom_data` {`source`, `ops`} ; `set_contents` {`entries`, `component`} ; `modify_contents` {`component`, `modifier`} ; `set_loot_table` {`loot_table_id`, `seed?`} ; `set_lore` {`lore`, `mode`, `offset?`, `size?`} ; `set_attributes` {`modifiers`, `replace?`} ; `set_banner_pattern` {`patterns`, `append`} ; `set_book_cover` {`author?`, `generation?`, `title?`} ; `set_custom_model_data` {`floats`, `flags`, `strings`, `colors`} ; `set_fireworks` {`explosions?`, `flight_duration?`} ; `set_firework_explosion` {`shape`, `colors`, `fade_colors`, `has_trail`, `has_twinkle`} ; `set_random_dyes` ; `set_random_potion` {`options?`} ; `set_writable_book_pages`, `set_written_book_pages` {`pages`, `mode`, `offset?`, `size?`} ; `toggle_tooltips` {`toggles`} ; `copy_name` {`source`} ; `fill_player_head` {`entity`} ; `sequence` {`functions`}. **Divergence à noter** : la documentation donne `id` pour `set_random_dyes`, alors que la donnée vanilla (échange `emerald_dyed_leather_chestplate`) utilise `number_of_dyes` avec un fournisseur `add` d'entrées `[1, binomial(n=2, p=0.75)]`. Les données priment : champ `number_of_dyes`. Ces 21 types sont décodés (R3). Comportement provisoire jusqu'à PL21 : le modificateur est conservé au décodage, appliqué comme l'identité (pile inchangée), et un avertissement "non implémenté" est émis une fois par type. PL21 couvre ces 21 types (une table par type, relecture de l'objet au sol). | D (divergence, champs vus) ; S (le reste) |
 | R48 | Ordre d'application (hypothèse H-order, provisoire) : modificateurs de l'entrée (dans l'ordre de la liste), puis modificateurs du pool, puis modificateurs de la table. Pour `loot_table` imbriquée : la table imbriquée applique ses modificateurs avant de rendre les piles à l'entrée parente. Sonde PL6. | S |
 | R49 | Une pile rendue par un modificateur peut être vide (quantité 0, `discard`, `limit_count` max 0) : elle est supprimée de la sortie. Un modificateur appliqué à une pile déjà vide ne fait rien. Provisoire. | S |
 
@@ -191,7 +209,7 @@ Les conditions sont des données `{"type": ..., ...}` ou des références. 20 ty
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R50 | Fournisseurs entiers contextuels (`context_int_provider_type`, 23) : `constant`, `uniform`, `binomial`, `weighted_list`, `conditional`, `number_dispatcher`, `score`, `storage`, `environment_attribute`, `from_float`, `abs`, `avg`, `add`, `sub`, `mul`, `div`, `mod`, `floor_div`, `floor_mod`, `negate`, `pow`, `min`, `max`. Fournisseurs flottants (`context_float_provider_type`, 28) : `constant`, `uniform`, `weighted_list`, `conditional`, `number_dispatcher`, `storage`, `environment_attribute`, `enchantment_level`, `from_int`, `length`, `abs`, `avg`, `ceil`, `floor`, `round`, `truncate`, `add`, `sub`, `mul`, `div`, `mod`, `negate`, `pow`, `sqrt`, `sin`, `cos`, `min`, `max`. Un nombre nu (`1`, `2.0`) est un `constant`. Usage dans les tables de butin : nombres nus, `uniform`, `binomial`. Usage dans les données hors butin : `div` (durées de carburant), `conditional` (vitesse de cuisson), `number_dispatcher` et `weighted_list` (compostage), `add` (échange). | D |
+| R50 | Fournisseurs entiers contextuels (`context_int_provider_type`, 23) : `constant`, `uniform`, `binomial`, `weighted_list`, `conditional`, `number_dispatcher`, `score`, `storage`, `environment_attribute`, `from_float`, `abs`, `avg`, `add`, `sub`, `mul`, `div`, `mod`, `floor_div`, `floor_mod`, `negate`, `pow`, `min`, `max`. Fournisseurs flottants (`context_float_provider_type`, 28) : `constant`, `uniform`, `weighted_list`, `conditional`, `number_dispatcher`, `storage`, `environment_attribute`, `enchantment_level`, `from_int`, `length`, `abs`, `avg`, `ceil`, `floor`, `round`, `truncate`, `add`, `sub`, `mul`, `div`, `mod`, `negate`, `pow`, `sqrt`, `sin`, `cos`, `min`, `max`. Un nombre nu (`1`, `2.0`) est un `constant`. Usage dans les tables de butin : nombres nus, `uniform`, `binomial`. Usage dans les données hors butin : `div` (durées de carburant), `conditional` (vitesse de cuisson), `number_dispatcher` et `weighted_list` (compostage), `add` (échange). Évaluation : ces fournisseurs et les prédicats de bloc qu'ils appellent (`match_block`) sont évalués par `loot`, y compris pour les besoins de `item` (durées de combustible, vitesse de cuisson, compostage : `item-recipes.md` DC1), avec un contexte de bloc réduit à l'état du bloc de la machine. | D (types, usages) ; S (contexte) |
 | R51 | `uniform` entier : bornes `min` et `max` inclusives ; si min < max, la valeur est `min + nextInt(max - min + 1)` (un tirage borné) ; si min >= max, la valeur est `min` sans tirage (spec `core-random` R12). Formes observées : constantes de 0 à 50 dans les intervalles, `{"type":"minecraft:uniform","max":3,"min":1}` pour 26 `rolls`. | D (forme) ; S (tirage, `core-random` R12) |
 | R52 | `uniform` flottant : bornes `min` et `max` ; valeur = min + nextFloat() x (max - min) (provisoire ; une seule consommation). Les enchantements utilisent `min_inclusive`/`max_exclusive` pour les fournisseurs de hauteur de son (forme différente, famille `float_provider_type`). | D (forme) ; S (formule) |
 | R53 | `binomial` : champs `n` et `p` ; valeur = nombre de succès de n tirages flottants indépendants strictement inférieurs à p (provisoire ; n tirages consommés dans l'ordre). Valeurs vues : n=3 avec p=0.53333336 ou 0.06666667 (tiges de melon et citrouille). | D (valeurs) ; S (algorithme) |
@@ -210,11 +228,13 @@ Le format des prédicats (objet, entité, bloc, position, source de dégâts) es
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R57 | Prédicat d'entité (`entity_properties.predicate`) : objet dont les clés sont des identifiants du registre `entity_sub_predicate_type` (25 types : `entity_type`, `location`, `stepping_on`, `movement_affected_by`, `distance`, `movement`, `effects`, `nbt`, `flags`, `equipment`, `periodic_tick`, `vehicle`, `passenger`, `targeted_entity`, `team`, `slots`, `components`, `predicates`, `entity_tags`, `type_specific/{lightning, fishing_hook, player, cube_mob, raider, sheep}`). Clés vues et occurrences : `entity_type` 154 (`minecraft:piglin`, étiquette `#minecraft:...`), `location` 71, `components` 60 (`{"minecraft:sheep/color":"white"}`), `flags` 35 (`is_on_fire`, `is_on_ground`, `is_flying`), `type_specific/sheep` 32 (`sheared`), `equipment` 30 (slot -> prédicat d'objet), `vehicle` 9, `type_specific/player` 6, `movement_affected_by` 5, `movement` 3 (`horizontal_speed` intervalle), `distance` 3 (`horizontal` intervalle), `type_specific/cube_mob` 2 (`size`), `periodic_tick` 2 (entier), `type_specific/raider`, `type_specific/fishing_hook` (`in_open_water`), `type_specific/lightning` (`blocks_set_on_fire`), `stepping_on`. Toutes les clés présentes doivent être vraies (ET). | D |
-| R58 | Prédicat d'objet (`match_tool.predicate`, `filtered.item_filter`, ingrédients d'alchimie) : clés vues `items` (identifiant, étiquette ou liste), `predicates` (table identifiant de type -> valeur : `minecraft:enchantments` liste de `{enchantments, levels?}` ; `minecraft:map_id` `{}` ; `minecraft:dyed_color` `{}` ; `minecraft:jukebox_playable` `{}`). Observation D importante : `predicates` accepte des composants (`dyed_color`, `map_id`) qui ne sont pas dans les 15 types du registre `data_component_predicate_type` (`damage`, `enchantments`, `stored_enchantments`, `potion_contents`, `custom_data`, `container`, `bundle_contents`, `firework_explosion`, `fireworks`, `writable_book_content`, `written_book_content`, `attribute_modifiers`, `trim`, `jukebox_playable`, `villager/variant`) avec la valeur `{}` : sémantique S, hypothèse "le composant est présent". `components` (valeurs exactes) existe aussi (documentation) et `count` (intervalle). Un prédicat `{"items": "<id>"}` seul compare l'objet. Sondes PL15, PI11. | D / S |
-| R59 | Prédicat de position (`location_check.predicate`, clé `minecraft:location`) : clés vues `block` (`{blocks, state?}`, 42), `biomes` (identifiant, étiquette ou liste, 11), `can_see_sky` (booléen), `smokey` (booléen, feu de camp). | D |
+| R57a | Prédicat d'entité (`entity_properties.predicate`) : objet dont les clés sont des identifiants du registre `entity_sub_predicate_type` (25 types : `entity_type`, `location`, `stepping_on`, `movement_affected_by`, `distance`, `movement`, `effects`, `nbt`, `flags`, `equipment`, `periodic_tick`, `vehicle`, `passenger`, `targeted_entity`, `team`, `slots`, `components`, `predicates`, `entity_tags`, `type_specific/{lightning, fishing_hook, player, cube_mob, raider, sheep}`). Occurrences de clé dans la base LEP, tous niveaux d'imbrication confondus (section `R57`, qui détaille loot_table / enchantment / predicate et, pour information, advancement) : `entity_type` 25, `components` 40 (`{"minecraft:sheep/color":"white"}`), `flags` 30 (`is_on_fire`, `is_on_ground`, `is_flying`), `type_specific/sheep` 32 (`sheared`), `equipment` 19 (slot -> prédicat d'objet), `vehicle` 6, `movement_affected_by` 5, `type_specific/player` 3, `movement` 3 (`horizontal_speed` intervalle), `type_specific/cube_mob` 2 (`size`), `periodic_tick` 2 (entier), `location` 1, `type_specific/raider` 1, `type_specific/fishing_hook` 1 (`in_open_water`). `distance`, `stepping_on` et `type_specific/lightning` valent 0 dans la base LEP (3, 1 et 1 sous `advancement/`). | D |
+| R57b | Toutes les clés présentes d'un prédicat d'entité doivent être vraies (ET). Provisoire. | S |
+| R58 | Prédicat d'objet (`match_tool.predicate`, `filtered.item_filter`, ingrédients d'alchimie) : clés vues dans la base LEP (section `R59-R60`) `items` (identifiant, étiquette ou liste ; 5 dans `match_tool`), `predicates` (table identifiant de type -> valeur : `minecraft:enchantments` 20, liste de `{enchantments, levels?}` ; `minecraft:map_id` 18, valeur `{}`). Observation D : `predicates` accepte `minecraft:map_id`, qui n'est pas dans les 15 types du registre `data_component_predicate_type` (`damage`, `enchantments`, `stored_enchantments`, `potion_contents`, `custom_data`, `container`, `bundle_contents`, `firework_explosion`, `fireworks`, `writable_book_content`, `written_book_content`, `attribute_modifiers`, `trim`, `jukebox_playable`, `villager/variant`), avec la valeur `{}` ; les échanges de villageois (hors base) font de même avec `minecraft:dyed_color`. Sémantique S, hypothèse "le composant est présent". `components` (valeurs exactes) existe aussi (documentation) et `count` (intervalle). Un prédicat `{"items": "<id>"}` seul compare l'objet. Sondes PL15, PI11. | D / S |
+| R59 | Prédicat de position, clés vues dans la base LEP (section `R59-R60`) : sous `location_check.predicate` (les clés y sont directement, sans enveloppe) `block` 5 (`{blocks, state?}`), `biomes` 10 (identifiant, étiquette ou liste), `can_see_sky` 1 (booléen) ; sous la clé `minecraft:location` d'un prédicat d'entité (enchantements, enveloppe distincte) `can_see_sky` 1. `smokey` (feu de camp) n'apparaît que sous `advancement/` et est hors base. | D |
 | R60 | Prédicat de source de dégâts : clés vues `tags` (liste de `{id: étiquette, expected: booléen}`, 8), `source_entity` (prédicat d'entité, 6), `direct_entity` (1), `is_direct` (booléen, 2). | D |
-| R61 | Prédicats nommés (registre `predicate`, 3 fichiers, 2 sans usage dans les butins directs) : `tool/can_silk_touch` (`match_tool` avec `predicates.minecraft:enchantments` `[{enchantments:"minecraft:silk_touch", levels:{min:1}}]`), `tool/can_shear` (`match_tool` avec `items:"minecraft:shears"`), `block/fast_cooking` (`match_block` sur `smoker`, `blast_furnace`). Une référence se résout au chargement ; une référence inconnue est une erreur de chargement de la table (provisoire). | D |
+| R61a | Prédicats nommés (registre `predicate`, 3 fichiers, section `R61`) : `tool/can_silk_touch` (`match_tool` avec `predicates.minecraft:enchantments` `[{enchantments:"minecraft:silk_touch", levels:{min:1}}]`, 162 références), `tool/can_shear` (`match_tool` avec `items:"minecraft:shears"`, 52 références), `block/fast_cooking` (`match_block` sur `smoker`, `blast_furnace`, utilisé par les fournisseurs de cuisson et non par les tables de butin). | D |
+| R61b | Une référence se résout au chargement ; une référence inconnue est une erreur de chargement de la table. Provisoire. | S |
 | R62 | Prédicat de bloc des effets d'enchantement (registre `block_predicate_type`, 16 types dont `matching_blocks`, `matching_block_tag`, `matching_fluids`, `unobstructed`, `all_of`, `any_of`, `not`, `true`, `solid`, `replaceable`, `would_survive`, `has_sturdy_face`, `inside_world_bounds`, `height_range`, `volume_match`, `matching_biomes`) : décrit dans `item-enchantments.md`. | D (registre) |
 
 ### Aléa et déterminisme
@@ -226,7 +246,7 @@ Les règles de cette section prolongent `core-random.md` R34 et R35, qui renvoie
 | R63 | Choix de la source d'aléa d'un tirage (priorité décroissante) : (1) une graine explicite **non nulle** (paramètre de la commande ou `LootTableSeed` du conteneur) donne un générateur à état 48 bits initialisé avec cette graine ; la graine 0 signifie "absente" ; (2) sinon la séquence nommée de la table (`random_sequence`), dont la source est le générateur 128 bits de `core-random` R14 ; (3) sinon la source du niveau. Réduire (1) et (2) à un seul générateur change la correspondance graine -> contenu. Sondes PL5, PL16. | S |
 | R64 | Les 1447 tables vanilla déclarent toutes un `random_sequence` (valeur = `minecraft:` + chemin de la table, ex. `minecraft:blocks/stone`) ; les 68 `trade_set` aussi. Une table imbriquée (`loot_table`) n'ouvre pas sa propre séquence : le contexte et la source de l'appelant sont passés (provisoire). | D (présence) ; S (imbrication) |
 | R65 | La séquence nommée est initialisée à la première utilisation à partir de la graine du monde, du sel et de l'identifiant de la séquence (réglages R30 de `core-random`) et persiste (`random_sequences.dat`). Les tirages d'une table avec séquence avancent l'état persistant de cette séquence. Deux tables partageant un `random_sequence` partagent l'état : le contenu dépend de l'ordre d'appel. | S |
-| R66 | Ordre de consommation de l'aléa (hypothèse H-draw, base des vecteurs dorés) : (a) `rolls` (si fournisseur aléatoire) avant tout autre tirage du pool ; (b) à chaque tirage, les conditions évaluées pendant le développement dans l'ordre des entrées (un tirage par `random_chance`, `survives_explosion` avec rayon, `table_bonus`, `random_chance_with_enchanted_bonus` évalués) ; (c) un entier de sélection seulement si au moins deux candidats ; (d) les modificateurs de la pile choisie, dans l'ordre, chacun consommant selon sa définition ; (e) à la fin du pool, rien. Sonde PL5 (empreinte de contenu en fonction de la graine). | S |
+| R66 | Ordre de consommation de l'aléa (hypothèse H-draw, base des vecteurs dorés) : la source avance à chaque décision aléatoire, dans l'ordre d'évaluation de R19 (`rolls` aléatoires, conditions aléatoires évaluées pendant le développement des entrées, sélection pondérée, puis modificateurs de la pile choisie dans l'ordre). Seul l'oracle arbitre cet ordre : sonde PL5 (empreinte du contenu en fonction de la graine). | S |
 | R67 | Déterminisme des commandes : `/loot` sans graine utilise la source du niveau ou la séquence de la table (selon R63) : deux appels consécutifs diffèrent. Les comparaisons statistiques employées par M6 sont des tests du khi-deux (voir Plan de tests). Les tests bit à bit n'existent que pour les conteneurs à `LootTableSeed` non nul. | S |
 
 ### Conteneurs, commandes et déballage
@@ -235,7 +255,7 @@ Les règles de cette section prolongent `core-random.md` R34 et R35, qui renvoie
 |---|---|---|
 | R68 | Un conteneur portant `LootTable` (String) et éventuellement `LootTableSeed` (Long) est "déballé" à son ouverture, à sa destruction ou à l'accès d'un entonnoir ; ces champs sont alors supprimés du conteneur et `Items` est rempli. `LootTableSeed` ne peut exister sans `LootTable` ; une valeur 0 ou absente signifie graine aléatoire. Même graine et même table donnent le même contenu. | S (documentation) |
 | R69 | Le contexte de déballage est de type `chest` : `origin` = centre du bloc, `this_entity` = le joueur qui ouvre (avec sa chance) si présent. Remplacer ce contexte par "graine du monde + position entière + identifiant de coffre" est faux. | S |
-| R70 | Placement des piles dans les slots du conteneur : les piles produites sont réparties dans les slots libres (les piles de plus d'une unité peuvent être fractionnées pour remplir davantage de slots) puis les emplacements sont mélangés avec le même générateur ; l'algorithme et son ordre de consommation sont S (le contenu final dépend de la graine). Sonde PL16. | S |
+| R70 | Placement des piles dans les slots d'un conteneur déballé. Comportement provisoire : les piles produites (éventuellement fractionnées par R54) occupent des slots distincts du conteneur, sans perte ni duplication tant que le nombre de piles ne dépasse pas la taille du conteneur ; le choix des slots est aléatoire et uniforme parmi les slots libres. L'algorithme exact (fractionnement des piles de plusieurs unités, mélange, ordre de consommation) n'est pas spécifié : le test L2 de placement est statistique (multi-ensemble de piles exact, répartition des slots par khi-deux), pas une égalité slot par slot, jusqu'à ce que PL5 permette de retrouver l'algorithme. Sonde PL5 (200 graines, enregistrement slot par slot). | S |
 | R71 | `slots` (type d'entrée) et `slot_source_type` (6 types : `contents`, `empty`, `filtered`, `group`, `limit_slots`, `slot_range`) lisent des piles dans des slots d'une source (`this`, `attacker`...) ; commandes `item replace/fill/override/modify` (D `commands.json`) utilisent `slot_source` et `loot_modifier`. Sémantique et formes : S, sonde PL16 b. | D (syntaxe) ; S (reste) |
 | R72 | Commande `/loot` (D `commands.json`) : cibles `give <joueurs>`, `insert <pos>`, `replace block <pos> <slot> [count]`, `replace entity <entités> <slot> [count]`, `spawn <vec3>` ; sources `loot <table>`, `kill <entité>`, `mine <pos> [mainhand]`, `mine <pos> [offhand]`, `mine <pos> [<outil>]`, `fish <table> <pos>` avec les mêmes options (`mainhand`, `offhand` ou un outil). La source `loot` utilise un contexte de type `command` ; `kill`, `mine` et `fish` utilisent les contextes d'entité, de bloc et de pêche. Provisoire pour la correspondance contexte/source. | D (syntaxe) ; S (contextes) |
 | R73 | Le butin d'un bloc détruit dépend aussi des règles de jeu `block_drops`, `entity_drops`, `block_explosion_drop_decay` (D registre `game_rule`, défauts true). Hors périmètre ici, rappelées pour les scénarios. | D (existence) |
@@ -271,8 +291,6 @@ D/C (lisibles sans oracle) :
 | V-L2 | Décodage de `blocks/oak_leaves` | 3 pools ; pool 0 : `alternatives` (`oak_leaves` si `any_of` [`tool/can_shear`, `tool/can_silk_touch`], sinon `oak_sapling` si `all_of` [`survives_explosion`, `table_bonus` fortune `[0.05, 0.0625, 0.083333336, 0.1]`]) ; pool 1 conditionné par `inverted(any_of ...)` : `stick` avec `table_bonus` `[0.02, 0.022222223, 0.025, 0.033333335, 0.1]`, modificateurs `set_count` uniform 1 à 2 puis `explosion_decay` ; pool 2 : `apple` | D |
 | V-L3 | Décodage de `entities/cow` | 2 pools ; pool 0 : `leather`, `set_count` uniform 0 à 2 puis `enchanted_count_increase` looting uniform 0.0 à 1.0 ; pool 1 : `beef`, `set_count` uniform 1 à 3, `furnace_smelt` conditionnée par `any_of` [`entity_properties this flags is_on_fire`, `entity_properties direct_attacker equipment mainhand predicates enchantments #minecraft:smelts_loot`], `enchanted_count_increase` | D |
 | V-L4 | Décodage de `gameplay/fishing` | 3 entrées `loot_table` (junk 10/-2, treasure 5/+2 avec `fishing_hook.in_open_water`, fish 85/-1) | D |
-| V-L5 | Distribution de pêche (R27) | voir R27 | C (sous R25, R26) |
-| V-L6 | `archaeology/desert_well` | 25 pour cent par tesson, 12,5 pour cent par autre entrée (R28) | C (sous R26) |
 | V-L7 | Dénombrement | 1447 tables ; 1589 pools ; 2556 entrées `item` ; types de table de R2 ; 21 types de modificateur utilisés sur 42, 15 types de condition utilisés sur 20 (`time_check`, `entity_scores`, `int_value_check`, `float_value_check`, `environment_attribute_check` non utilisés) | C |
 | V-L8 | `blocks/decorated_pot` | `alternatives` : `dynamic` `minecraft:sherds` sous `match_block decorated_pot cracked "true"`, sinon `item decorated_pot` avec `copy_components` source `block_entity` include `["minecraft:pot_decorations"]` | D |
 
@@ -284,13 +302,15 @@ Vecteurs de comportement (S, à produire par les sondes ; l'oracle donne la vale
 | V-L10 | `/loot spawn ... mine <pos> <outil à Silk Touch>` sur `stone` | 1 x `stone` |
 | V-L11 | Fortune 0 à 3 sur `oak_leaves` x 200000 | fréquence de sapling : 5, 6.25, 8.33, 10 pour cent (R32) à l'écart statistique près |
 | V-L12 | `fishing` chance 0 à 3, N = 200000 | proportions de R27 |
-| V-L13 | Coffre `simple_dungeon` avec `LootTableSeed` S (10 graines) | empreinte du contenu par graine (golden) |
+| V-L13 | Coffre `simple_dungeon` avec `LootTableSeed` S (10 graines) | empreinte du multi-ensemble de piles par graine (golden ; les slots ne sont pas comparés, R70) |
+| V-L5 | Distribution de pêche (R27) | proportions de R27 (PL1, V-L12) |
+| V-L6 | `archaeology/desert_well` (R28) | 25 pour cent par tesson, 12,5 pour cent par autre entrée (PL5) |
 
 ## Plan de tests
 
-- **Unitaire (L1)** : décoder les 1447 tables, les 3 prédicats et les 30 fournisseurs contextuels sans erreur ; réencoder et comparer à l'arbre JSON (ordre des clés indifférent) ; V-L1 à V-L8, V-L7 ; tests de propriétés : somme des probabilités de sélection = 1 pour les cas sans condition ; invariance par permutation des entrées de même poids ; ports factices pour toutes les conditions (chaque condition, chaque paramètre absent, R15).
+- **Unitaire (L1)** : décoder les 1447 tables, les 3 prédicats et les 30 fournisseurs contextuels sans erreur ; réencoder et comparer à l'arbre JSON (ordre des clés indifférent) ; V-L1 à V-L4, V-L7, V-L8 ; tests de propriétés : somme des probabilités de sélection = 1 pour les cas sans condition ; invariance par permutation des entrées de même poids ; ports factices pour toutes les conditions (chaque condition, chaque paramètre absent, R15).
 - **Statistique (L2)** : pour chaque scénario, N >= 200000 tirages sur le moteur et sur l'oracle ; test du khi-deux à répartition identique, rejet si p < 1e-4, répété avec trois graines de session ; tolérance d'un test de proportion à 5 écarts-types pour les scénarios à une classe. Scénarios : V-L9 à V-L12 plus 50 tables tirées de `tools/diff/samples.json` par type de table (au moins 3 par type de R2).
-- **Déterministe (L2)** : conteneurs à `LootTableSeed` non nul : comparaison exacte des slots sur 200 graines x 10 tables (PL5, PL16) ; c'est ce test qui valide R63, R66, R70.
+- **Déterministe (L2)** : conteneurs à `LootTableSeed` non nul : comparaison exacte du multi-ensemble de piles (identifiant, quantité, composants) sur 200 graines x 10 tables (PL5, PL16) ; c'est ce test qui valide R63 et R66. Le placement dans les slots (R70) n'est comparé que statistiquement tant que PL5 n'a pas livré l'algorithme.
 - **Niveau A** : tests écrits en aveugle par le `test-engineer`, relecture par un second agent (spec `loot` = niveau de risque A).
 
 ## Sondes proposées
@@ -299,8 +319,8 @@ Cadre : serveur 26.3 headless, monde plat, RCON, `/tick freeze`. Commandes de `c
 
 | Sonde | Mise en place et commandes | Sortie attendue (provisoire) | Règles levées |
 |---|---|---|---|
-| PL1 | Pack `sonde` : table `sonde:t1` pool 1 roll, 2 entrées `item` poids 1 et quality +1 (pierre) et poids 100 quality -1 (terre) ; chance via `loot give @s fish ... <pos>` avec effet `luck` appliqué (`effect give @s minecraft:luck 1000 N`) ; N = 0 à 5 ; 200000 `/loot spawn` | Proportions suivant max(0, floor(poids + qualité x chance)) | R18, R25 |
-| PL2 | Même table avec poids fractionnaire de calcul (poids 3 quality 0.5 impossible : tester les valeurs entières 1 à 3 et la chance 1 à 5 pour détecter le plancher) | Frontières de plancher | R25 |
+| PL1 | Pack `sonde` : table `sonde:t1`, pool à 1 tirage, 2 entrées `item` : pierre (poids 1, qualité +1) et terre (poids 100, qualité -1). La chance vient de l'effet `luck` du joueur (`effect give @s minecraft:luck 1000 N`). Elle ne passe que par certaines sources (R18) : appeler la table par `loot give @s fish sonde:t1 <pos> mainhand` (contexte de pêche) et par `loot give @s loot sonde:t1` (contexte de commande) ; N de 0 à 5, 200000 tirages par cas ; relever les proportions de pierre et de terre. | Dans quels contextes la chance modifie les proportions ; proportions compatibles avec R25 | R18, R25 |
+| PL2 | Mêmes tables avec des poids entiers de 1 à 3 et une qualité de +1 ou -1, et une chance fixée par l'attribut de chance du joueur (`attribute @s minecraft:luck base set <valeur>`, valeurs entières puis fractionnaires comme 0.5) ; 200000 tirages par cas | Frontières du plancher et de la borne à 0 de R25 : une entrée dont le poids effectif tombe à 0 ne sort jamais ; effet d'une chance fractionnaire | R25 |
 | PL3 | Table `sonde:ore` : `item diamond` + `apply_bonus` fortune `ore_drops`, `loot spawn ... mine <pos> <pioche avec fortune N>` 200000 fois, N=0..3 | Distribution de la quantité : support et probabilités | R42 |
 | PL4 | Tables `uniform_bonus_count` (mult 1 et 2), `binomial_with_bonus_count` (extra 3, p 0.5714286) avec outil fortune 0 à 3, 200000 tirages chacune | Distributions | R42 |
 | PL5 | Conteneurs à graine S pour 200 graines sur `chests/simple_dungeon`, `chests/abandoned_mineshaft`, `chests/bastion_treasure` : matérialiser et enregistrer (slot, pile) ; variante avec table à un seul candidat par pool pour isoler R26 | Empreinte par graine ; confirmation de R63 (graine non nulle), R66, R26 | R26, R63, R66 |
@@ -319,12 +339,12 @@ Cadre : serveur 26.3 headless, monde plat, RCON, `/tick freeze`. Commandes de `c
 | PL18 | Tables `sonde:ctx_*` dont une condition ou un modificateur lit un seul paramètre (`this`, `attacker`, `direct_attacker`, `attacking_player`, `tool`, `origin`, `block_state`, `explosion_radius`, chance) ; appelées par `loot spawn ... loot`, `kill`, `mine`, `fish` ; journal des avertissements au chargement pour un `type` incohérent | Quel jeu de paramètres chaque source fournit ; comportement d'un paramètre absent | R11 à R15, R69, R72 |
 | PL19 | Entrées `group`, `sequence`, `alternatives` imbriquées, `dynamic` (`minecraft:contents`), `empty` avec poids, `slots` avec chaque `slot_source` ; conteneurs à graine pour distinguer les consommations | Contenu des composites ; comportement de `dynamic` sans émetteur | R20, R21, R24 |
 | PL20 | Une table par condition (R29 à R37), 200000 tirages chacune : `random_chance` (0, 0.5, 1), `random_chance_with_enchanted_bonus`, `match_block`, `weather_check` (pluie et orage), `time_check`, `int_value_check`, `float_value_check`, `entity_scores`, `killed_by_player`, `entity_properties` pour chaque cible, `damage_source_properties` | Proportions et branches de R29 à R37 | R29 à R37 |
-| PL21 | Une table par modificateur avec entrée d'une pile connue (`set_count` avec `add`, `limit_count`, `set_damage` avec `add`, `set_name` des deux cibles, `set_enchantments` avec `add`, `set_components` avec `!`, `copy_state`, `furnace_smelt`, `filtered`, `discard`, `set_potion`, `set_stew_effect`, `set_instrument`, `exploration_map`) ; `loot spawn` et relecture de l'objet au sol (`data get entity`) | Pile résultante exacte de R38 à R40, R44, R46, R49, R56 | R38 à R40, R44, R46, R49, R56 |
+| PL21 | Une table par modificateur, y compris les 21 types de R47, avec entrée d'une pile connue (`set_count` avec `add`, `limit_count`, `set_damage` avec `add`, `set_name` des deux cibles, `set_enchantments` avec `add`, `set_components` avec `!`, `copy_state`, `furnace_smelt`, `filtered`, `discard`, `set_potion`, `set_stew_effect`, `set_instrument`, `exploration_map`) ; `loot spawn` et relecture de l'objet au sol (`data get entity`) | Pile résultante exacte de R38 à R40, R44a à R44k, R46, R47, R49, R56 | R38 à R40, R44a à R44k, R46, R47, R49, R56 |
 | PL22 | Tables isolées avec un seul tirage : `set_count` uniform entier (bornes 0 à 3 et 5 à 5), `set_damage` uniform flottant, `set_count` binomial (n=3, p=0.5) ; conteneurs à `LootTableSeed` sur 200 graines | Valeurs exactes par graine : formules de R51 à R53 | R51 à R53 |
 
 ## Couverture des règles S par les sondes
 
-R2, R4, R8, R9, R55 : PL17 ; R11, R12, R13, R15, R69, R72 : PL18 ; R14 est C ; R16 et R17 sont des décisions de conception (ADR 0004), vérifiées par la règle d'architecture (ArchUnit : aucun import de `entity` dans `loot`) et par les ports factices, sans sonde ; R20, R21, R23, R24 : PL19, PL16 ; R30 à R37 : PL20 ; R38 à R40, R44, R46, R49, R56 : PL21 ; R51 à R53 : PL22, PL3, PL4 ; R65 à R68 : PL5, PL16, et sondes P1 et P2 de `core-random.md` pour la persistance ; R67 (déterminisme des commandes) : PL5 en deux appels successifs sans graine. Aucune autre règle S n'est sans sonde.
+R2, R4b, R8, R9, R55 : PL17 ; R5b : PL7 ; R11, R12, R13, R15, R69, R72 : PL18 ; R14a est C et R14b : PL18 ; R16 (découpage en ports) et R17 sont des décisions de conception (ADR 0004), vérifiées par la règle d'architecture (ArchUnit : aucun import de `entity` dans `loot`) et par les ports factices, sans sonde ; R20, R21, R23, R24 : PL19, PL16 ; R30 à R37 : PL20 ; R38 à R40, R44a à R44k, R46, R47, R49, R56 : PL21 ; R70 : PL5 ; R51 à R53 : PL22, PL3, PL4 ; R65 à R68 : PL5, PL16, et sondes P1 et P2 de `core-random.md` pour la persistance ; R67 (déterminisme des commandes) : PL5 en deux appels successifs sans graine. R57b : PL18, PL20 ; R61b : PL17. Aucune autre règle S n'est sans sonde.
 
 ## Questions ouvertes
 
@@ -332,14 +352,439 @@ R2, R4, R8, R9, R55 : PL17 ; R11, R12, R13, R15, R69, R72 : PL18 ; R14 est C ; R
 - Défauts absents de la documentation et des données : `expand` (R22), niveau hors liste de `table_bonus` (R32), arrondi de `enchanted_count_increase` (R43), `set_count`/`set_damage` (arrondis).
 - Formules exactes des tirages de `apply_bonus` (bornes et nombre de tirages), `uniform` et `binomial` flottants.
 - Ordre H-order (R48) et H-draw (R66), source de la graine de `LootTableSeed` et mélange des slots (R70).
-- Précision flottante 32 bits du poids effectif (R25) : l'oracle ne la distingue du calcul en double que sur des frontières construites (PL2).
-- Comportement de `slots`, `sequence`, `group` (aucune donnée vanilla) et de 21 types de modificateur sans usage (R47).
-- Les sondes PL1 à PL16 supposent l'effet de potion `luck` et un client de commande pour la chance de pêche réelle ; pour les scénarios de pêche complets, un client protocole minimal est nécessaire (voir `item-components-inventory.md` Questions ouvertes).
-- Règles S restantes : R4 (liste), R5 (`bonus_rolls`), R6, R8 (défauts), R11 à R13 (contenu), R15 à R28 (hors D/C), R29 à R37 (sens), R38 à R49, R51 à R53 (tirages), R54, R56, R63 à R73 (sauf présences D).
+- Précision numérique du poids effectif (R25) : elle n'est observable que sur des frontières construites (PL2).
+- Comportement de `slots`, `sequence`, `group` (aucune donnée vanilla) et de 21 types de modificateur sans usage (R47 : identité provisoire, levée par PL21).
+- Algorithme de placement des piles dans les slots d'un conteneur déballé (R70) : à retrouver à partir des données de PL5.
+- Les sondes PL1 à PL22 supposent l'effet de potion `luck` et un client de commande pour la chance de pêche réelle ; pour les scénarios de pêche complets, un client protocole minimal est nécessaire (voir `item-components-inventory.md` Questions ouvertes).
+- Règles S restantes : R4b, R5b, R6 (reste), R8 (défauts), R11 à R13 (contenu), R14b, R15 à R26, R27 et R28 (valeurs effectives), R29 à R37 (sens), R38 à R49, R51 à R53 (tirages), R54, R56, R57b, R58 (sémantique), R61b, R63 à R73 (sauf présences D).
 
 ## Mise à jour proposée de la matrice
 
 | Fonctionnalité | Jalon | Risque | Statut proposé | Preuve |
 |---|---|---|---|---|
-| Tables de butin | M6 | A | spécifié | `docs/specs/loot-tables.md` (formats et dénombrements en D/C ; tirage, ordre d'aléa, conditions et modificateurs en S avec sondes PL1 à PL16) |
-| Prédicats et modificateurs d'objet (ligne à créer) | M6 | A | spécifié | idem, R38 à R49, R57 à R62 |
+| Tables de butin | M6 | A | spécifié | `docs/specs/loot-tables.md` (formats et dénombrements en D/C ; tirage, ordre d'aléa, conditions et modificateurs en S avec sondes PL1 à PL22) |
+| Prédicats et modificateurs d'objet (ligne à créer) | M6 | A | spécifié | idem, R38 à R49, R57a à R62 |
+
+## Annexe : loot_stats.py (C)
+
+Lit uniquement les fichiers extraits ; aucune dépendance au jeu ; bibliothèque standard seule. À copier hors du dossier de données, puis, avec `REF=.cache/reference/26.3` :
+
+```bash
+python -I loot_stats.py "$REF" | sha256sum
+```
+
+Empreinte SHA-256 attendue de la sortie complète (sortie en UTF-8, fins de ligne LF) :
+
+```text
+ef3b654f70c9b77598cc35946960436df33824e09fb022ea39c2d5222de1094a
+```
+
+```python
+"""Counts and shapes of loot tables, conditions, modifiers and predicates in the 26.3 data.
+
+Usage: python -I loot_stats.py <reference dir containing generated/ and resources/>
+Reads extracted files only. Standard library only. Output is deterministic (sorted, LF).
+
+Counting base ("LEP"): resources/data/minecraft/{loot_table,enchantment,predicate}. Advancements,
+villager trades and context providers are outside the base unless a line says otherwise.
+"""
+import collections
+import json
+import os
+import sys
+
+sys.stdout.reconfigure(encoding="utf-8", newline="\n")
+REF = sys.argv[1]
+REP = os.path.join(REF, "generated", "reports")
+DATA = os.path.join(REF, "resources", "data", "minecraft")
+
+
+def load(path):
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def tree(sub):
+    out = {}
+    base = os.path.join(DATA, sub)
+    for root, _, files in os.walk(base):
+        for fn in files:
+            if fn.endswith(".json"):
+                rel = os.path.relpath(os.path.join(root, fn), base).replace(os.sep, "/")[:-5]
+                out[rel] = load(os.path.join(root, fn))
+    return dict(sorted(out.items()))
+
+
+def section(name):
+    print("== " + name)
+
+
+def reg(name):
+    return [e.split(":", 1)[1] for e in load(os.path.join(REP, "registries.json"))["minecraft:" + name]["entries"]]
+
+
+def keys_anywhere(o, c):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            c[k] += 1
+            keys_anywhere(v, c)
+    elif isinstance(o, list):
+        for v in o:
+            keys_anywhere(v, c)
+
+
+def as_list(v):
+    return v if isinstance(v, list) else [v]
+
+
+COND_T = set(reg("loot_condition_type"))
+FUNC_T = set(reg("loot_function_type"))
+ENTRY_T = set(reg("loot_pool_entry_type"))
+tables = tree("loot_table")
+enchs = tree("enchantment")
+preds = tree("predicate")
+BASE = [("loot_table", tables), ("enchantment", enchs), ("predicate", preds)]
+
+section("R1 tables by folder prefix")
+print("tables", len(tables))
+print(sorted(collections.Counter(k.split("/")[0] for k in tables).items(), key=lambda kv: (-kv[1], kv[0])))
+
+section("R2 table keys and type")
+kc = collections.Counter()
+for t in tables.values():
+    kc.update(t.keys())
+print(sorted(kc.items()))
+print("type", sorted(collections.Counter(t["type"] for t in tables.values()).items(), key=lambda kv: (-kv[1], kv[0])))
+by = collections.defaultdict(collections.Counter)
+for k, t in tables.items():
+    by[t["type"].split(":")[1]][k.split("/")[0]] += 1
+for ty in sorted(by):
+    print(ty, sorted(by[ty].items()))
+print("tables without pools", sum(1 for t in tables.values() if "pools" not in t))
+print("random_sequence == minecraft:+path", sum(1 for k, t in tables.items() if t.get("random_sequence") == "minecraft:" + k), "of", len(tables))
+trade_sets = tree("trade_set")
+print("trade_set", len(trade_sets), "with random_sequence", sum(1 for t in trade_sets.values() if "random_sequence" in t))
+
+section("R5-R8 pools and entries (top level tree: entries then children)")
+pool_keys = collections.Counter()
+pools_per = collections.Counter()
+rolls_form = collections.Counter()
+rolls_vals = collections.Counter()
+entry_types = collections.Counter()
+entry_keys = collections.defaultdict(collections.Counter)
+qualities = collections.Counter()
+weights = []
+inline_tables = collections.Counter()
+nodes = 0
+
+
+def walk_entry(e, fname):
+    global nodes
+    nodes += 1
+    t = e["type"].split(":")[1]
+    entry_types[t] += 1
+    for k in e:
+        entry_keys[t][k] += 1
+    if "weight" in e:
+        weights.append(e["weight"])
+    if "quality" in e:
+        qualities[(fname.split("/")[0], fname, e["quality"])] += 1
+    if isinstance(e.get("value"), dict):
+        inline_tables[fname] += 1
+    for c in e.get("children", []):
+        walk_entry(c, fname)
+
+
+for fname, t in tables.items():
+    ps = t.get("pools", [])
+    pools_per[len(ps)] += 1
+    for p in ps:
+        pool_keys.update(p.keys())
+        r = p["rolls"]
+        rolls_form[r["type"] if isinstance(r, dict) else "number"] += 1
+        if not isinstance(r, dict):
+            rolls_vals[r] += 1
+        for e in p["entries"]:
+            walk_entry(e, fname)
+print("pools", sum(k * v for k, v in pools_per.items()), "per table", sorted(pools_per.items()))
+print("pool keys", sorted(pool_keys.items()))
+print("rolls forms", sorted(rolls_form.items()), "numeric values", sorted(rolls_vals.items()))
+print("entry nodes (entries/children only)", nodes)
+print("entry types", sorted(entry_types.items(), key=lambda kv: (-kv[1], kv[0])), "registry", sorted(ENTRY_T))
+for t in sorted(entry_keys):
+    print("entry fields", t, sorted(entry_keys[t].items()))
+print("weights min/max", min(weights), max(weights), "distinct", len(set(weights)), "count", len(weights))
+print("qualities", sorted(qualities.items()))
+print("files with inline tables in value", sorted(inline_tables.items()), "folder trial_chambers files", sorted(k for k in tables if "trial_chambers" in k))
+
+section("R4 references")
+refs = collections.Counter()
+
+
+def collect_refs(o):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k in ("condition", "terms", "term", "requirements"):
+                for x in as_list(v):
+                    if isinstance(x, str):
+                        refs[x] += 1
+            collect_refs(v)
+    elif isinstance(o, list):
+        for v in o:
+            collect_refs(v)
+
+
+for _, d in BASE:
+    for v in d.values():
+        collect_refs(v)
+print(sorted(refs.items()))
+print("modifier forms", sorted(collections.Counter(
+    type(p["modifier"]).__name__ for t in tables.values() for p in t.get("pools", []) if "modifier" in p).items()),
+      "table level", sorted(collections.Counter(type(t["modifier"]).__name__ for t in tables.values() if "modifier" in t).items()))
+
+cond_forms = collections.Counter()
+
+
+def collect_cond_forms(o, where):
+    if isinstance(o, dict):
+        for k, v in o.items():
+            if k == "condition":
+                cond_forms[(where, type(v).__name__)] += 1
+            collect_cond_forms(v, "loot_table" if where == "loot_table" else where)
+    elif isinstance(o, list):
+        for v in o:
+            collect_cond_forms(v, where)
+
+
+for t in tables.values():
+    collect_cond_forms(t, "loot_table")
+print("forms of the value of key condition in loot tables", sorted(cond_forms.items()))
+
+COND_KEYS = ("condition", "requirements", "terms", "term")
+FUNC_KEYS = ("modifier", "on_pass", "on_fail", "functions")
+
+
+def count_typed(o, key_ctx, typeset, out, fields, in_ctx):
+    """Count dicts whose type is in typeset and that sit under one of key_ctx."""
+    if isinstance(o, dict):
+        t = o.get("type", "")
+        short = t.split(":", 1)[1] if isinstance(t, str) and ":" in t else None
+        if in_ctx and short in typeset:
+            out[short] += 1
+            for k in o:
+                if k != "type":
+                    fields[short][k] += 1
+        for k, v in o.items():
+            count_typed(v, key_ctx, typeset, out, fields, k in key_ctx or (in_ctx and k in ("terms", "term")))
+    elif isinstance(o, list):
+        for v in o:
+            count_typed(v, key_ctx, typeset, out, fields, in_ctx)
+
+
+def run_typed(name, key_ctx, typeset, root_is_cond=False):
+    out_by = {}
+    for base, d in BASE:
+        out = collections.Counter()
+        fields = collections.defaultdict(collections.Counter)
+        for v in d.values():
+            count_typed(v, key_ctx, typeset, out, fields, root_is_cond and base == "predicate")
+        out_by[base] = (out, fields)
+    total = collections.Counter()
+    ftotal = collections.defaultdict(collections.Counter)
+    for base, (out, fields) in out_by.items():
+        total.update(out)
+        for k, c in fields.items():
+            ftotal[k].update(c)
+    print(name, "total", sum(total.values()), "used types", len([k for k in total if total[k]]), "of", len(typeset))
+    for t in sorted(typeset):
+        per = ",".join(str(out_by[b][0][t]) for b, _ in BASE)
+        print(" ", t, total[t], "(loot_table,enchantment,predicate=" + per + ")",
+              "fields=" + ",".join(k + ":" + str(v) for k, v in sorted(ftotal[t].items())))
+    return total
+
+
+section("conditions in condition positions (keys condition, requirements, terms, term)")
+cond_total = run_typed("conditions", COND_KEYS, COND_T, root_is_cond=True)
+section("modifiers in modifier positions (keys modifier, on_pass, on_fail, functions)")
+func_total = run_typed("modifiers", FUNC_KEYS, FUNC_T)
+print("unused conditions", sorted(c for c in COND_T if not cond_total[c]))
+print("unused modifiers", sorted(f for f in FUNC_T if not func_total[f]))
+print("matched with block predicate files: match_block in predicate/", sum(1 for v in preds.values() if v.get("type") == "minecraft:match_block"),
+      "match_tool in predicate/", sum(1 for v in preds.values() if v.get("type") == "minecraft:match_tool"))
+
+section("R14 condition and modifier types per table type (loot_table folder only)")
+need = collections.defaultdict(lambda: [collections.Counter(), collections.Counter()])
+for k, t in tables.items():
+    tt = t["type"].split(":")[1]
+    c1 = collections.Counter()
+    c2 = collections.Counter()
+    f1 = collections.defaultdict(collections.Counter)
+    count_typed(t, COND_KEYS, COND_T, c1, f1, False)
+    count_typed(t, FUNC_KEYS, FUNC_T, c2, f1, False)
+    need[tt][0].update(c1)
+    need[tt][1].update(c2)
+for tt in sorted(need):
+    print(tt, "conditions", sorted(need[tt][0]), "modifiers", sorted(need[tt][1]))
+
+section("R6-R10 numbers")
+set_count = collections.Counter()
+lim = collections.Counter()
+
+
+def collect_numbers(o):
+    if isinstance(o, dict):
+        t = o.get("type")
+        if t == "minecraft:set_count":
+            c = o["count"]
+            set_count[c["type"].split(":")[1] if isinstance(c, dict) else "constant"] += 1
+        if t == "minecraft:limit_count":
+            lim[json.dumps(o["limit"], sort_keys=True)] += 1
+        for v in o.values():
+            collect_numbers(v)
+    elif isinstance(o, list):
+        for v in o:
+            collect_numbers(v)
+
+
+for v in tables.values():
+    collect_numbers(v)
+print("set_count count forms", sorted(set_count.items()), "limit_count", sorted(lim.items()))
+
+section("R27 fishing")
+fishing = tables["gameplay/fishing"]
+for e in fishing["pools"][0]["entries"]:
+    print(e["value"], e.get("weight"), e.get("quality"), json.dumps(e.get("condition"), sort_keys=True))
+fish = tables["gameplay/fishing/fish"]
+print("fish weights", [(e["name"], e.get("weight")) for e in fish["pools"][0]["entries"]])
+
+section("R28 archaeology")
+for k in ("archaeology/desert_well", "archaeology/trail_ruins_rare"):
+    es = tables[k]["pools"][0]["entries"]
+    print(k, len(es), [(e.get("name"), e.get("weight", 1)) for e in es])
+
+section("R30-R32 random chances and table_bonus")
+chances = collections.Counter()
+tb = collections.Counter()
+rcb = []
+
+
+def collect_chances(o):
+    if isinstance(o, dict):
+        t = o.get("type")
+        if t == "minecraft:random_chance":
+            chances[json.dumps(o["chance"], sort_keys=True)] += 1
+        if t == "minecraft:table_bonus":
+            tb[(o["enchantment"], json.dumps(o["chances"]))] += 1
+        if t == "minecraft:random_chance_with_enchanted_bonus":
+            rcb.append(json.dumps({k: o[k] for k in sorted(o) if k != "type"}, sort_keys=True))
+        for v in o.values():
+            collect_chances(v)
+    elif isinstance(o, list):
+        for v in o:
+            collect_chances(v)
+
+
+for _, d in BASE:
+    for v in d.values():
+        collect_chances(v)
+print("random_chance", sorted(chances.items(), key=lambda kv: (-kv[1], kv[0])))
+print("table_bonus", sorted(tb.items(), key=lambda kv: (-kv[1], kv[0])))
+print("random_chance_with_enchanted_bonus", sorted(collections.Counter(rcb).items()))
+
+section("R42-R46 modifier parameters")
+ab = collections.Counter()
+eci = collections.Counter()
+for _, d in BASE:
+    def go(o):
+        if isinstance(o, dict):
+            t = o.get("type")
+            if t == "minecraft:apply_bonus":
+                ab[(o["formula"], json.dumps(o.get("parameters"), sort_keys=True))] += 1
+            if t == "minecraft:enchanted_count_increase":
+                eci[(json.dumps(o["count"], sort_keys=True), o.get("limit"))] += 1
+            for v in o.values():
+                go(v)
+        elif isinstance(o, list):
+            for v in o:
+                go(v)
+    for v in d.values():
+        go(v)
+print("apply_bonus", sorted(ab.items()))
+print("enchanted_count_increase", sorted(eci.items(), key=str))
+
+section("R57 entity predicate keys (key occurrences anywhere, per directory)")
+KEYS = ["minecraft:entity_type", "minecraft:location", "minecraft:components", "minecraft:flags", "minecraft:equipment",
+        "minecraft:vehicle", "minecraft:type_specific/player", "minecraft:distance", "minecraft:stepping_on",
+        "minecraft:type_specific/lightning", "minecraft:type_specific/sheep", "minecraft:movement_affected_by",
+        "minecraft:movement", "minecraft:periodic_tick", "minecraft:type_specific/cube_mob",
+        "minecraft:type_specific/raider", "minecraft:type_specific/fishing_hook"]
+per = {}
+for base, d in BASE + [("advancement", tree("advancement"))]:
+    c = collections.Counter()
+    for v in d.values():
+        keys_anywhere(v, c)
+    per[base] = c
+for k in KEYS:
+    row = [per[b][k] for b in ("loot_table", "enchantment", "predicate", "advancement")]
+    print(k, "LEP", sum(row[:3]), "(loot_table,enchantment,predicate,advancement=" + ",".join(map(str, row)) + ")")
+print("entity_sub_predicate_type registry", len(reg("entity_sub_predicate_type")))
+
+section("R59-R60 location and damage source predicate keys (LEP)")
+loc = collections.Counter()
+dmg = collections.Counter()
+item_pred = collections.Counter()
+predicates_sub = collections.Counter()
+for _, d in BASE:
+    def go2(o):
+        if isinstance(o, dict):
+            t = o.get("type")
+            if t == "minecraft:location_check" and isinstance(o.get("predicate"), dict):
+                loc.update("location_check." + k for k in o["predicate"])
+            if t == "minecraft:damage_source_properties" and isinstance(o.get("predicate"), dict):
+                dmg.update(o["predicate"].keys())
+            if "minecraft:location" in o and isinstance(o["minecraft:location"], dict):
+                loc.update("minecraft:location." + k for k in o["minecraft:location"])
+            if t in ("minecraft:match_tool",) and isinstance(o.get("predicate"), dict):
+                item_pred.update("match_tool." + k for k in o["predicate"])
+            if "item_filter" in o and isinstance(o["item_filter"], dict):
+                item_pred.update("item_filter." + k for k in o["item_filter"])
+            if "predicates" in o and isinstance(o["predicates"], dict):
+                predicates_sub.update(o["predicates"].keys())
+            for v in o.values():
+                go2(v)
+        elif isinstance(o, list):
+            for v in o:
+                go2(v)
+    for v in d.values():
+        go2(v)
+print("location predicate keys", sorted(loc.items()))
+print("damage source predicate keys", sorted(dmg.items()))
+print("item predicate keys", sorted(item_pred.items()))
+print("predicates sub-keys", sorted(predicates_sub.items()))
+print("data_component_predicate_type", sorted(reg("data_component_predicate_type")))
+print("smokey in LEP", per["loot_table"]["smokey"] + per["enchantment"]["smokey"] + per["predicate"]["smokey"])
+
+section("R61 named predicates")
+for k, v in preds.items():
+    print(k, json.dumps(v, sort_keys=True))
+print("references to predicates", sorted(refs.items()))
+
+section("R13 context_key_set order")
+print(reg("context_key_set"))
+ck = load(os.path.join(REP, "registries.json"))["minecraft:context_key_set"]["entries"]
+print([(k.split(":")[1], v["protocol_id"]) for k, v in ck.items()])
+
+section("R50 providers registry counts")
+for r in ("context_int_provider_type", "context_float_provider_type", "int_provider_type", "float_provider_type"):
+    print(r, len(reg(r)))
+print("provider files", len(tree("context_int_provider")), len(tree("context_float_provider")))
+print("loot_nbt_provider_type", len(reg("loot_nbt_provider_type")), "loot_score_provider_type", len(reg("loot_score_provider_type")),
+      "slot_source_type", sorted(reg("slot_source_type")))
+print("item_modifier files", len(tree("item_modifier")) if os.path.isdir(os.path.join(DATA, "item_modifier")) else 0)
+
+section("R72 loot command")
+cmds = load(os.path.join(REP, "commands.json"))
+print(json.dumps(sorted(cmds["children"]["loot"]["children"]), sort_keys=True))
+for k, v in sorted(cmds["children"]["loot"]["children"].items()):
+    print(k, sorted(v.get("children", {})))
+```

@@ -86,4 +86,17 @@ class RotationTest {
     assertThat(Rotation.COUNTERCLOCKWISE_90.rotateSixteenths(0)).isEqualTo(12);
     assertThat(Rotation.CLOCKWISE_180.rotateSixteenths(9)).isEqualTo(1);
   }
+
+  // spec: core-math R38 (S) and the skeleton contract floorMod(value + 4 * k, 16): negative
+  // values land in [0, 15], unlike the Java remainder
+  @ParameterizedTest(name = "provisional {0} on negative values stays in [0, 15]")
+  @CsvSource({"NONE, 0", "CLOCKWISE_90, 1", "CLOCKWISE_180, 2", "COUNTERCLOCKWISE_90, 3"})
+  void provisionalSixteenthsOfNegativeValuesAreFloorModded(Rotation rotation, int quarters) {
+    assertThat(Rotation.CLOCKWISE_90.rotateSixteenths(-10)).isEqualTo(10);
+    for (int value = -64; value < 0; value++) {
+      int result = rotation.rotateSixteenths(value);
+      assertThat(result).as("%s(%d)", rotation, value).isBetween(0, 15);
+      assertThat(result).isEqualTo((value + 4 * quarters) & 15);
+    }
+  }
 }

@@ -34,10 +34,11 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Inventaires et menus | M6 | B | spécifié | `docs/specs/item-components-inventory.md` (brouillon, règles S) |
 | Cuisson et carburants | M6 | B | spécifié | `docs/specs/item-recipes.md` (brouillon, règles S) |
 | Prédicats et modificateurs d'objet | M6 | A | spécifié | `docs/specs/loot-tables.md` (brouillon, règles S) |
-| Physique et collisions d'entités | M7 | A | non-spécifié | |
-| IA des mobs | M7 | A | non-spécifié | |
-| Spawn naturel | M7 | A | non-spécifié | |
-| Dégâts, effets, combat | M7 | A | non-spécifié | |
+| Physique et collisions d'entités | M7 | A | spécifié | `docs/specs/entity-model-physics.md` (brouillon, règles S) |
+| IA des mobs | M7 | A | spécifié | `docs/specs/entity-ai-spawning.md` (contrat par scénarios, brouillon) |
+| Spawn naturel | M7 | A | spécifié | `docs/specs/entity-ai-spawning.md` (brouillon, règles S) |
+| Dégâts, effets, combat | M7 | A | spécifié | `docs/specs/entity-damage-effects.md` (brouillon, règles S) |
+| Joueur, déplacement, faim, expérience, véhicules | M7 | A | spécifié | `docs/specs/entity-player.md` (brouillon, règles S) |
 | Commandes | M8 | B | spécifié | `docs/specs/server-commands.md` (brouillon, règles S) |
 | Protocole 777 | M8 | B | spécifié | `docs/specs/net-protocol-777.md` (brouillon, règles S ; IDs de paquets D) |
 | Boucle de tick, `/tick`, gamerules, temps, persistance serveur | M8 | B | spécifié | `docs/specs/server-game-loop.md` (brouillon, règles S) |

@@ -20,9 +20,9 @@ Produire une spec courte, précise et testable pour un sous-système, que quelqu
 Tu ne lis pas `engine/`, `net/`, `server/`, `client/` : la spec ne doit pas être influencée par ce qui existe.
 
 ## Méthode
-1. Liste les règles avec un identifiant (R1, R2...) et un niveau de preuve : D donnée exacte, M comportement observé sur l'oracle, C calcul dérivé, S à vérifier.
+1. Liste les règles avec un identifiant (R1, R2...) et un niveau de preuve : D donnée exacte, M comportement observé sur l'oracle, C calcul dérivé, S à vérifier, S-arch décision de conception du projet sans comportement de référence (voir `docs/specs/README.md`).
 2. Recoupe chaque valeur importante entre le rapport, la donnée extraite et, si possible, l'oracle. Une valeur du rapport seule reste S.
-3. Pour chaque règle S, propose la sonde de l'oracle qui la lèvera (commande, entrée, sortie attendue).
+3. Pour chaque règle S, propose la sonde de l'oracle qui la lèvera (commande, entrée, sortie attendue). Une règle S-arch n'a pas de sonde ; elle ne sert jamais à contourner une règle S d'un comportement du jeu.
 4. Écris les cas limites : coordonnées négatives, bordures de chunk, valeurs extrêmes, échecs de génération reproduits.
 5. Fournis des vecteurs de test avec la commande qui les produit.
 

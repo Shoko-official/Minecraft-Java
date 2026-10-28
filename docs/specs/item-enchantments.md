@@ -113,7 +113,7 @@ Convention de preuve : D valeur lue dans un fichier extrait ; C calcul reproduct
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R17 | Effets de valeur (registre `enchantment_value_effect_type`, 6) : `add` {`value`}, `set` {`value`}, `multiply` {`factor`}, `remove_binomial` {`chance`}, `all_of` {`effects`}, `exponential` {`factor`} (documentation incertaine). Usage vanilla mesuré sur les composants à valeur numérique, `all_of` développé (section `R17`) : `add` 21, `set` 2, `multiply` 1, `remove_binomial` 2, `all_of` 0, `exponential` 0, plus une entrée dont `effect` est l'objet vide (`damage_immunity`). Les `all_of` vanilla sont tous des effets d'entité (R26). `all_of` exécute ses sous-effets en série. | D (usage) ; S (sens) |
+| R17 | Effets de valeur (registre `enchantment_value_effect_type`, 6) : `add` {`value`}, `set` {`value`}, `multiply` {`factor`}, `remove_binomial` {`chance`}, `all_of` {`effects`}, `exponential` {`factor`} (documentation incertaine). Usage vanilla mesuré sur les composants à valeur numérique, `all_of` développé, formes en liste et directe confondues (section `R17`) : `add` 23 (21 dans des listes d'entrées et 2 en forme directe, R12 : `crossbow_charge_time` et `trident_spin_attack_strength`), `set` 2, `multiply` 1, `remove_binomial` 2, `all_of` 0, `exponential` 0, plus une entrée dont `effect` est l'objet vide (`damage_immunity`). Les `all_of` vanilla sont tous des effets d'entité (R26). `all_of` exécute ses sous-effets en série. | D (usage) ; S (sens) |
 | R18 | Sémantique des effets de valeur (S) : `add` ajoute `value(niveau)` à la valeur courante ; `set` la remplace ; `multiply` la multiplie par `factor(niveau)` ; `remove_binomial` fait un essai de probabilité `chance(niveau)` et retire 1 en cas de succès ; la valeur de départ est celle du composant (R19). Les arrondis et clamps sont ceux du composant consommateur (S). | S |
 | R19a | Valeur de départ de `damage_protection` : 0 ; la protection vaut min(somme, 20) x 4 pour cent de réduction (plafond 80 pour cent). Dépend du consommateur (jalon M7). | S |
 | R19b | Valeurs de départ de `damage` (dégâts ajoutés), `knockback` : 0 ; `armor_effectiveness` : 0, lue comme une efficacité (0 inefficace, 1 pleine ; `breach` ajoute -0.15 x niveau). | S |
@@ -294,7 +294,7 @@ python -I enchant_stats.py "$REF" | sha256sum
 Empreinte SHA-256 attendue de la sortie complète (sortie en UTF-8, fins de ligne LF) :
 
 ```text
-79029525faa3df891ea7a9fb3fd2a4adf83d3735f896d5ff4fc30289323fab17
+644a432241f2d48f568e65885668e477b1cf12d57dea8a4747a29ad747509d01
 ```
 
 La section `R22` applique les formules de R21 (niveau S) aux paramètres lus dans les données ; seule sa partie "paramètres" est D.
@@ -453,7 +453,7 @@ for e in ench.values():
 print("entry keys", sorted(entry_keys.items()))
 print("enchanted", sorted(enchanted.items()), "affected", sorted(affected.items()))
 
-section("R17 value effect types by consumer component (all_of expanded)")
+section("R17 value effect types by consumer component (all_of expanded, list and direct forms)")
 veff = collections.Counter()
 eeff = collections.Counter()
 efields = collections.defaultdict(collections.Counter)
@@ -479,6 +479,8 @@ for e in ench.values():
             for en in v:
                 if isinstance(en, dict) and "effect" in en:
                     visit_effect(en["effect"], c in ENTITY_COMPONENTS)
+        elif isinstance(v, dict) and "type" in v:
+            visit_effect(v, False)
 print("value effects", sorted(veff.items()), "registry", sorted(VALUE_T))
 print("entity or location effects", sorted(eeff.items()), "registry", sorted(ENTITY_T), "location", sorted(set(LOC_T) - set(ENTITY_T)))
 print("attribute effects in attributes component", sum(len(v) for e in ench.values() for c, v in e.get("effects", {}).items() if short(c) == "attributes"))

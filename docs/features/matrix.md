@@ -12,12 +12,13 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Maths et coordonnées | M1 | A | implémenté | PR #9 ; `./gradlew :engine:core:test` (tests unitaires, aucun diff oracle) |
 | Chargement des datapacks et registres | M2 | B | non-spécifié | |
 | Stockage Anvil (lecture et écriture) | M3 | B | non-spécifié | |
-| Génération Overworld : bruit et densité | M4 | A | non-spécifié | |
+| Génération Overworld : bruit et densité | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S, bloquant B1) |
 | Génération Overworld : biomes | M4 | A | non-spécifié | |
-| Génération Overworld : surfaces | M4 | A | non-spécifié | |
-| Génération Overworld : grottes et aquifères | M4 | A | non-spécifié | |
-| Génération Overworld : features et minerais | M4 | A | non-spécifié | |
-| Génération Overworld : structures | M4 | A | non-spécifié | |
+| Génération Overworld : surfaces | M4 | A | spécifié | `docs/specs/worldgen-surface-carvers.md` (brouillon, règles S) |
+| Génération Overworld : grottes et aquifères | M4 | A | spécifié | `docs/specs/worldgen-surface-carvers.md` (brouillon, règles S) |
+| Génération Overworld : features et minerais | M4 | A | spécifié | `docs/specs/worldgen-features-structures.md` (brouillon, règles S) |
+| Génération Overworld : structures | M4 | A | spécifié | `docs/specs/worldgen-features-structures.md` (brouillon, règles S) |
+| Génération Overworld : séquencement des statuts | M4 | A | spécifié | `docs/specs/worldgen-pipeline.md` (brouillon, règles S) |
 | Lumière | M5 | A | non-spécifié | |
 | Fluides | M5 | A | non-spécifié | |
 | Ticks planifiés et aléatoires | M5 | A | non-spécifié | |

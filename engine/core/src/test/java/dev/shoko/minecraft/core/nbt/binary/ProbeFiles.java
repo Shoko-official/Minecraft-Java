@@ -39,6 +39,9 @@ final class ProbeFiles {
   /** Byte count of the Byte_Array of p19: 64 MiB. */
   static final int P19_ARRAY_LENGTH = 64 << 20;
 
+  /** Element count of the List of Byte of p20: 20 000 000. */
+  static final int P20_LIST_LENGTH = 20_000_000;
+
   private ProbeFiles() {}
 
   static byte[] f1() {
@@ -91,6 +94,39 @@ final class ProbeFiles {
             new ZeroInputStream(P19_ARRAY_LENGTH),
             new ByteArrayInputStream(new byte[1]));
     return new SequenceInputStream(Collections.enumeration(parts));
+  }
+
+  /**
+   * Probe p20: F1 with a List of Byte {@code q} of 20 000 000 zeros (20 000 157 bytes), streamed:
+   * "09 00 01 71", element type 01, length 01 31 2d 00.
+   */
+  static InputStream p20Stream() {
+    byte[] head = Hex.concat(slice(0, ROOT_END), Hex.bytes("09 00 01 71 01 01 31 2d 00"));
+    return concat(head, zeros(P20_LIST_LENGTH), new byte[1]);
+  }
+
+  /**
+   * Container vector C09: C08 (F1 in a stored gzip member) whose low byte of {@code DataVersion}
+   * goes from 9f to a0, with the original CRC-32 (R61).
+   */
+  static byte[] c09() {
+    byte[] gzip = Containers.gzipStored(f1());
+    byte[] name = "DataVersion".getBytes(StandardCharsets.US_ASCII);
+    int lowByte = indexOf(f1(), name) + name.length + 3;
+    gzip[15 + lowByte]++;
+    return gzip;
+  }
+
+  /** A stream of {@code head}, then the given stream, then {@code tail}. */
+  static InputStream concat(byte[] head, InputStream middle, byte[] tail) {
+    List<InputStream> parts =
+        List.of(new ByteArrayInputStream(head), middle, new ByteArrayInputStream(tail));
+    return new SequenceInputStream(Collections.enumeration(parts));
+  }
+
+  /** A stream of {@code length} zero bytes, without allocating them. */
+  static InputStream zeros(long length) {
+    return new ZeroInputStream(length);
   }
 
   /** Offset of the first payload byte of the list {@code q} inserted at the end of the root. */

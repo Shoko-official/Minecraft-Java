@@ -174,14 +174,12 @@ class NbtReaderErrorsTest {
 
   @ParameterizedTest(name = "{0}")
   @CsvSource({
-    "Byte_Array of 2^31-1 declared, 07 00 00 7f ff ff ff, 7",
-    "Int_Array of 2^31-1 declared, 0b 00 00 7f ff ff ff 00 00 00 01, 11",
-    "Long_Array of 2^31-1 declared, 0c 00 00 7f ff ff ff, 7",
-    "List of Long of 2^31-1 declared, 09 00 00 04 7f ff ff ff, 8",
-    "String of 65535 declared, 08 00 00 ff ff 61, 6"
+    "String of 65535 declared, 08 00 00 ff ff 61, 6",
+    "String of 65535 declared in compound, 0a 00 00 08 00 01 73 ff ff, 9"
   })
-  void hugeDeclaredLengthWithoutDataFailsAtEndOfData(String name, String hex, long offset) {
-    // spec: core-nbt R33 (premature end), "Entrees / sorties" (length bounded by memory only)
+  void declaredStringLengthWithoutDataFailsAtEndOfData(String name, String hex, long offset) {
+    // spec: core-nbt R33 (premature end). Arrays and lists declaring 2^31-1 elements moved to
+    // NbtReaderQuotaTest: R60 refuses them at the header (TOO_LARGE) under the default quota
     assertReadFails(hex, Reason.UNEXPECTED_END, offset);
   }
 

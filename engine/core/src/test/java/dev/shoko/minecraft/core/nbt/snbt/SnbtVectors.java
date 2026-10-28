@@ -23,9 +23,10 @@ import java.util.List;
 import java.util.function.Supplier;
 
 /**
- * Table T (T1 to T52) of {@code core-nbt-vectors.md}, probe PS1 for reading and PW1 for the text.
- * Every expected result is provisional (S) until the probes run. Inputs are the exact SNBT text;
- * Java escapes only encode it. Expected values are built lazily, one failure per case.
+ * Table T (T1 to T52, T60 to T62; T53 to T59 are in SnbtParserDepthTest) of {@code
+ * core-nbt-vectors.md}, probe PS1 for reading and PW1 for the text. Every expected result is
+ * provisional (S) until the probes run. Inputs are the exact SNBT text; Java escapes only encode
+ * it. Expected values are built lazily, one failure per case.
  */
 final class SnbtVectors {
 
@@ -99,7 +100,7 @@ final class SnbtVectors {
             "\"" + text(0x41, 0xE9, 0x2603) + "\""));
   }
 
-  // spec: core-nbt R8, R41, R42, R47 to R50, R55, R56
+  // spec: core-nbt R8, R36, R41, R42, R47 to R50, R55, R56
   static List<Accepted> structures() {
     return List.of(
         new Accepted("T35", "[]", ListTag::empty, "[]"),
@@ -124,7 +125,10 @@ final class SnbtVectors {
             "uuid(\"f81d4fae-7dec-11d0-a765-00a0c91e6bf6\")",
             () -> IntArrayTag.of(-132296786, 2112623056, -1486552928, -920753162),
             "[I; -132296786, 2112623056, -1486552928, -920753162]"),
-        new Accepted("T52", "{ a : 1 }", () -> compound("a", intTag(1)), "{a: 1}"));
+        new Accepted("T52", "{ a : 1 }", () -> compound("a", intTag(1)), "{a: 1}"),
+        new Accepted("T60", "bool(256)", () -> byteTag(1), "1b"),
+        new Accepted("T61", "bool(0.5d)", () -> byteTag(1), "1b"),
+        new Accepted("T62", "bool(-0.0d)", () -> byteTag(0), "0b"));
   }
 
   // spec: core-nbt R43, R45, R46, R48, R50, R51

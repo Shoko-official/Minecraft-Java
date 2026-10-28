@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.core.nbt.snbt;
 
+import static dev.shoko.minecraft.core.nbt.Failures.assertFailsWithoutOffset;
 import static dev.shoko.minecraft.core.nbt.Tags.byteTag;
 import static dev.shoko.minecraft.core.nbt.Tags.compound;
 import static dev.shoko.minecraft.core.nbt.Tags.doubleTag;
@@ -7,6 +8,7 @@ import static dev.shoko.minecraft.core.nbt.Tags.floatTag;
 import static dev.shoko.minecraft.core.nbt.Tags.intTag;
 import static dev.shoko.minecraft.core.nbt.Tags.list;
 import static dev.shoko.minecraft.core.nbt.Tags.longTag;
+import static dev.shoko.minecraft.core.nbt.Tags.nestedLists;
 import static dev.shoko.minecraft.core.nbt.Tags.shortTag;
 import static dev.shoko.minecraft.core.nbt.Tags.stringTag;
 import static dev.shoko.minecraft.core.nbt.Tags.text;
@@ -20,6 +22,8 @@ import dev.shoko.minecraft.core.nbt.FloatTag;
 import dev.shoko.minecraft.core.nbt.IntArrayTag;
 import dev.shoko.minecraft.core.nbt.ListTag;
 import dev.shoko.minecraft.core.nbt.LongArrayTag;
+import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtException.Reason;
 import dev.shoko.minecraft.core.nbt.NbtTag;
 import dev.shoko.minecraft.core.nbt.snbt.SnbtVectors.Accepted;
 import java.util.List;
@@ -38,7 +42,7 @@ class SnbtWriterTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("accepted")
-  void writesTableEntryText(Accepted vector) {
+  void writesTableEntryText(Accepted vector) throws NbtException {
     // spec: core-nbt R52 to R56, core-nbt-vectors table T ("Texte attendu")
     assertThat(SnbtWriter.write(vector.value().get())).isEqualTo(vector.text());
   }
@@ -56,7 +60,7 @@ class SnbtWriterTest {
 
   @ParameterizedTest(name = "{1}")
   @MethodSource("integers")
-  void writesIntegerWithTypeSuffix(NbtTag tag, String text) {
+  void writesIntegerWithTypeSuffix(NbtTag tag, String text) throws NbtException {
     // spec: core-nbt R52 (lower-case suffixes except L, never true or false)
     assertThat(SnbtWriter.write(tag)).isEqualTo(text);
   }
@@ -82,7 +86,7 @@ class SnbtWriterTest {
 
   @ParameterizedTest(name = "{1}")
   @MethodSource("decimals")
-  void writesDecimalAsShortestRepresentation(NbtTag tag, String text) {
+  void writesDecimalAsShortestRepresentation(NbtTag tag, String text) throws NbtException {
     // spec: core-nbt R53 (Float.toString / Double.toString digits, then suffix), provisional
     assertThat(SnbtWriter.write(tag)).isEqualTo(text);
   }
@@ -100,7 +104,7 @@ class SnbtWriterTest {
 
   @ParameterizedTest(name = "{1}")
   @MethodSource("specialDecimals")
-  void writesNanAndInfinities(NbtTag tag, String text) {
+  void writesNanAndInfinities(NbtTag tag, String text) throws NbtException {
     // spec: core-nbt R53, probe PW2 (text of a NaN), provisional
     assertThat(SnbtWriter.write(tag)).isEqualTo(text);
   }
@@ -121,14 +125,14 @@ class SnbtWriterTest {
 
   @ParameterizedTest(name = "{1}")
   @MethodSource("strings")
-  void writesQuotedString(String value, String text) {
+  void writesQuotedString(String value, String text) throws NbtException {
     // spec: core-nbt R54 (always quoted; other quote than the first found; escape \ and the
     // delimiter; other characters as is, provisional)
     assertThat(SnbtWriter.write(stringTag(value))).isEqualTo(text);
   }
 
   @Test
-  void writesKeyUnquotedOnlyWhenMadeOfAllowedCharacters() {
+  void writesKeyUnquotedOnlyWhenMadeOfAllowedCharacters() throws NbtException {
     // spec: core-nbt R55
     var tag =
         compound(
@@ -150,7 +154,7 @@ class SnbtWriterTest {
   }
 
   @Test
-  void writesSeparatorsAndKeysInStorageOrder() {
+  void writesSeparatorsAndKeysInStorageOrder() throws NbtException {
     // spec: core-nbt R56 ({a: 1b, b: "x"}, storage order)
     assertThat(SnbtWriter.write(compound("a", byteTag(1), "b", stringTag("x"))))
         .isEqualTo("{a: 1b, b: \"x\"}");
@@ -159,7 +163,7 @@ class SnbtWriterTest {
   }
 
   @Test
-  void writesEmptyContainers() {
+  void writesEmptyContainers() throws NbtException {
     // spec: core-nbt R56 ({} and [], provisional [B;] [I;] [L;])
     assertThat(SnbtWriter.write(CompoundTag.empty())).isEqualTo("{}");
     assertThat(SnbtWriter.write(ListTag.empty())).isEqualTo("[]");
@@ -169,7 +173,7 @@ class SnbtWriterTest {
   }
 
   @Test
-  void writesNestedValuesOnOneLine() {
+  void writesNestedValuesOnOneLine() throws NbtException {
     // spec: core-nbt R56
     var tag =
         compound(
@@ -182,10 +186,53 @@ class SnbtWriterTest {
   }
 
   @Test
-  void writesHeterogeneousListWithoutWrapper() {
+  void writesHeterogeneousListWithoutWrapper() throws NbtException {
     // spec: core-nbt R56, provisional
     assertThat(SnbtWriter.write(list(compound("a", intTag(1)), intTag(2))))
         .isEqualTo("[{a: 1}, 2]");
     assertThat(SnbtWriter.write(list(stringTag("a"), list(byteTag(1))))).isEqualTo("[\"a\", [1b]]");
+  }
+
+  @Test
+  void writesWrappersOfHeterogeneousListReadBackFromBinary() throws NbtException {
+    // spec: core-nbt R56, R63 (after a binary round trip: [{"": 1}, {"": "a"}], empty key quoted)
+    var readBack = list(compound("", intTag(1)), compound("", stringTag("a")));
+    assertThat(SnbtWriter.write(readBack)).isEqualTo("[{\"\": 1}, {\"\": \"a\"}]");
+  }
+
+  @Test
+  void writes512NestedLists() throws NbtException {
+    // spec: core-nbt R59, W1 written as the text of T53
+    assertThat(SnbtWriter.write(nestedLists(512, ListTag.empty())))
+        .isEqualTo("[".repeat(512) + "]".repeat(512));
+  }
+
+  @Test
+  void refuses513NestedListsWithoutText() {
+    // spec: core-nbt R59, W2: TOO_DEEP without offset, no text
+    assertFailsWithoutOffset(
+        () -> SnbtWriter.write(nestedLists(513, ListTag.empty())), Reason.TOO_DEEP);
+  }
+
+  @Test
+  void typedArrayCountsAsALevel() {
+    // spec: core-nbt R59 (a valid binary tree of 512 containers holding an array at the deepest
+    // level is 513 levels in SNBT)
+    assertFailsWithoutOffset(
+        () -> SnbtWriter.write(nestedLists(512, list(IntArrayTag.of(1)))), Reason.TOO_DEEP);
+  }
+
+  @Test
+  void heterogeneousListWrappersDoNotCount() throws NbtException {
+    // spec: core-nbt R59 (levels counted without wrappers): W3 is 512 levels in SNBT
+    assertThat(SnbtWriter.write(nestedLists(512, list(byteTag(1), intTag(2)))))
+        .isEqualTo("[".repeat(511) + "[1b, 2]" + "]".repeat(511));
+  }
+
+  @Test
+  void veryDeepTreeIsRefusedWithoutStackOverflow() {
+    // spec: core-nbt R59 (the written text is always readable, R58)
+    assertFailsWithoutOffset(
+        () -> SnbtWriter.write(nestedLists(100_000, ListTag.empty())), Reason.TOO_DEEP);
   }
 }

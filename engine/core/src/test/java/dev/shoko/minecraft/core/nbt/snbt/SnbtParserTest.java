@@ -10,7 +10,7 @@ import java.util.List;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
-/** Table T of the spec (probe PS1): 41 accepted and 11 refused inputs, all provisional. */
+/** Table T of the spec (probe PS1): 44 accepted and 11 refused inputs, all provisional. */
 class SnbtParserTest {
 
   static List<Accepted> accepted() {

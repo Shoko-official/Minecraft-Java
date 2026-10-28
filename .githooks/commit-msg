@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Enforces the "[KEYWORD] : description" subject format and rejects automatic attribution.
+set -euo pipefail
+
+msg_file="${1:-}"
+[ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
+
+root="$(git rev-parse --show-toplevel)"
+subject="$(tr -d '\r' < "$msg_file" | grep -v '^#' | head -n 1)"
+
+case "$subject" in
+  "Merge "*|"fixup! "*|"squash! "*) ;;
+  *) bash "$root/scripts/check-subject.sh" "$subject" ;;
+esac
+
+bash "$root/scripts/check-hygiene.sh" --message "$msg_file"

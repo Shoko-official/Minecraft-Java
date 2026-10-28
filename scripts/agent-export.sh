@@ -4,6 +4,8 @@
 #
 # Usage: scripts/agent-export.sh DIR [REF] [--docs-only] [--with-reference]
 #
+#   DIR               resolved from the current directory; must not exist yet (or be empty)
+#                     and must be outside the repository
 #   REF               commit or branch to export (default HEAD)
 #   --docs-only       export only docs/ and AGENTS.md (spec authors never see source code)
 #   --with-reference  also copy the local research reports from docs/reference/ (ignored by git)
@@ -13,32 +15,44 @@
 # given in the brief.
 set -euo pipefail
 
-dir=""; ref=HEAD; docs_only=0; with_reference=0; positional=0
+target=""; ref=HEAD; docs_only=0; with_reference=0; positional=0
 for arg in "$@"; do
   case "$arg" in
     --docs-only) docs_only=1 ;;
     --with-reference) with_reference=1 ;;
     --*) echo "unknown option: $arg" >&2; exit 2 ;;
     *) positional=$((positional + 1))
-       if [ "$positional" -eq 1 ]; then dir="$arg"
+       if [ "$positional" -eq 1 ]; then target="$arg"
        elif [ "$positional" -eq 2 ]; then ref="$arg"
        else echo "too many arguments" >&2; exit 2; fi ;;
   esac
 done
-[ -n "$dir" ] || { echo "usage: agent-export.sh DIR [REF] [--docs-only] [--with-reference]" >&2; exit 2; }
+[ -n "$target" ] || { echo "usage: agent-export.sh DIR [REF] [--docs-only] [--with-reference]" >&2; exit 2; }
 
-root="$(git rev-parse --show-toplevel)"
-cd "$root"
+parent="$(cd "$(dirname "$target")" 2>/dev/null && pwd -P)" || { echo "parent directory of $target must exist" >&2; exit 2; }
+dir="$parent/$(basename "$target")"
+root="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
+
+case "$dir/" in
+  "$root"/*) echo "refusing a target inside the repository: $dir" >&2; exit 2 ;;
+esac
+if [ -e "$dir" ] && [ -n "$(ls -A "$dir")" ]; then
+  echo "refusing a non-empty target: $dir" >&2
+  exit 2
+fi
+
+git rev-parse --verify --quiet "$ref^{commit}" >/dev/null || { echo "unknown revision: $ref" >&2; exit 2; }
+
 mkdir -p "$dir"
-
 paths=()
 [ "$docs_only" -eq 1 ] && paths=(docs AGENTS.md)
-git archive "$ref" -- "${paths[@]}" | tar -x -C "$dir"
+git -C "$root" archive "$ref" -- "${paths[@]}" | tar -x -C "$dir"
 
-if [ "$with_reference" -eq 1 ] && [ -d docs/reference ]; then
+if [ "$with_reference" -eq 1 ] && [ -d "$root/docs/reference" ]; then
   mkdir -p "$dir/docs/reference"
-  cp -R docs/reference/. "$dir/docs/reference/"
+  cp -R "$root/docs/reference/." "$dir/docs/reference/"
 fi
+
 label="$ref"
 [ "$docs_only" -eq 1 ] && label="$label, docs only"
 [ "$with_reference" -eq 1 ] && label="$label, with reference"

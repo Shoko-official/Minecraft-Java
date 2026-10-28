@@ -2,3 +2,5 @@
 /.githooks/ @Shoko-official
 /.github/ @Shoko-official
 /.claude/agents/ @Shoko-official
+/.gitattributes @Shoko-official
+/.gitignore @Shoko-official

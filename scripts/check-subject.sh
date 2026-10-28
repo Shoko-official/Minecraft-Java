@@ -2,8 +2,21 @@
 # Validates a commit subject or pull request title: "[KEYWORD] : Description".
 set -euo pipefail
 
-# Character counting and [[:upper:]] must not depend on the caller's locale.
-export LC_ALL=C.UTF-8
+# Character counting and [[:upper:]] need a UTF-8 locale; take the first one that counts "e acute"
+# as a single character (printf with its UTF-8 bytes keeps this file ASCII).
+accent="$(printf '\xc3\xa9')"
+locale_found=""
+for candidate in C.UTF-8 en_US.UTF-8 fr_FR.UTF-8 en_US.utf8; do
+  if [ "$(LC_ALL="$candidate" bash -c 'printf %s "${#1}"' _ "$accent" 2>/dev/null)" = "1" ]; then
+    locale_found="$candidate"
+    break
+  fi
+done
+if [ -z "$locale_found" ]; then
+  echo "check-subject: no UTF-8 locale available, cannot count characters reliably" >&2
+  exit 2
+fi
+export LC_ALL="$locale_found"
 
 subject="${1:?subject required}"
 keywords='FEAT|FIX|REFACTOR|TEST|DOCS|CHORE|PERF|BUILD|CI|REVERT'

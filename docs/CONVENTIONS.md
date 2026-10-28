@@ -12,7 +12,7 @@ Le dépôt est jeune : ces règles sont la référence. En cas de doute, imiter 
 ## Style Java
 
 - Java 25 : records, sealed interfaces, pattern matching, switch expressions, `var` quand le type est évident.
-- Formatage automatique par Spotless (google-java-format). Ne pas formater à la main.
+- Formatage automatique par Spotless (google-java-format 1.36.1 : la 1.37.0 échoue avec `NoSuchMethodError` sur `JavaFormatterOptions$Style.valueOf(String)`, incompatible avec Spotless 8.10.4, dernière version publiée). Ne pas formater à la main : `./gradlew spotlessApply`.
 - Classes `final` par défaut. Immutabilité préférée ; état mutable confiné et documenté.
 - Pas de réflexion, pas de singletons statiques mutables, pas de `static` global pour l'état de jeu.
 - Pas d'`Optional` en champ ou paramètre ; `null` interdit en API publique sauf annotation explicite.
@@ -28,7 +28,16 @@ Le dépôt est jeune : ces règles sont la référence. En cas de doute, imiter 
 | Paquet | 15 classes | 25 classes |
 | PR | 600 lignes de diff | 1 000 lignes |
 
-Au-delà de la cible, la question est : cette classe a-t-elle une seule responsabilité ? Contrôle automatique : la CI échoue aujourd'hui au-delà de 600 lignes par fichier Java ; les autres budgets (méthode, paramètres, paquet) s'automatisent avec le squelette Gradle, la taille de PR reste une cible relue par le `reviewer`. Un dépassement justifié est enregistré dans `scripts/hygiene-exceptions.txt` avec la raison.
+Au-delà de la cible, la question est : cette classe a-t-elle une seule responsabilité ?
+
+Contrôles automatiques (les maximums échouent, les cibles ne sont pas contrôlées) :
+
+- `scripts/check-hygiene.sh` : fichier Java au-delà de 600 lignes (avertissement au-delà de 400).
+- Checkstyle (`config/checkstyle/checkstyle.xml`, tâche `build`) : fichier de plus de 600 lignes, méthode de plus de 60 lignes (lignes vides et commentaires compris), lambda de plus de 40 lignes, plus de 6 paramètres, record de plus de 8 composants.
+- `architecture-tests` : paquet de plus de 25 classes de premier niveau (classes imbriquées et `package-info` exclues).
+- La taille de PR reste une cible relue par le `reviewer`.
+
+Un dépassement justifié est une entrée relue comme du code, avec sa raison, dans le fichier du contrôle concerné : `scripts/hygiene-exceptions.txt` pour le script d'hygiène, `config/checkstyle/suppressions.xml` pour Checkstyle. Les deux sont indépendants : un fichier de plus de 600 lignes exige une entrée dans chacun. Le budget de paquet n'a pas de liste d'exceptions : le relever exige une modification relue de `architecture-tests`.
 
 ## Une responsabilité par classe
 
@@ -40,7 +49,7 @@ Uniquement pour une intention non évidente, une contrainte, un cas limite, un c
 
 ## Tests
 
-- JUnit 5 + AssertJ. Un fichier de test par classe testée, même paquet, suffixe `Test`. Exception : les tests de reproduction du `bug-hunter` vivent dans un fichier dédié suffixé `RegressionTest` ou `AttackTest`, fusionnable ensuite dans le test principal.
+- JUnit 6 + AssertJ. Un fichier de test par classe testée, même paquet, suffixe `Test`. Exception : les tests de reproduction du `bug-hunter` vivent dans un fichier dédié suffixé `RegressionTest` ou `AttackTest`, fusionnable ensuite dans le test principal.
 - Nom explicite du comportement : `negativeCoordinatesUseFloorDivision`.
 - Vecteurs dorés dans `src/test/resources/golden/` : petits, textuels (JSON ou texte), avec en-tête décrivant la commande de l'oracle qui les produit. Pas de gros binaires versionnés.
 - Pas de `Thread.sleep`, pas de dépendance au temps, pas d'ordre d'exécution implicite.

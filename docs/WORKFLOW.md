@@ -94,7 +94,7 @@ Les scripts demandent bash 4.4 ou plus (Git Bash et Linux conviennent ; sur macO
 ## CI
 
 - `pr-title` : format du titre de PR, attribution dans le titre, le corps et les messages de commit de la PR.
-- `ci` : hygiène du dépôt (chemins interdits, attribution, tirets, taille des fichiers Java). Build, tests, ArchUnit et contrôles de méthode s'ajoutent avec le squelette Gradle (PR `[CHORE]` suivante).
+- `ci` : job `hygiene` (chemins interdits, attribution, tirets, taille des fichiers Java) et job `build` (`./gradlew build` : Spotless, Error Prone, Checkstyle, tests dont les règles d'architecture ArchUnit).
 - Actions épinglées par SHA, `persist-credentials` désactivé, durée limitée.
 
 ## Fichiers jamais commités

@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+    "-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+    "https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<!--
+  Exceptions to the Checkstyle budgets of docs/CONVENTIONS.md. Empty by default.
+  Each entry names one check and one file, is preceded by a comment giving the reason, and is
+  reviewed like code. Example:
+    <suppress checks="FileLength" files="[\\/]engine[\\/]world[\\/].*[\\/]SomeFile\.java$"/>
+-->
+<suppressions>
+</suppressions>

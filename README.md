@@ -34,4 +34,10 @@ Projet personnel, non affilié à Mojang ni à Microsoft. Aucun asset ni aucune 
 bash scripts/install-hooks.sh
 ```
 
-Le reste (build, bootstrap des données de référence) arrive avec le jalon M0, voir la roadmap.
+Build, format, analyse statique, règles d'architecture et tests (Gradle télécharge un JDK 25 au besoin) :
+
+```bash
+./gradlew build
+```
+
+Formater le code : `./gradlew spotlessApply`. Le bootstrap des données de référence arrive avec la suite du jalon M0, voir la roadmap.

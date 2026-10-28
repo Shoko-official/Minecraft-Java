@@ -4,6 +4,7 @@ Statut : brouillon
 Jalon : M1
 Risque : A
 Spec : [core-random.md](core-random.md)
+Mise à jour : 2026-10-28 (PR #8) : bornes 3 et 715827883 (V-L2, V-L3b), saturation du compteur (V-L4), normalisation `:test` (V-X4), collision provisoire (V-X6)
 
 Ce fichier contient les vecteurs de la spec `core-random`, les deux scripts qui les produisent et les emplacements réservés aux vecteurs de l'oracle. Les identifiants R, H et P renvoient à la spec.
 
@@ -11,27 +12,27 @@ Ce fichier contient les vecteurs de la spec `core-random`, les deux scripts qui 
 
 | Famille | Niveau | Ce qui fait foi |
 |---|---|---|
-| V-L1 à V-L5 (générateur 48 bits) | D pour l'algorithme public de `java.util.Random`, S pour l'égalité avec le jeu (R8) | Sortie de `java.util.Random` (JDK 21), recoupée bit à bit par une réimplémentation Python indépendante |
+| V-L1 à V-L5, dont V-L3b (générateur 48 bits) | D pour l'algorithme public de `java.util.Random`, S pour l'égalité avec le jeu (R8) ; C pour les nombres de pas, le compteur saturé (V-L4) et la colonne « valeur si `<=` » | Sortie de `java.util.Random` (JDK 21), recoupée bit à bit par une réimplémentation Python indépendante |
 | V-L7 (sensibilité de la gaussienne) | C | Mesure JShell décrite dans la section |
 | V-L6 (prédiction de la sonde P5) | S | Chaîne d'hypothèses R8, R35 et ordre des tirages du butin |
 | V-X1 (xoroshiro128++ publié) | D | Réimplémentation Python recoupée avec la classe xoroshiro128++ du module `jdk.random` du JDK |
 | V-X2 (mélange de Stafford) | D | Recoupé avec `java.util.SplittableRandom` du JDK (voir R23) |
 | V-X3 (expansion d'une graine 64 bits) | C pour la fonction R22 à R24 ; S pour son emploi par le jeu (R25) | Réimplémentation Python recoupée avec le constructeur à graine 64 bits du xoroshiro128++ du JDK (lignes `X seed64`) |
-| V-X4 (MD5) | D pour l'empreinte ; S pour l'ordre des octets | `hashlib` |
+| V-X4 (MD5) | D pour l'empreinte ; S pour l'ordre des octets et la normalisation de l'identifiant (R26) | `hashlib` |
 | V-X5 (séquences nommées) | S | Calcul sous les hypothèses de la spec ; seule une sonde de l'oracle les lèvera |
 | V-X6 (source par position provisoire) | C, provisoire, non doré | Contrat provisoire R29 ; ne prouve rien sur le jeu |
 | O-1 à O-5 (oracle) | M une fois remplis | Réservés, à remplir par l'`oracle-differ` |
 
 ## Reproduire
 
-Les deux scripts sont dans la dernière section. Copier chaque bloc dans un fichier, puis :
+Les deux scripts sont dans la dernière section ; ce sont exactement les scripts exécutés pour produire ce fichier (ils ont été lancés en extrayant ces blocs tels quels). Copier chaque bloc dans un fichier, puis :
 
 ```sh
 jshell -q --add-modules jdk.random --add-exports jdk.random/jdk.random=ALL-UNNAMED legacy.jsh > java.txt
 python -I vectors.py > python.txt
 ```
 
-Chaque ligne de sortie a la forme `étiquette | valeur affichée | clé`. La clé est l'entier décimal, ou le motif IEEE 754 en hexadécimal pour un flottant. Contrôle croisé : les lignes commençant par `L ` ou `X ` doivent avoir des clés identiques dans les deux fichiers (vérifié le 2026-10-28 avec OpenJDK 21.0.10 et Python 3.14.7 sous Windows x86_64 : 418 lignes communes, dont les 5 lignes `X seed64` de V-X3, et 416 identiques ; les 2 écarts sont `seed=42 gauss#0` et `gauss#1`, d'une unité du dernier chiffre binaire, voir V-L7). Les valeurs Java font foi : elles suivent la spécification publique de `java.util.Random`, qui impose `StrictMath`. Les lignes `P ` (comptage de pas) et `H ` (hypothèses) ne viennent que de Python. La classe xoroshiro128++ appelée par le script JShell est celle du module `jdk.random` d'OpenJDK (implémentation publique de [BV]), sans lien avec le jeu.
+Chaque ligne de sortie a la forme `étiquette | valeur affichée | clé`. La clé est l'entier décimal, ou le motif IEEE 754 en hexadécimal pour un flottant. Contrôle croisé : les lignes commençant par `L ` ou `X ` doivent avoir des clés identiques dans les deux fichiers (vérifié le 2026-10-28 avec OpenJDK 21.0.10 et Python 3.14.7 sous Windows x86_64 : 483 lignes communes, dont les 5 lignes `X seed64` de V-X3, et 481 identiques ; les 2 écarts sont `seed=42 gauss#0` et `gauss#1`, d'une unité du dernier chiffre binaire, voir V-L7). Les valeurs Java font foi : elles suivent la spécification publique de `java.util.Random`, qui impose `StrictMath`. Les lignes `P ` (comptage de pas) et `H ` (hypothèses) ne viennent que de Python. La classe xoroshiro128++ appelée par le script JShell est celle du module `jdk.random` d'OpenJDK (implémentation publique de [BV]), sans lien avec le jeu.
 
 ## Vecteurs du générateur 48 bits et de xoroshiro128++
 
@@ -159,11 +160,13 @@ Graine `0`
 |---|---|---|---|---|
 | 1 | 0 | 0 | 0 | -1690734402 |
 | 2 | 1 | 1 | 0 | -1690734402 |
+| 3 | 0 | 1 | 1 | -1690734402 |
 | 7 | 5 | 2 | 4 | -1690734402 |
 | 10 | 0 | 8 | 9 | -1690734402 |
 | 16 | 11 | 13 | 3 | -1690734402 |
 | 26 | 18 | 18 | 23 | -1690734402 |
 | 100 | 60 | 48 | 29 | -1690734402 |
+| 715827883 | 516548029 | 586288564 | 653015632 | 1327362106 |
 | 1073741824 | 784870680 | 892752974 | 258274014 | -1690734402 |
 | 1073741825 | 516548029 | 663681053 | 251269761 | -1728529858 |
 | 2147483647 | 1569741360 | 1785505948 | 516548029 | -1690734402 |
@@ -174,11 +177,13 @@ Graine `42`
 |---|---|---|---|---|
 | 1 | 0 | 0 | 0 | 205897768 |
 | 2 | 1 | 0 | 1 | 205897768 |
+| 3 | 2 | 0 | 0 | 205897768 |
 | 7 | 1 | 5 | 6 | 205897768 |
 | 10 | 0 | 3 | 8 | 205897768 |
 | 16 | 11 | 0 | 10 | 205897768 |
 | 26 | 0 | 7 | 22 | 205897768 |
 | 100 | 30 | 63 | 48 | 205897768 |
+| 715827883 | 117392763 | 102948884 | 662969970 | -248792245 |
 | 1073741824 | 781215565 | 58696381 | 733605624 | 205897768 |
 | 1073741825 | 117392763 | 102948884 | 662969970 | -248792245 |
 | 2147483647 | 1562431130 | 117392763 | 1467211248 | 205897768 |
@@ -189,11 +194,13 @@ Graine `-1`
 |---|---|---|---|---|
 | 1 | 0 | 0 | 0 | -1941176418 |
 | 2 | 0 | 0 | 0 | -1941176418 |
+| 3 | 2 | 2 | 0 | -1941176418 |
 | 7 | 3 | 6 | 4 | -1941176418 |
 | 10 | 3 | 5 | 9 | -1941176418 |
 | 16 | 4 | 7 | 0 | -1941176418 |
 | 26 | 5 | 21 | 9 | -1941176418 |
 | 100 | 13 | 25 | 79 | -1941176418 |
+| 715827883 | 577549913 | 228124342 | 26349579 | -1941176418 |
 | 1073741824 | 288774956 | 471976112 | 13174789 | -1941176418 |
 | 1073741825 | 577549913 | 943952225 | 26349579 | -1941176418 |
 | 2147483647 | 577549913 | 943952225 | 26349579 | -1941176418 |
@@ -204,11 +211,13 @@ Graine `-9223372036854775808`
 |---|---|---|---|---|
 | 1 | 0 | 0 | 0 | -1690734402 |
 | 2 | 1 | 1 | 0 | -1690734402 |
+| 3 | 0 | 1 | 1 | -1690734402 |
 | 7 | 5 | 2 | 4 | -1690734402 |
 | 10 | 0 | 8 | 9 | -1690734402 |
 | 16 | 11 | 13 | 3 | -1690734402 |
 | 26 | 18 | 18 | 23 | -1690734402 |
 | 100 | 60 | 48 | 29 | -1690734402 |
+| 715827883 | 516548029 | 586288564 | 653015632 | 1327362106 |
 | 1073741824 | 784870680 | 892752974 | 258274014 | -1690734402 |
 | 1073741825 | 516548029 | 663681053 | 251269761 | -1728529858 |
 | 2147483647 | 1569741360 | 1785505948 | 516548029 | -1690734402 |
@@ -236,9 +245,40 @@ Borne 2^30+1 : environ une valeur de 31 bits sur deux est rejetée. Colonne "pas
 | 14 | 730985498 | 5 | -1800026279 |
 | 15 | 226612738 | 3 | 1796952534 |
 
-### V-L4 Saut
+### V-L3b Rejets de `nextInt(715827883)` (borne obligatoire, R5)
+
+715827883 = (2^31 + 1) / 3. Les seuls diviseurs de 2^31 + 1 représentables en `int`, en dehors de 1, sont 3 et 715827883 (715827883 est premier). Ce sont les seules bornes pour lesquelles le test d'acceptation strict (`< 2^31`) et sa version non stricte (`<= 2^31`) donnent des résultats différents (R5).
+
+Pour 715827883, une valeur de 31 bits est rejetée si elle tombe dans le tiers haut, `r >= 2 * 715827883 = 1431655766`. La probabilité de rejet par essai vaut exactement 715827882 / 2^31, soit environ 1/3 (calcul C). Une implémentation non stricte accepterait ces valeurs et rendrait `r - 1431655766`. Le premier tirage des petites graines consécutives tombe toujours dans ce tiers haut (corrélation déjà notée en V-L6), si bien que les 16 graines ci-dessous rejettent au moins une fois.
+
+Colonne « pas » : avancées de l'état pour l'appel (C, Python). Colonne « valeur si `<=` » : ce que rendrait la condition non stricte au premier essai (C) ; elle ne doit jamais être obtenue. Les colonnes « Résultat » et « `nextInt()` suivant » viennent de `java.util.Random`.
+
+| Graine | Résultat | Pas | `nextInt()` suivant | Valeur si `<=` (à rejeter) |
+|---|---|---|---|---|
+| 0 | 516548029 | 3 | -1690734402 | 138085594 |
+| 1 | 215764588 | 2 | 1761283695 | 137893219 |
+| 2 | 630021372 | 2 | -423279216 | 138470342 |
+| 3 | 491935777 | 2 | 304908421 | 138277968 |
+| 4 | 467700105 | 6 | -1376291473 | 137316096 |
+| 5 | 379250092 | 2 | 379066948 | 137123721 |
+| 6 | 77678993 | 2 | -1805495963 | 137700845 |
+| 7 | 655421281 | 2 | -1077308326 | 137508470 |
+| 8 | 565987047 | 3 | 64862043 | 136546598 |
+| 9 | 542735596 | 2 | -1003149799 | 136354223 |
+| 10 | 241164497 | 2 | 1107254586 | 136931347 |
+| 11 | 201893228 | 3 | 919154311 | 136738972 |
+| 12 | 128478812 | 2 | 1181413113 | 135777100 |
+| 13 | 706221100 | 2 | 1909600750 | 135584726 |
+| 14 | 404650001 | 2 | -274962161 | 136161849 |
+| 15 | 226612738 | 3 | 1796952534 | 135969475 |
+
+Borne 3 : le rejet ne concerne que `r` = 2^31 - 2 et 2^31 - 1 (probabilité 2^-30 par essai) ; aucun cas n'apparaît dans les vecteurs, et la borne 3 figure en V-L2 pour couvrir le chemin sans rejet. Un test de la condition stricte avec la borne 3 doit donc partir d'un état choisi, pas d'une graine quelconque.
+
+### V-L4 Saut et compteur de pas
 
 Graine 0, saut de 1 000 000 pas (ou 1 000 000 appels `nextInt()`), puis `nextInt()` = 1257967379.
+
+Saturation du compteur (exigence d'interface, C) : graine 0, un `nextInt()` (-1155484576), puis `skip(Long.MAX_VALUE)`. Le compteur `steps()` vaut alors 9223372036854775807 (`Long.MAX_VALUE`) et y reste après un nouveau tirage. L'état, lui, reste exact : 1 + (2^63 - 1) = 2^63 pas, multiple de la période 2^48, le ramène à l'état initial, et le `nextInt()` suivant vaut -1155484576, le premier tirage de la graine 0 (recoupé par `java.util.Random`).
 
 ### V-L5 Séquence mixte (graine 12345)
 
@@ -297,6 +337,8 @@ La colonne des trois premiers `nextLong()` est reproduite à l'identique par `ja
 |---|---|---|---|
 | `probe:a` | 27cdd0728604f33df0084ce9792a919d | (0x27CDD0728604F33D, 0xF0084CE9792A919D) | (0x3DF3048672D0CD27, 0x9D912A79E94C08F0) |
 | `minecraft:test` | 1a2b64f5d3bdb4612e96d0a422fe68a7 | (0x1A2B64F5D3BDB461, 0x2E96D0A422FE68A7) | (0x61B4BDD3F5642B1A, 0xA768FE22A4D0962E) |
+| `test` (normalisé en `minecraft:test`, R26) | 1a2b64f5d3bdb4612e96d0a422fe68a7 | (0x1A2B64F5D3BDB461, 0x2E96D0A422FE68A7) | (0x61B4BDD3F5642B1A, 0xA768FE22A4D0962E) |
+| `:test` (espace de noms vide, normalisé en `minecraft:test`, R26 provisoire) | 1a2b64f5d3bdb4612e96d0a422fe68a7 | (0x1A2B64F5D3BDB461, 0x2E96D0A422FE68A7) | (0x61B4BDD3F5642B1A, 0xA768FE22A4D0962E) |
 
 ### V-X6 Source par position provisoire (R29, C, non dorée)
 
@@ -312,6 +354,8 @@ Contrat provisoire du moteur, sans valeur de preuve sur le jeu : `hp(x, y, z) = 
 | 12345 | (1, 2, 3) | 0xA55BDF37C08724B5 | -1563368128130346438 |
 | 12345 | (-1, -64, -1) | 0xA0C6E26C8ED33FBB | -4312487232099831939 |
 | 12345 | (2147483647, 319, -2147483648) | 0x32B5375958F68299 | 1896549530065401711 |
+
+Limite connue de l'empreinte provisoire (C) : `(23901, 0, z)` et `(52826, 683136096, z)` ont la même empreinte, pour tout `z`, donc le même flux pour toute graine `d`. Valeurs (en long signé) : pour `z = 0`, -1813262085031591903 ; pour `z = 5`, -949738680630853989 ; pour `z = -7`, 1788741283831798574. La cause est la collision `mélange(23901) = mélange(52826) XOR 683136096` à l'étage intermédiaire. R29 n'exige des flux distincts que pour des positions voisines ; ce n'est donc pas une violation, mais cela montre que la construction provisoire n'est pas fidèle (Q1).
 
 ### V-X5 Séquences nommées : prédictions à confronter à l'oracle (niveau S)
 
@@ -427,6 +471,7 @@ import struct
 M32 = (1 << 32) - 1
 M48 = (1 << 48) - 1
 M64 = (1 << 64) - 1
+LONG_MAX = (1 << 63) - 1
 LCG_MUL = 0x5DEECE66D
 LCG_ADD = 0xB
 SILVER = 0x6A09E667F3BCC909
@@ -466,7 +511,7 @@ class Lcg48:
 
     def next_bits(self, bits):
         self.state = (self.state * LCG_MUL + LCG_ADD) & M48
-        self.steps += 1
+        self.steps = min(self.steps + 1, LONG_MAX)
         return s32(self.state >> (48 - bits))
 
     def next_int(self, bound=None):
@@ -515,6 +560,8 @@ class Lcg48:
 
     def skip(self, n):
         # n steps of x -> MUL*x + ADD composed by squaring (O(log n)).
+        # The step counter saturates at LONG_MAX; the state stays exact.
+        self.steps = min(self.steps + n, LONG_MAX)
         a, c = 1, 0
         ma, mc = LCG_MUL, LCG_ADD
         while n:
@@ -619,7 +666,7 @@ def out_i(label, v):
 
 SEEDS = [0, 1, 42, -1, 12345, -123456789, -(1 << 63), (1 << 63) - 1, 1 << 48, 25214903917]
 BOUND_SEEDS = [0, 42, -1, -(1 << 63)]
-BOUNDS = [1, 2, 7, 10, 16, 26, 100, 1 << 30, (1 << 30) + 1, (1 << 31) - 1]
+BOUNDS = [1, 2, 3, 7, 10, 16, 26, 100, 715827883, 1 << 30, (1 << 30) + 1, (1 << 31) - 1]
 
 for s in SEEDS:
     r = Lcg48(s)
@@ -651,9 +698,24 @@ for s in range(16):
     out_i("L reject seed=%d bound=1073741825" % s, r.next_int((1 << 30) + 1))
     out("P reject seed=%d steps" % s, r.steps, r.steps)
     out_i("L reject seed=%d then-int" % s, r.next_int())
+# 715827883 * 3 = 2^31 + 1: the only bounds besides 3 where "<" and "<=" in the
+# acceptance test differ (spec R5).
+for s in range(16):
+    r = Lcg48(s)
+    out_i("L reject3 seed=%d bound=715827883" % s, r.next_int(715827883))
+    out("P reject3 seed=%d steps" % s, r.steps, r.steps)
+    out_i("L reject3 seed=%d then-int" % s, r.next_int())
 r = Lcg48(0)
 r.skip(1000000)
 out_i("L seed=0 skip=1000000 int", r.next_int())
+# 1 + LONG_MAX = 2^63 steps, a multiple of the period 2^48: the state is back to
+# its initial value, the counter saturates.
+r = Lcg48(0)
+r.next_int()
+r.skip(LONG_MAX)
+out("P seed=0 int then skip=LONG_MAX steps", r.steps, r.steps)
+out_i("L seed=0 int then skip=LONG_MAX int", r.next_int())
+out("P seed=0 int then skip=LONG_MAX then int steps", r.steps, r.steps)
 r = Lcg48(12345)
 out_i("L mix#0 int", r.next_int())
 out_i("L mix#1 int(10)", r.next_int(10))
@@ -693,11 +755,27 @@ for d in [0, 12345]:
         lo, hi = expand_unmixed(d ^ hp)
         x = Xoro(stafford13(lo), stafford13(hi))
         out("H pos d=%d (%d,%d,%d)" % (d, px, py, pz), h64(hp), x.next_long())
+# Known limit of the provisional hash: distant positions with the same hash, for every z.
+for z in [0, 5, -7]:
+    for px, py in [(23901, 0), (52826, 683136096)]:
+        hp = stafford13(stafford13(stafford13(px & M64) ^ (py & M64)) ^ (z & M64))
+        out("H pos collision (%d,%d,%d)" % (px, py, z), "-", s64(hp))
 
-for text in ["probe:a", "minecraft:test"]:
+
+def normalize_id(text):
+    # Provisional (spec R26): empty namespace or no namespace means "minecraft".
+    if ":" not in text:
+        return "minecraft:" + text
+    if text.startswith(":"):
+        return "minecraft" + text
+    return text
+
+
+for text in ["probe:a", "minecraft:test", "test", ":test"]:
+    norm = normalize_id(text)
     for order in ["BE", "LE"]:
-        lo, hi = md5_words(text, order)
-        out("H md5(%s) %s" % (text, order), hashlib.md5(text.encode()).hexdigest(), "(%s,%s)" % (h64(lo), h64(hi)))
+        lo, hi = md5_words(norm, order)
+        out("H md5(%s) %s" % (text, order), "%s %s" % (norm, hashlib.md5(norm.encode()).hexdigest()), "(%s,%s)" % (h64(lo), h64(hi)))
 
 CASES = [
     ("N1", 0, 0, False, False, "probe:a", "BE", "sign"),
@@ -741,7 +819,7 @@ import java.util.Random;
 
 long[] SEEDS = {0L, 1L, 42L, -1L, 12345L, -123456789L, Long.MIN_VALUE, Long.MAX_VALUE, 281474976710656L, 25214903917L};
 long[] BOUND_SEEDS = {0L, 42L, -1L, Long.MIN_VALUE};
-int[] BOUNDS = {1, 2, 7, 10, 16, 26, 100, 1 << 30, (1 << 30) + 1, Integer.MAX_VALUE};
+int[] BOUNDS = {1, 2, 3, 7, 10, 16, 26, 100, 715827883, 1 << 30, (1 << 30) + 1, Integer.MAX_VALUE};
 
 void out(String label, String shown, String key) { System.out.println(label + " | " + shown + " | " + key); }
 void outI(String label, long v) { out(label, Long.toString(v), Long.toString(v)); }
@@ -776,10 +854,20 @@ for (long s = 0; s < 16; s++) {
     outI("L reject seed=" + s + " bound=1073741825", r.nextInt((1 << 30) + 1));
     outI("L reject seed=" + s + " then-int", r.nextInt());
 }
+for (long s = 0; s < 16; s++) {
+    Random r = new Random(s);
+    outI("L reject3 seed=" + s + " bound=715827883", r.nextInt(715827883));
+    outI("L reject3 seed=" + s + " then-int", r.nextInt());
+}
 {
     Random r = new Random(0L);
     for (int i = 0; i < 1000000; i++) r.nextInt();
     outI("L seed=0 skip=1000000 int", r.nextInt());
+}
+{
+    // 1 + Long.MAX_VALUE = 2^63 steps, a multiple of the period 2^48: back to the initial state.
+    Random r = new Random(0L);
+    outI("L seed=0 int then skip=LONG_MAX int", r.nextInt());
 }
 {
     Random r = new Random(12345L);

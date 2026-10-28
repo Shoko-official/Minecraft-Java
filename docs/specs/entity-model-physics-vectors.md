@@ -6,7 +6,7 @@ Pour ne pas recopier les données de Mojang dans git, les tableaux volumineux ne
 
 ## Outil et commandes
 
-L'annexe en fin de fichier est le texte intégral de `ent_ref.py` (SHA-256 du texte de l'annexe, c'est-à-dire du contenu du bloc de code suivi d'un saut de ligne, fins de ligne LF : `82119fa18fe3ce1a562948edc3f037ebedcb8bc7e095e4371a22a47212ce97d3`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`. Toutes les commandes sont `python -I ent_ref.py REF <sous-commande>`. Sortie en UTF-8, fins de ligne LF ; l'empreinte est celle de la sortie complète. Pour recalculer : `python -I ent_ref.py "$REF" <sous-commande> | sha256sum | cut -c1-16`.
+L'annexe en fin de fichier est le texte intégral de `ent_ref.py` (SHA-256 du texte de l'annexe, c'est-à-dire du contenu du bloc de code suivi d'un saut de ligne, fins de ligne LF : `85e2aff7cf679531f789d0d72dcd9b1ef9dfbda2fa7bbbad5e72285142bb59af`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`. Toutes les commandes sont `python -I ent_ref.py REF <sous-commande>`. Sortie en UTF-8, fins de ligne LF ; l'empreinte est celle de la sortie complète. Pour recalculer : `python -I ent_ref.py "$REF" <sous-commande> | sha256sum | cut -c1-16`.
 
 | Sous-commande | Sortie | Empreinte | Spec |
 |---|---|---|---|
@@ -16,7 +16,7 @@ L'annexe en fin de fichier est le texte intégral de `ent_ref.py` (SHA-256 du te
 | `damage` | 51 types de dégâts : champs, 36 étiquettes, appartenance de chaque type | bcb149ec1f55ed0d | damage-effects |
 | `armor` | pièces d'armure par matériau et modificateurs d'objets | 1932e967c529c579 | model-physics R14, R15 |
 | `weapons` | modificateurs d'attaque et composants d'arme | 741ee4755c09b4da | model-physics R16 ; damage-effects |
-| `food` | composant de nourriture, effets de consommation | 4c2e4b55814027a6 | player |
+| `food` | composant de nourriture, 43 composants de consommation et leurs paramètres, effets de consommation | 484d19c710103e2c | player |
 | `spawns` | attribut de spawn des 67 biomes, surcharges de structures, variantes | 3913363f3c1d5edf | ai-spawning |
 | `dims` | champs de spawn des 4 types de dimension | 0354483082b563ae | ai-spawning |
 | `loot` | butins d'entité | c068acce82f29d9a | damage-effects |
@@ -26,9 +26,9 @@ L'annexe en fin de fichier est le texte intégral de `ent_ref.py` (SHA-256 du te
 | `spawners` | 28 configurations de spawner d'épreuve | 2d821b2264b29b7e | ai-spawning |
 | `timelines` | pistes de jeu des chronologies (brûlure, lumière du ciel, slime, patrouille, horaires) | ceeb07640f832ae0 | ai-spawning R13, R14 |
 | `vehicles` | wagonnets, bateaux, étiquettes de monture, états de rails, règle de vitesse | d8c25fc369b14a0f | player R50 à R60 |
-| `player` | recettes à expérience, vitesses, saut, orbes, mort, faim, repas | 6da34b3441f08ae3 | player |
-| `fall` | prédictions de chute libre sous trois ordres | 5d92e314c24b67a8 | model-physics R39 à R41 |
-| `calc` | armure, ordres de réduction, recharge, chute, intervalles, expérience, exhaustion | ddf2b21bf8e9f21b | damage-effects, player |
+| `player` | recettes à expérience, vitesses (accroupi 1.3), saut, orbes, mort, faim, repas | 401eb9a0b98e319e | player |
+| `fall` | vitesses terminales de la table de mouvement et ordres de même point fixe, suites de chute sous cinq ordres | f7a0881462bd9570 | model-physics R39 à R41 |
+| `calc` | armure, ordres de réduction, croisements difficulté x armure et fenêtre x armure, recharge, chute, intervalles, expérience, exhaustion | d5ed6e9b1a8a81c7 | damage-effects, player |
 
 ## V-EM : vecteurs
 
@@ -61,19 +61,22 @@ Ces défauts sont ceux du type générique : le joueur et chaque mob redéfiniss
 
 **V-EM2 (R21) : dimensions d'exemple (S, page "Hitbox").** Largeur x hauteur ; yeux : joueur 0.6 x 1.8 ; 1.62 | zombie 0.6 x 1.95 ; 1.74 | creeper 0.6 x 1.7 ; 1.445 | araignée 1.4 x 0.9 ; 0.65 | vache 0.9 x 1.4 ; 1.3 | objet 0.25 x 0.25 ; 0.2125 | bloc qui tombe 0.98 x 0.98 ; 0.833 | support d'armure 0.5 x 1.975 ; 1.7775 | slime moyen 1.0404 x 1.04. Ces entrées servent d'étalons de départ : EM2 doit les retrouver ou les corriger.
 
-**V-EM3 (R40, R41) : suites de chute (C sur S).** `python -I ent_ref.py "$REF" fall`, section « free fall » : un vivant (g 0.08, d 0.98) lâché de y = 100 avec v = 0. Début de la sortie (doubles et motifs binaires) :
+**V-EM3 (R39 à R41) : suites de chute (C sur S).** `python -I ent_ref.py "$REF" fall` (première section : vitesse terminale documentée de chaque ligne de la table de mouvement et ordres de même point fixe ; puis suites). Un vivant (g 0.08, d 0.98) lâché de y = 100 avec v = 0, premiers ticks (les doubles et leurs motifs binaires sont dans la sortie) :
 
 ```
 order A tick 1 y 100.0              vy -0.0784
 order A tick 2 y 99.9216            vy -0.15523199999999998
-order A tick 3 y 99.766368          vy -0.23052736
 order B tick 1 y 99.9216            vy -0.0784
 order B tick 2 y 99.766368          vy -0.15523199999999998
 order C tick 1 y 99.92              vy -0.08
 order C tick 2 y 99.7616            vy -0.15839999999999999
+order D tick 1 y 99.92              vy -0.0784
+order D tick 2 y 99.7616            vy -0.15523199999999998
+order E tick 1 y 100.0              vy -0.08
+order E tick 2 y 99.92              vy -0.15839999999999999
 ```
 
-L'ordre B atteint |vy| >= 3.9 au tick 262. Les points fixes comparés aux vitesses terminales documentées (R39) figurent en tête de la même sortie.
+Un bloc qui tombe (g 0.04, d 0.98), trois premiers ticks, ordre D (celui de la page) : `(99.96, -0.0392)`, `(99.8808, -0.07761599999999999)`, `(99.763184, -0.11526368)`. Ordres avec le point fixe de la vitesse terminale documentée : A, B et D pour les vivants, blocs, objets, orbes, wagonnets, lancers, potions, fioles et flotteur ; C et E pour les flèches (5.0) et le crachat de lama (6.0). L'ordre B atteint |vy| >= 3.9 au tick 262 pour un vivant.
 
 **V-EM4 (R1, R2, R3, R6) : inventaires D.** `registry` : `entity_type 161 contiguous`, `attribute 40`, `mob_effect 40`, `potion 46`, `game_rule 59`, `entity types with loot_table entities/<id> 93 without 68` ; `etags` : `undead ... expanded 17`, `aquatic 14`, `fall_damage_immune 18`, `can_breathe_under_water 32` ; `btags` : `climbable direct 9 expanded 9`, `fall_damage_resetting 11`, `valid_spawn 2`.
 
@@ -97,12 +100,12 @@ Chaque sonde donne : montage et commandes, sortie attendue provisoire, **critèr
 
 | Sonde | Mise en place et commandes | Sortie attendue (provisoire) | Critère de succès | Règles levées |
 |---|---|---|---|---|
-| EM0 | (a) 10 000 doubles tirés avec 17 chiffres significatifs : `data modify storage sonde:t v set value <x>d` puis `data get storage sonde:t v` ; (b) pour chacun des 161 types : `summon` (si accepté) puis `data get entity @e[tag=probe,limit=1]` en entier ; (c) `time query gametime`, `tick step 5`, `time query gametime` ; (d) `data merge entity` de `Motion:[20d,0d,0d]`, `Rotation:[370f,100f]` puis lecture sans pas ; (e) objet invoqué en l'air `Item:{id:"minecraft:stone",count:1b},PickupDelay:32767s,Age:-32768s`, lecture avant le premier pas puis après 1 pas ; (f) le même scénario 10 fois ; (g) forceload sans joueur | texte décimal relisible à l'identique ; liste de clés par type conforme à R28 aux noms près ; compteur +5 ; `Motion` hors bornes remis à zéro ; lacet normalisé, tangage borné ; un premier pas qui applique le tick ; traces identiques ; entités ticquées en chunk forcé | (a) 10 000 sur 10 000 relus identiques (sinon consigner la forme du texte) ; (b) 161 listes de clés enregistrées ; (c) différence exacte de 5 ; (d) valeurs relues égales aux attendues de R46 et R49 ; (e) la position après 1 pas est celle de V-EM3 A ou B (écart d'un tick) ; (f) 10 traces égales sauf UUID ; (g) la position d'un objet lâché change sous `tick step` sans joueur | R27 à R29, R35 à R37, R46, R49, R77 à R82 |
-| EM1 | Pour chaque type : `summon` à (0.5, -60, 0.5) avec `Tags:["probe"],NoAI:1b` ; enregistrer succès ou message d'échec ; `attribute @e[tag=probe,limit=1] minecraft:max_health get` ; `data get entity ... NoAI` ; `data get entity ... Health` | table 161 lignes : invocable, vivant, mob, santé | 161 lignes complètes ; chaque type des étiquettes `undead`, `aquatic`, `boat`, `raiders` est classé ; les échecs d'invocation (`player`...) sont listés avec leur message | R4, R5 |
+| EM0 | (a) 10 000 doubles tirés avec 17 chiffres significatifs : `data modify storage sonde:t v set value <x>d` puis `data get storage sonde:t v` ; (b) pour chacun des 161 types : `summon` (si accepté) puis `data get entity @e[tag=probe,limit=1]` en entier ; (c) `time query gametime`, `tick step 5`, `time query gametime` ; (d) `data merge entity` de `Motion:[20d,0d,0d]`, `Rotation:[370f,100f]` puis lecture sans pas ; (e) objet invoqué en l'air `Item:{id:"minecraft:stone",count:1b},PickupDelay:32767s,Age:-32768s`, lecture avant le premier pas puis après 1 pas ; (f) le même scénario 10 fois ; (g) forceload sans joueur | texte décimal relisible à l'identique ; liste de clés par type conforme à R28 aux noms près ; compteur +5 ; `Motion` hors bornes remis à zéro ; lacet normalisé, tangage borné ; un premier pas qui applique le tick ; traces identiques ; entités ticquées en chunk forcé | (a) 10 000 sur 10 000 relus identiques (sinon consigner la forme du texte) ; (b) 161 listes de clés enregistrées ; (c) différence exacte de 5 ; (d) valeurs relues égales aux attendues de R46 et R49 ; (e) la suite après 1 pas est celle d'un des cinq ordres de V-EM3 (ils sont séparés dès le premier tick) ; (f) 10 traces égales sauf UUID ; (g) la position d'un objet lâché change sous `tick step` sans joueur | R27 à R29, R34, R35 à R37, R46, R49, R77 à R82 |
+| EM1 | Pour chaque type : `summon` à (0.5, -60, 0.5) avec `Tags:["probe"],NoAI:1b` ; enregistrer succès ou message d'échec ; `attribute @e[tag=probe,limit=1] minecraft:max_health get` ; `data get entity ... NoAI` ; `data get entity ... Health` | table 161 lignes : invocable, vivant, mob, santé | 161 lignes complètes ; chaque type des étiquettes `undead`, `aquatic`, `boat`, `raiders` est classé ; les échecs d'invocation (`player`...) sont listés avec leur message | R4, R5, R69 de entity-player.md |
 | EM2 | Pour chaque type (et pour `scale` 0.0625, 0.5, 2, 16 ; bébé `Age:-24000` ; `Size` 0, 1, 3, 126 pour slime et cube de magma) : entité à Pos (0.5, -60.0, 0.5), `NoGravity:1b,NoAI:1b` ; bissection sur chaque axe (20 pas) du plus petit éloignement `d` tel que `execute if entity @e[tag=probe,x=<x>,y=-60,z=0.5,dx=0,dy=0,dz=0]` réussit, côtés gauche et droit, bas et haut ; yeux : `execute as @e[tag=probe] at @s anchored eyes positioned ^ ^ ^ run summon marker ~ ~ ~ {Tags:["eye"]}` puis `data get entity @e[tag=eye,limit=1] Pos[1]` | largeurs et hauteurs de V-EM2 ; boîte centrée ; rapport égal à `scale` | demi-largeur gauche = droite à 1e-4 (H-EM6) ; largeur et hauteur de V-EM2 retrouvées à 1e-3 (sinon la valeur mesurée remplace celle de la page) ; rapport mesuré / rapport à l'échelle 1 = `scale` à 1e-3 (H-EM7) ; table complète des 161 types | R19 à R25 |
 | EM3 | Pour chaque type vivant et chacun des 40 attributs : `attribute @e[tag=probe,limit=1] minecraft:<a> base get` (erreur si l'attribut est absent) ; puis `base set 1000000000`, `get`, `base get`, `base set -1000000000`, `get`, `base get`, `base reset` | table (type, attribut, base) ; bornes de chaque attribut | table complète ; pour chacun des 40 attributs (sur un type qui le porte) minimum et maximum égaux à V-EM1, sinon liste des écarts ; comportement de `base get` après écriture hors bornes consigné (H-EM4) | R8, R9, R13 |
 | EM4 | Zombie `NoAI`, attribut `armor` (et `max_health`, `movement_speed`) : (a) un modificateur par opération ; (b) trois opérations ensemble ; (c) 10 modificateurs `add_value` de montants {0.1, 1e-9, 1e9, -1e9, 0.3, ...} ajoutés dans 6 ordres ; (d) ajout d'un id existant ; (e) retrait d'un id absent ; (f) bornage ; (g) équipement : `item replace entity @e[tag=probe] armor.chest with minecraft:iron_chestplate`, lecture, retrait ; lecture par `get`, `modifier value get`, `data get entity ... attributes` | valeur = formule R11 ; ordre d'insertion ; erreur sur doublon ; armure 6 avec le plastron | 200 combinaisons tirées : égalité exacte (texte) avec la formule de R11 ; H-EM2 résolue (somme dans l'ordre d'insertion, ou triée) ; H-EM3 résolue ; après `item replace`, `armor` augmente de 6 puis revient | R10 à R13, R17 |
-| EM5 | Types de mouvement libre : objet (`Item`, `PickupDelay:32767s`, `Age:-32768s`), bloc qui tombe (état du bloc, temps de chute et lâcher d'objet : clés NBT relevées par EM0), dynamite (`fuse:32767s` ; le nom de la clé est relevé par EM0), support d'armure, zombie `NoAI`, orbe d'expérience (`Value:1s`), cube de soufre ; départ y = 300 (sol à -60 ou colonne sans bloc jusqu'au vide), `Motion` nul, puis `[0,0.5,0]` et `[0.3,0,0.2]` ; variantes `NoGravity:1b`, `attribute gravity base set 0.04 / 0 / -0.04` ; 300 ticks ; ETS | suites de y, vy, vx | pour chaque type, égalité exacte du texte (y, vy) avec exactement un des candidats A, B ou C de R40 sur 300 ticks ; les points fixes mesurés égalent R39 ; sinon la suite est consignée comme donnée de calibrage ; H-EM26 tranchée (un `NoAI` garde-t-il la gravité ?) | R38 à R42, R48, R75 |
+| EM5 | Types de mouvement libre : objet (`Item`, `PickupDelay:32767s`, `Age:-32768s`), bloc qui tombe (état du bloc, temps de chute et lâcher d'objet : clés NBT relevées par EM0), dynamite (`fuse:32767s` ; le nom de la clé est relevé par EM0), support d'armure, zombie `NoAI`, orbe d'expérience (`Value:1s`), cube de soufre, bateau, wagonnet (hors rails) ; départ y = 300 (sol à -60 ou colonne sans bloc jusqu'au vide), `Motion` nul, puis `[0,0.5,0]` et `[0.3,0,0.2]` ; variantes `NoGravity:1b`, `attribute gravity base set 0.04 / 0 / -0.04` ; 300 ticks ; ETS | suites de y, vy, vx | pour chaque type, égalité exacte du texte (y, vy) avec exactement un des ordres A à E de R40 sur 300 ticks (attendu : A pour les vivants, D pour le bloc qui tombe et la dynamite, B pour le bateau ; objet, orbe et wagonnet : à relever) ; les points fixes mesurés égalent R39 ; sinon la suite est consignée comme donnée de calibrage ; H-EM26 tranchée (un `NoAI` garde-t-il la gravité ?) | R38 à R42, R48, R75 |
 | EM6 | Objets glissant à `Motion:[1d,0d,0d]` sur chaque bloc de la liste (tous les blocs à `blocks_motion` plus glace, glace compacte, glace bleue, slime, miel, sable d'âme, boue, neige, tapis) ; relever vx à chaque tick ; entité à cheval sur deux blocs ; vivant avec `attribute friction_modifier / air_drag_modifier base set` à 0, 0.5, 1, 2 ; en l'air avec `NoGravity:1b` | table de friction par bloc ; coefficient 0.91 en l'air | table complète des coefficients (texte exact) ; coefficient aérien 0.91 retrouvé ; rapport des décélérations pour les attributs = valeur de H-EM16 à 1e-12 ; règle de la position de référence H-EM17 résolue | R43 à R45 |
 | EM7 | Objets et supports d'armure lancés (`Motion`) contre : un sol, un plafond, un mur sur chaque face, un coin, un bord, dalle, escalier, clôture, vitre, porte, trappe, échelle, lit, coffre (au moins 300 états de bloc) ; balayage à pas de 1/64 de bloc de la face d'impact ; cube de soufre lâché de 10 blocs ; zombie `NoAI` poussé vers un vide ; `setblock` dans une boîte ; `Motion` sur un cadre ; vexes, dragon, oeil d'ender | position finale, `OnGround`, `Motion` après impact, hauteur des surfaces, rebond | égalité exacte de la position finale pour 1000 jets avec un seul des ordres d'axes (H-EM20) ; forme de collision de chaque état échantillonné consignée à 1/64 de bloc (R51) ; rebond = H-EM18 à 1e-9 ; H-EM27 à H-EM29 tranchées ; liste des types sans collision de bloc complète | R47, R51 à R53, R56, R59, R60, R76 |
 | EM8 | Colonne d'eau de 10 blocs, lave, colonnes de bulles (montante et descendante), toile, miel, neige poudreuse, échelle, lianes, échafaudage, canal d'eau coulante de longueur 8 ; objet, support d'armure, zombie `NoAI`, bloc qui tombe ; chute de 10 blocs dans chaque bloc de `fall_damage_resetting` puis lecture de `fall_distance` ; zombie `NoAI` avec l'effet Weaving dans la toile : `effect give @e[tag=probe] minecraft:weaving infinite 0` | traces vx, vy ; `fall_distance` | table des vitesses terminales et décélérations par fluide ; remise à zéro de `fall_distance` exacte pour les 11 blocs et seulement eux ; rapport du ralentissement de la toile avec et sans Weaving = 0.75 selon la page (H-EM25) ; H-EM24 résolue | R54, R61 à R67 |
@@ -110,8 +113,8 @@ Chaque sonde donne : montage et commandes, sortie attendue provisoire, **critèr
 | EM10 | 2 à 30 supports d'armure et zombies `NoAI` superposés dans une boîte de la taille d'un bloc ; `gamerule max_entity_cramming` à 24, 2, 0 ; `difficulty normal` ; relevé de `Health` et de `Pos` sur 40 ticks ; deux entités décalées de 0.0 à 0.6 | déplacements, dégâts d'entassement | dégâts relevés = 6 avec fréquence 25 pour cent par tick à l'échelle statistique (khi-deux, p >= 1e-4) ; seuil de 24 ; vecteur de répulsion en fonction du recouvrement (R57) tabulé avec constante et plafond | R57, R58 |
 | EM11 | 3 objets de même type (Item stone) très proches puis séparés de 0.1, invoqués dans 6 ordres de `summon` ; 40 ticks ; lecture de `Count` et `Age` ; deux supports d'armure se poussant | quel objet absorbe l'autre ; quel support bouge | l'ordre de tick déduit est le même sur les 6 permutations et sur 10 répétitions ; H-EM13 tranchée | R34 |
 | EM12 | Client protocole minimal (jalon M8) à Pos connue ; capture des paquets du tableau R30 pour : support d'armure en mouvement, 20 types d'entités, un joueur s'éloignant de 16 à 300 blocs | contenu de `add_entity`, indices de `set_entity_data`, périodicité de `entity_position_sync`, portée de suivi par type | tables consignées ; H-EM10 à H-EM12 tranchées ; bloquant tant qu'aucun client n'existe | R31 à R33 |
-| EM13 | Objet à `Age` 5990 et à PickupDelay variés, `tick step 20` ; bloc qui tombe sans support ; dynamite ; fusion d'objets (distance, tick, taille de pile) ; objet en lave (netherite et autre) ; entité franchissant x = 15.999 vers 16.001 puis `save-all` et lecture du fichier d'entités de région par le lecteur indépendant | tick de disparition ; fusion ; chunk de stockage | disparition à l'`Age` 6000 exactement ; temps de chute de 600 ticks ; distance de fusion de R69 ; chunk de stockage = division euclidienne ; objets netherite intacts dans la lave | R50, R69 à R72 |
-| EM14 | Flèche (`Motion:[1d,1d,0d]`), boule de neige, oeuf, perle, trident : 100 ticks ; flèche contre bloc | suites de position | égalité exacte avec exactement un ordre candidat (A, B, C) sur 100 ticks ; position d'arrêt contre un bloc consignée ; durée de vie d'une flèche plantée mesurée | R73, R74 |
+| EM13 | Objet à `Age` 5990 et à PickupDelay variés, `tick step 20` ; bloc qui tombe sans support ; dynamite ; fusion d'objets (distance, tick, taille de pile) ; objet en lave (netherite et autre) ; entité franchissant x = 15.999 vers 16.001 puis `save-all` et lecture du fichier d'entités de région par le lecteur indépendant | tick de disparition ; fusion ; chunk de stockage | disparition à l'`Age` 6000 exactement ; temps de chute de 600 ticks ; distance de fusion de R69 ; chunk de stockage = division euclidienne ; objets netherite intacts dans la lave | R50, R69 à R72, R43 de entity-ai-spawning.md |
+| EM14 | Flèche (`Motion:[1d,1d,0d]`), trident, boule de neige, oeuf, perle, potion lancée, fiole d'expérience, crachat de lama : 100 ticks ; flèche contre bloc | suites de position | égalité exacte avec exactement un des ordres A à E sur 100 ticks (attendu : B pour boule de neige, oeuf, perle, potion et fiole avec les gravités 0.03, 0.05, 0.07 ; E pour le crachat ; C ou E pour les flèches) ; position d'arrêt contre un bloc consignée ; durée de vie d'une flèche plantée mesurée | R73, R74 |
 
 ## Couverture des règles S par les sondes
 
@@ -369,14 +372,17 @@ def cmd_food():
     print("saturation", sorted(collections.Counter(f["saturation"] for f in foods.values()).items()))
     for n in ("bread", "cooked_beef", "golden_apple", "rotten_flesh", "apple", "enchanted_golden_apple"):
         print(n, foods.get(n), json.dumps(its[n].get("minecraft:consumable"), sort_keys=True))
-    cons = collections.Counter()
-    for n, c in its.items():
+    cons = collections.defaultdict(list)
+    for n, c in sorted(its.items()):
         x = c.get("minecraft:consumable")
-        if x:
-            cons[json.dumps({k: v for k, v in x.items() if k != "on_consume_effects"}, sort_keys=True)] += 1
-    print("consumable parameter sets", len(cons))
-    for k, v in sorted(cons.items(), key=lambda kv: (-kv[1], kv[0]))[:6]:
-        print(v, k)
+        if x is not None:
+            key = json.dumps({k: v for k, v in x.items() if k != "on_consume_effects"}, sort_keys=True)
+            cons[key].append(n)
+    print("items with a consumable component", sum(len(v) for v in cons.values()), "parameter sets without on_consume_effects", len(cons))
+    for k, v in sorted(cons.items(), key=lambda kv: (-len(kv[1]), kv[0])):
+        print(len(v), k, v if len(v) <= 3 else v[:2] + ["..."])
+    print("items with a food component but no consumable", sorted(n for n, c in its.items() if "minecraft:food" in c and "minecraft:consumable" not in c))
+    print("items with on_consume_effects", sum(1 for c in its.values() if c.get("minecraft:consumable", {}).get("on_consume_effects")))
 
 
 def cmd_spawns():
@@ -562,20 +568,34 @@ def cmd_vehicles():
 
 
 def step_a(y, v, g, d):
-    """Candidate A: move with the current velocity, then v = (v - g) * d."""
+    """Order A (position, acceleration, drag): move with the current velocity, then v = (v - g) * d."""
     return y + v, (v - g) * d
 
 
 def step_b(y, v, g, d):
-    """Candidate B: v = (v - g) * d, then move."""
+    """Order B (acceleration, drag, position): v = (v - g) * d, then move."""
     v = (v - g) * d
     return y + v, v
 
 
 def step_c(y, v, g, d):
-    """Candidate C: v = v * d - g, then move."""
+    """Order C (drag, acceleration, position): v = v * d - g, then move."""
     v = v * d - g
     return y + v, v
+
+
+def step_d(y, v, g, d):
+    """Order D (acceleration, position, drag): v = v - g, move, then v = v * d."""
+    v = v - g
+    return y + v, v * d
+
+
+def step_e(y, v, g, d):
+    """Order E (position, drag, acceleration): move, then v = v * d - g."""
+    return y + v, v * d - g
+
+
+ORDERS = (("A", step_a), ("B", step_b), ("C", step_c), ("D", step_d), ("E", step_e))
 
 
 def hexbits(x):
@@ -583,21 +603,37 @@ def hexbits(x):
     return "%016x" % struct.unpack(">Q", struct.pack(">d", x))[0]
 
 
+def end_speed(fn, g, d):
+    y, v = 0.0, 0.0
+    for _ in range(4000):
+        y, v = fn(y, v, g, d)
+    return abs(v)
+
+
 def cmd_fall():
-    section("free fall under three update orders (predictions of hypotheses, not observations)")
-    kinds = (("living", 0.08, 0.98, 3.92), ("item_or_block", 0.04, 0.98, 1.96), ("orb", 0.03, 0.98, 1.47),
-             ("arrow", 0.05, 0.99, 5.00), ("bobber", 0.03, 0.92, 0.345))
-    for name, g, d, wiki in kinds:
-        fa = -g * d / (1 - d)
-        fc = -g / (1 - d)
-        print(name, "g", g, "d", d, "documented terminal", wiki,
-              "fixed point A and B %.4f" % abs(fa), "C %.4f" % abs(fc))
-    for label, fn in (("A", step_a), ("B", step_b), ("C", step_c)):
+    section("terminal speeds documented per row of the motion table against the fixed point of each order (predictions)")
+    kinds = (("living", 0.08, 0.98, 3.92), ("falling_block_and_tnt", 0.04, 0.98, 1.96), ("item", 0.04, 0.98, 1.96),
+             ("orb", 0.03, 0.98, 1.47), ("minecart", 0.04, 0.95, 0.76), ("thrown_egg_snowball_pearl", 0.03, 0.99, 2.97),
+             ("thrown_potion", 0.05, 0.99, 4.95), ("bottle_of_enchanting", 0.07, 0.99, 6.93), ("arrow_trident", 0.05, 0.99, 5.00),
+             ("llama_spit", 0.06, 0.99, 6.00), ("bobber", 0.03, 0.92, 0.345))
+    for name, g, d, doc in kinds:
+        fits = [lab for lab, fn in ORDERS if abs(round(end_speed(fn, g, d), 3) - doc) < 0.0006]
+        print(name, "g", g, "d", d, "documented", doc, "orders with this fixed point", "".join(fits))
+    section("free fall of a living entity (g 0.08, d 0.98) from y=100, v=0, five update orders")
+    for label, fn in ORDERS:
         y, v = 100.0, 0.0
-        print("order", label, "living g=0.08 d=0.98 from y=100 v=0")
+        print("order", label)
         for t in range(1, 7):
             y, v = fn(y, v, 0.08, 0.98)
             print("  tick", t, "y", repr(y), hexbits(y), "vy", repr(v), hexbits(v))
+    section("free fall of a falling block (g 0.04, d 0.98) from y=100, v=0, first ticks")
+    for label, fn in ORDERS:
+        y, v = 100.0, 0.0
+        row = []
+        for t in range(1, 4):
+            y, v = fn(y, v, 0.04, 0.98)
+            row.append((repr(y), repr(v)))
+        print("order", label, row)
     y, v = 100.0, 0.0
     n = 0
     while v > -3.9 and n < 1000:
@@ -670,6 +706,12 @@ def cmd_calc():
     section("difficulty scaling candidates (documented): easy min(D, D/2+1), normal D, hard 1.5 D")
     for d in (1.0, 2.0, 3.0, 4.0, 6.0, 8.0):
         print("damage", d, "easy", min(d, d / 2 + 1), "normal", d, "hard", 1.5 * d)
+    section("order of difficulty and armor (damage 3, armor 20, toughness 0, hard)")
+    print("difficulty then armor %.4f ; armor then difficulty %.4f" % (3 * 1.5 * armor_factor(3 * 1.5, 20, 0), 3 * armor_factor(3, 20, 0) * 1.5))
+    section("window excess candidates (armor 20, toughness 0): first hit 10, second hit 14 inside the window")
+    first = 10 * armor_factor(10, 20, 0)
+    print("first hit applies %.4f" % first)
+    print("excess on the raw amount then armor: %.4f ; difference of the reduced amounts: %.4f" % ((14 - 10) * armor_factor(14 - 10, 20, 0), 14 * armor_factor(14, 20, 0) - first))
     section("explosion damage candidate H-EXP1: i = (1 - dist/(2 p)) * exposure, damage = 7 p (i*i + i) + 1")
     for power in (1.0, 3.0, 4.0, 6.0):
         row = []
@@ -704,9 +746,9 @@ def cmd_player():
     print("recipes", len(rec), "with experience", len(withxp), sorted(collections.Counter(v["type"].split(":")[1] for v in withxp.values()).items()))
     print("experience values", sorted(collections.Counter(v["experience"] for v in withxp.values()).items()))
     section("speeds: documented blocks per second divided by 20 ticks (predictions and ratios)")
-    walk, sprint, sneak, sprint_jump = 4.317, 5.612, 1.295, 7.127
+    walk, sprint, sneak, sprint_jump = 4.317, 5.612, 1.3, 7.127
     print("per tick walk %.5f sprint %.5f sneak %.5f sprint_jump %.5f" % (walk / 20, sprint / 20, sneak / 20, sprint_jump / 20))
-    print("sprint / walk %.4f ; sneak / walk %.4f (attribute sneaking_speed default 0.3)" % (sprint / walk, sneak / walk))
+    print("sprint / walk %.4f ; sneak / walk %.4f (the attribute sneaking_speed has default 0.3; 0.3 x 4.317 = %.4f, a value the pages do not give)" % (sprint / walk, sneak / walk, 0.3 * 4.317))
     print("minecart cap 8 b/s = %.3f b/tick ; boat water 8 b/s = %.3f ; boat ice 40 b/s = %.3f ; blue ice 72.72 b/s = %.3f" % (8 / 20, 8 / 20, 40 / 20, 72.72 / 20))
     section("jump height from jump_strength 0.42 and gravity 0.08, drag 0.98 (two update orders)")
     for label, fn in (("A", step_a), ("B", step_b)):

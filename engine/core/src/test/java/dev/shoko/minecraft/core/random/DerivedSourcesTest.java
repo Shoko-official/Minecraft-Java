@@ -7,6 +7,7 @@ import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Sources derived from a name or a position (spec core-random R27, R29). Provisional, not faithful
@@ -137,5 +138,33 @@ class DerivedSourcesTest {
     assertThat(DerivedSources.byName(derivation, "minecraft:ore").nextLong())
         .isEqualTo(DerivedSources.byName(derivation, "minecraft:ore").nextLong())
         .isNotEqualTo(DerivedSources.byName(derivation, "minecraft:aquifer").nextLong());
+  }
+
+  // spec: core-random R29 known limit of the provisional, not faithful (Q1) hash, vectors V-X6:
+  // (23901, 0, z) and (52826, 683136096, z) collide for every z. Allowed by the contract (only
+  // neighbours must differ); pinned so that a faithful hash, once Q1 is lifted, shows up here.
+  @ParameterizedTest(name = "z = {0}")
+  @CsvSource({"0, -1813262085031591903", "5, -949738680630853989", "-7, 1788741283831798574"})
+  void provisionalNotFaithfulKnownLimitDistantPositionsShareTheirHash(int z, long hash) {
+    assertThat(DerivedSources.positionHash(23901, 0, z)).isEqualTo(hash);
+    assertThat(DerivedSources.positionHash(52826, 683136096, z)).isEqualTo(hash);
+  }
+
+  // spec: core-random R29 known limit (provisional, not faithful (Q1)), vectors V-X6: the shared
+  // hash gives the same stream for every derivation seed
+  @ParameterizedTest
+  @ValueSource(longs = {0L, 12345L, -1L, Long.MIN_VALUE})
+  void provisionalNotFaithfulKnownLimitDistantPositionsShareTheirStream(long derivation) {
+    XoroshiroRandom first = DerivedSources.atPosition(derivation, 23901, 0, 42);
+    XoroshiroRandom second = DerivedSources.atPosition(derivation, 52826, 683136096, 42);
+    for (int i = 0; i < 10; i++) {
+      assertThat(first.nextLong()).as("draw %d", i).isEqualTo(second.nextLong());
+    }
+  }
+
+  // spec: core-random R23, R29 (C): the collision comes from mix(23901) = mix(52826) XOR 683136096
+  @Test
+  void provisionalNotFaithfulKnownLimitComesFromTheIntermediateStage() {
+    assertThat(SeedExpansion.mix(23901L)).isEqualTo(SeedExpansion.mix(52826L) ^ 683136096L);
   }
 }

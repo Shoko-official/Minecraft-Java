@@ -3,7 +3,7 @@ package dev.shoko.minecraft.core.random;
 import java.util.List;
 
 /**
- * Vectors V-L1 to V-L3 of {@code docs/specs/core-random-vectors.md}, copied verbatim. Level D for
+ * Vectors V-L1 to V-L3b of {@code docs/specs/core-random-vectors.md}, copied verbatim. Level D for
  * the public {@code java.util.Random} algorithm (R1 to R7), S for equality with the game (R8).
  * Floating-point values are the IEEE 754 bit patterns given between brackets in the spec.
  */
@@ -161,41 +161,50 @@ final class Lcg48Vectors {
       List.of(
           new BoundedDraws(0L, 1, List.of(0, 0, 0), -1690734402),
           new BoundedDraws(0L, 2, List.of(1, 1, 0), -1690734402),
+          new BoundedDraws(0L, 3, List.of(0, 1, 1), -1690734402),
           new BoundedDraws(0L, 7, List.of(5, 2, 4), -1690734402),
           new BoundedDraws(0L, 10, List.of(0, 8, 9), -1690734402),
           new BoundedDraws(0L, 16, List.of(11, 13, 3), -1690734402),
           new BoundedDraws(0L, 26, List.of(18, 18, 23), -1690734402),
           new BoundedDraws(0L, 100, List.of(60, 48, 29), -1690734402),
+          new BoundedDraws(0L, 715827883, List.of(516548029, 586288564, 653015632), 1327362106),
           new BoundedDraws(0L, 1073741824, List.of(784870680, 892752974, 258274014), -1690734402),
           new BoundedDraws(0L, 1073741825, List.of(516548029, 663681053, 251269761), -1728529858),
           new BoundedDraws(0L, 2147483647, List.of(1569741360, 1785505948, 516548029), -1690734402),
           new BoundedDraws(42L, 1, List.of(0, 0, 0), 205897768),
           new BoundedDraws(42L, 2, List.of(1, 0, 1), 205897768),
+          new BoundedDraws(42L, 3, List.of(2, 0, 0), 205897768),
           new BoundedDraws(42L, 7, List.of(1, 5, 6), 205897768),
           new BoundedDraws(42L, 10, List.of(0, 3, 8), 205897768),
           new BoundedDraws(42L, 16, List.of(11, 0, 10), 205897768),
           new BoundedDraws(42L, 26, List.of(0, 7, 22), 205897768),
           new BoundedDraws(42L, 100, List.of(30, 63, 48), 205897768),
+          new BoundedDraws(42L, 715827883, List.of(117392763, 102948884, 662969970), -248792245),
           new BoundedDraws(42L, 1073741824, List.of(781215565, 58696381, 733605624), 205897768),
           new BoundedDraws(42L, 1073741825, List.of(117392763, 102948884, 662969970), -248792245),
           new BoundedDraws(42L, 2147483647, List.of(1562431130, 117392763, 1467211248), 205897768),
           new BoundedDraws(-1L, 1, List.of(0, 0, 0), -1941176418),
           new BoundedDraws(-1L, 2, List.of(0, 0, 0), -1941176418),
+          new BoundedDraws(-1L, 3, List.of(2, 2, 0), -1941176418),
           new BoundedDraws(-1L, 7, List.of(3, 6, 4), -1941176418),
           new BoundedDraws(-1L, 10, List.of(3, 5, 9), -1941176418),
           new BoundedDraws(-1L, 16, List.of(4, 7, 0), -1941176418),
           new BoundedDraws(-1L, 26, List.of(5, 21, 9), -1941176418),
           new BoundedDraws(-1L, 100, List.of(13, 25, 79), -1941176418),
+          new BoundedDraws(-1L, 715827883, List.of(577549913, 228124342, 26349579), -1941176418),
           new BoundedDraws(-1L, 1073741824, List.of(288774956, 471976112, 13174789), -1941176418),
           new BoundedDraws(-1L, 1073741825, List.of(577549913, 943952225, 26349579), -1941176418),
           new BoundedDraws(-1L, 2147483647, List.of(577549913, 943952225, 26349579), -1941176418),
           new BoundedDraws(Long.MIN_VALUE, 1, List.of(0, 0, 0), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 2, List.of(1, 1, 0), -1690734402),
+          new BoundedDraws(Long.MIN_VALUE, 3, List.of(0, 1, 1), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 7, List.of(5, 2, 4), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 10, List.of(0, 8, 9), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 16, List.of(11, 13, 3), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 26, List.of(18, 18, 23), -1690734402),
           new BoundedDraws(Long.MIN_VALUE, 100, List.of(60, 48, 29), -1690734402),
+          new BoundedDraws(
+              Long.MIN_VALUE, 715827883, List.of(516548029, 586288564, 653015632), 1327362106),
           new BoundedDraws(
               Long.MIN_VALUE, 1073741824, List.of(784870680, 892752974, 258274014), -1690734402),
           new BoundedDraws(
@@ -221,4 +230,29 @@ final class Lcg48Vectors {
           new Rejection(13L, 706221100, 2, 1909600750),
           new Rejection(14L, 730985498, 5, -1800026279),
           new Rejection(15L, 226612738, 3, 1796952534));
+
+  /**
+   * One V-L3b row: {@code nextInt(715827883)} on a fresh generator, its steps, then {@code
+   * nextInt()}, and the value a non-strict acceptance test would wrongly return (R5).
+   */
+  record StrictRejection(long seed, int value, int steps, int nextIntAfter, int nonStrictValue) {}
+
+  static final List<StrictRejection> V_L3B =
+      List.of(
+          new StrictRejection(0L, 516548029, 3, -1690734402, 138085594),
+          new StrictRejection(1L, 215764588, 2, 1761283695, 137893219),
+          new StrictRejection(2L, 630021372, 2, -423279216, 138470342),
+          new StrictRejection(3L, 491935777, 2, 304908421, 138277968),
+          new StrictRejection(4L, 467700105, 6, -1376291473, 137316096),
+          new StrictRejection(5L, 379250092, 2, 379066948, 137123721),
+          new StrictRejection(6L, 77678993, 2, -1805495963, 137700845),
+          new StrictRejection(7L, 655421281, 2, -1077308326, 137508470),
+          new StrictRejection(8L, 565987047, 3, 64862043, 136546598),
+          new StrictRejection(9L, 542735596, 2, -1003149799, 136354223),
+          new StrictRejection(10L, 241164497, 2, 1107254586, 136931347),
+          new StrictRejection(11L, 201893228, 3, 919154311, 136738972),
+          new StrictRejection(12L, 128478812, 2, 1181413113, 135777100),
+          new StrictRejection(13L, 706221100, 2, 1909600750, 135584726),
+          new StrictRejection(14L, 404650001, 2, -274962161, 136161849),
+          new StrictRejection(15L, 226612738, 3, 1796952534, 135969475));
 }

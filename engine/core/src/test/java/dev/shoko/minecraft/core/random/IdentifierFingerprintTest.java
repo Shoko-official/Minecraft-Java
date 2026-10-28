@@ -46,6 +46,40 @@ class IdentifierFingerprintTest {
         .isEqualTo(Hex.seed("0x1A2B64F5D3BDB461", "0x2E96D0A422FE68A7"));
   }
 
+  // spec: core-random R26 (S, provisional normalization), vectors V-X4: test, :test and
+  // minecraft:test have the same fingerprint
+  @ParameterizedTest
+  @ValueSource(strings = {"test", ":test", "minecraft:test"})
+  void provisionalThreeFormsOfTestShareTheMinecraftTestFingerprint(String identifier) {
+    assertThat(IdentifierFingerprint.of(identifier))
+        .isEqualTo(Hex.seed("0x1A2B64F5D3BDB461", "0x2E96D0A422FE68A7"));
+  }
+
+  // spec: core-random R26 (S, provisional): an empty namespace becomes minecraft, whatever the path
+  @Test
+  void provisionalEmptyNamespaceBecomesMinecraft() throws NoSuchAlgorithmException {
+    assertThat(IdentifierFingerprint.of(":chests/simple_dungeon"))
+        .isEqualTo(IdentifierFingerprint.of("minecraft:chests/simple_dungeon"))
+        .isEqualTo(md5BigEndian("minecraft:chests/simple_dungeon"));
+  }
+
+  // spec: core-random R26 known limit: the identifier is not validated; upper case and a second
+  // colon are hashed as written
+  @ParameterizedTest
+  @ValueSource(strings = {"Minecraft:Test", "a:b:c", "probe:a:"})
+  void provisionalInvalidIdentifiersAreHashedAsWritten(String identifier)
+      throws NoSuchAlgorithmException {
+    assertThat(IdentifierFingerprint.of(identifier)).isEqualTo(md5BigEndian(identifier));
+  }
+
+  // spec: core-random R26 known limit: a lone surrogate is hashed as the UTF-8 encoder of Java
+  // writes it ('?')
+  @Test
+  void provisionalLoneSurrogateIsHashedAsAQuestionMark() throws NoSuchAlgorithmException {
+    String identifier = "probe:a" + (char) 0xD800;
+    assertThat(IdentifierFingerprint.of(identifier)).isEqualTo(md5BigEndian("probe:a?"));
+  }
+
   // spec: core-random R26 (S, provisional): an explicit namespace is kept as is
   @Test
   void provisionalExplicitNamespaceIsKept() {

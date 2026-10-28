@@ -11,10 +11,12 @@ import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * G48 skip: exactly {@code n} steps, computed in O(log n) (spec core-random R10, R11). The timeout
- * only guards the very large jumps against a linear implementation that would never finish; it is
- * orders of magnitude above the expected cost.
+ * G48 skip: exactly {@code n} steps, computed in O(log n) (spec core-random R10, R11), and the step
+ * counter that saturates at {@code Long.MAX_VALUE} (interface requirements, vector V-L4). The
+ * timeout turns a linear jump, which would never finish on the very large ones, into a failure; it
+ * is orders of magnitude above the expected cost.
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class Lcg48RandomSkipTest {
 
   private static final long PERIOD = 1L << 48;
@@ -59,7 +61,6 @@ class Lcg48RandomSkipTest {
   // spec: core-random R10, R1 (C: the step has full period 2^48, multiplier = 1 mod 4 and odd
   // increment)
   @Test
-  @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   void skipOfTheFullPeriodReturnsToTheSameState() {
     Lcg48Random random = Lcg48Random.ofSeed(2024L);
     long state = random.state();
@@ -74,7 +75,6 @@ class Lcg48RandomSkipTest {
 
   // spec: core-random R10 (very large n: 2^63 - 1 = 2^48 - 1 mod 2^48, one step short of a period)
   @Test
-  @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   void skipOfLongMaxValueIsOneStepShortOfAPeriod() {
     Lcg48Random random = Lcg48Random.ofSeed(-77L);
     long state = random.state();
@@ -96,7 +96,6 @@ class Lcg48RandomSkipTest {
     "281474976710655, 1",
     "4611686018427387903, 4611686018427387904"
   })
-  @Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
   void consecutiveSkipsAddUp(long first, long second) {
     Lcg48Random split = Lcg48Random.ofSeed(31L);
     split.skip(first);
@@ -115,6 +114,46 @@ class Lcg48RandomSkipTest {
     long state = random.state();
     assertThatThrownBy(() -> random.skip(n)).isInstanceOf(IllegalArgumentException.class);
     assertThat(random.state()).isEqualTo(state);
+    assertThat(random.steps()).isZero();
+  }
+
+  // spec: interface requirements (steps() saturates at Long.MAX_VALUE), R10, vector V-L4
+  @Test
+  void stepCounterSaturatesAfterSkipOfLongMaxValueWhileTheStateStaysExact() {
+    Lcg48Random random = Lcg48Random.ofSeed(0L);
+    assertThat(random.nextInt()).isEqualTo(-1155484576);
+    random.skip(Long.MAX_VALUE);
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE);
+    // 1 + (2^63 - 1) = 2^63 steps, a multiple of the period: back to the initial state.
+    assertThat(random.state()).isEqualTo(Lcg48Random.ofSeed(0L).state());
+    assertThat(random.nextInt()).isEqualTo(-1155484576);
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE);
+  }
+
+  // spec: interface requirements (saturation, skip(n) equals skip(n mod 2^48) for the state)
+  @Test
+  void stepCounterSaturatesAcrossTwoHugeSkips() {
+    Lcg48Random random = Lcg48Random.ofSeed(5L);
+    random.skip(Long.MAX_VALUE);
+    random.skip(Long.MAX_VALUE);
+    Lcg48Random reduced = Lcg48Random.ofSeed(5L);
+    reduced.skip((2 * (Long.MAX_VALUE % PERIOD)) % PERIOD);
+    assertThat(random.state()).isEqualTo(reduced.state());
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE);
+    random.nextLong();
+    random.nextGaussian();
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE);
+  }
+
+  // spec: interface requirements (saturation reached by single steps after a near-maximal skip)
+  @Test
+  void stepCounterSaturatesWhenSingleStepsReachTheMaximum() {
+    Lcg48Random random = Lcg48Random.ofSeed(9L);
+    random.skip(Long.MAX_VALUE - 1);
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE - 1);
+    random.nextLong();
+    assertThat(random.steps()).isEqualTo(Long.MAX_VALUE);
+    random.setSeed(9L);
     assertThat(random.steps()).isZero();
   }
 }

@@ -8,10 +8,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.shoko.minecraft.core.random.Lcg48Vectors.BoundedDraws;
 import dev.shoko.minecraft.core.random.Lcg48Vectors.Rejection;
+import dev.shoko.minecraft.core.random.Lcg48Vectors.StrictRejection;
 import java.math.BigInteger;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -20,11 +23,16 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * G48 bounded draws: {@code nextInt(bound)} and its rejections (spec core-random R5, R11), and the
- * inclusive range draw (R12, level S, provisional until probe P4).
+ * inclusive range draw (R12, level S, provisional until probe P4). The timeout turns a rejection
+ * loop that never ends into a failure instead of a blocked build.
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class Lcg48RandomBoundedTest {
 
   private static final long TWO_POW_31 = 1L << 31;
+
+  /** (2^31 + 1) / 3: with 3, the only bounds where a non-strict acceptance test differs (R5). */
+  private static final int DIVISOR_OF_TWO_POW_31_PLUS_ONE = 715_827_883;
 
   static Stream<Arguments> vectorVL2() {
     return Lcg48Vectors.V_L2.stream().map(v -> Arguments.of(v.seed(), v.bound(), v));
@@ -32,6 +40,10 @@ class Lcg48RandomBoundedTest {
 
   static Stream<Arguments> vectorVL3() {
     return Lcg48Vectors.V_L3.stream().map(v -> Arguments.of(v.seed(), v));
+  }
+
+  static Stream<Arguments> vectorVL3b() {
+    return Lcg48Vectors.V_L3B.stream().map(v -> Arguments.of(v.seed(), v));
   }
 
   // spec: core-random R5 (bound <= 0: error, no step consumed)
@@ -98,7 +110,19 @@ class Lcg48RandomBoundedTest {
   // r - v + (bound - 1) < 2^31, one step per attempt), R11
   @ParameterizedTest
   @ValueSource(
-      ints = {3, 6, 7, 10, 26, 100, 1_000_003, (1 << 30) + 1, 1_431_655_766, 2_147_483_647})
+      ints = {
+        3,
+        6,
+        7,
+        10,
+        26,
+        100,
+        1_000_003,
+        715_827_883,
+        (1 << 30) + 1,
+        1_431_655_766,
+        2_147_483_647
+      })
   void otherBoundRedrawsUntilTheExactAcceptanceTestPasses(int bound) {
     long rejections = 0;
     for (long seed = 0; seed < 64; seed++) {
@@ -119,11 +143,56 @@ class Lcg48RandomBoundedTest {
         assertThat(random.steps() - stepsBefore).as("steps").isEqualTo(attempts);
       }
     }
-    // Near 2^31 - 1 a rejection is too rare to show up here; 2^30 + 1 and 1431655766 reject
-    // about one draw in two and one in three.
-    if (bound == (1 << 30) + 1 || bound == 1_431_655_766) {
+    // Near 2^31 - 1 a rejection is too rare to show up here; 2^30 + 1 rejects about one draw in
+    // two, 715827883 and 1431655766 about one in three.
+    if (bound == (1 << 30) + 1 || bound == 715_827_883 || bound == 1_431_655_766) {
       assertThat(rejections).as("the rejection path is exercised").isPositive();
     }
+  }
+
+  // spec: core-random R5 (strict inequality: 715827883 divides 2^31 + 1), R11, vectors V-L3b
+  @ParameterizedTest(name = "seed {0}")
+  @MethodSource("vectorVL3b")
+  void rejectionsOf715827883MatchVectorVL3b(long seed, StrictRejection expected) {
+    Lcg48Random random = Lcg48Random.ofSeed(seed);
+    int value = random.nextInt(DIVISOR_OF_TWO_POW_31_PLUS_ONE);
+    assertThat(value).isEqualTo(expected.value()).isNotEqualTo(expected.nonStrictValue());
+    assertThat(random.steps()).isEqualTo(expected.steps());
+    assertThat(random.nextInt()).isEqualTo(expected.nextIntAfter());
+  }
+
+  // spec: core-random R5, vectors V-L3b: the first draw of every seed falls in the rejected top
+  // third, where a non-strict test would accept it and return r - 2 * 715827883
+  @ParameterizedTest(name = "seed {0}")
+  @MethodSource("vectorVL3b")
+  void firstDrawOfVectorVL3bIsInTheRejectedTopThird(long seed, StrictRejection expected) {
+    long first = Lcg48Random.ofSeed(seed).next(31);
+    assertThat(first).isGreaterThanOrEqualTo(2L * DIVISOR_OF_TWO_POW_31_PLUS_ONE);
+    assertThat(first - 2L * DIVISOR_OF_TWO_POW_31_PLUS_ONE).isEqualTo(expected.nonStrictValue());
+  }
+
+  // spec: core-random R5 (strict inequality), vector V-L3b note on bound 3: only r = 2^31 - 2 and
+  // r = 2^31 - 1 are rejected, so the test starts from a chosen state
+  @ParameterizedTest
+  @ValueSource(longs = {(1L << 31) - 2, (1L << 31) - 1})
+  void boundThreeRejectsTheTwoTopDraws(long firstDraw) {
+    long seed = seedWhoseNextStateIs(firstDraw << 17);
+    Lcg48Random twin = Lcg48Random.ofSeed(seed);
+    assertThat((long) twin.next(31)).isEqualTo(firstDraw);
+    long second = twin.next(31);
+    assertThat(second).as("second draw accepted").isLessThan(TWO_POW_31 - 2);
+
+    Lcg48Random random = Lcg48Random.ofSeed(seed);
+    assertThat(random.nextInt(3)).isEqualTo((int) (second % 3));
+    assertThat(random.steps()).isEqualTo(2L);
+  }
+
+  // spec: core-random R5: the largest draw accepted for bound 3 is 2^31 - 3, in one step
+  @Test
+  void boundThreeAcceptsTheDrawJustBelowTheRejectedOnes() {
+    Lcg48Random random = Lcg48Random.ofSeed(seedWhoseNextStateIs((TWO_POW_31 - 3) << 17));
+    assertThat(random.nextInt(3)).isEqualTo((int) ((TWO_POW_31 - 3) % 3));
+    assertThat(random.steps()).isEqualTo(1L);
   }
 
   // spec: core-random R5, edge case nextInt(2^31 - 1): rejection only when next(31) = 2^31 - 1

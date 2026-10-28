@@ -28,6 +28,9 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plus
 | `core-nbt.md` | NBT format, Minecraft Wiki:Projects/wiki.vg merge/NBT |
 | `core-random.md` | Commands/random, Random sequence |
 | `data-datapack-loading.md` | Pack format, Data pack, Pack.mcmeta, Identifier, Tag (Java Edition) |
+| `dim-definitions-portals.md` | Nether portal, Dimension, End portal, End gateway, The End, Void, Respawn Anchor, Nether, Ender Dragon |
+| `dim-end-generation.md` | The End, Obsidian Pillar, Ender Dragon, End gateway, End City, End Highlands, World generation, Biome, Configured feature, Density function |
+| `dim-nether-generation.md` | Nether, World generation, Nether Fortress, Bastion Remnant, Biome, Configured feature, Density function |
 | `item-components-inventory.md` | Java Edition protocol/Inventory, Inventory, Item modifier, Loot table, Predicate |
 | `item-enchantments.md` | Enchanting mechanics, Anvil mechanics, Enchantment definition, Item modifier, Predicate |
 | `item-recipes.md` | Item modifier, Loot table, Inventory, Java Edition protocol/Inventory |

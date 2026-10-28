@@ -47,6 +47,12 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Interface | M9 | B | non-spécifié | |
 | Nether | M10 | A | spécifié | `docs/specs/dim-nether-generation.md` (brouillon, règles S) |
 | End | M10 | A | spécifié | `docs/specs/dim-end-generation.md` (brouillon, règles S ; îles extérieures bloquées B-E1) |
-| Types de dimension et portails | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Types de dimension | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Portail du Nether | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Portail de l'End et retour | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Passerelle de l'End | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Transfert d'entités entre dimensions | M10 | A | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Lit, ancre et boussole par dimension | M10 | B | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
+| Vide et bordure par dimension | M10 | B | spécifié | `docs/specs/dim-definitions-portals.md` (brouillon, règles S) |
 
 La liste détaillée (par bloc, mob, structure) est dérivée des registres extraits au jalon M2 et générée, pas saisie à la main.

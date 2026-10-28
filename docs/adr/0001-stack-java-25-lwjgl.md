@@ -11,7 +11,7 @@ L'objectif est une fidélité exacte à Minecraft Java 26.3. Le jeu de référen
 - Langage : Java 25.
 - Rendu, audio, fenêtre : LWJGL (choix OpenGL ou Vulkan reporté au jalon M9).
 - Build : Gradle (Kotlin DSL), multi-modules, catalogue de versions `gradle/libs.versions.toml`, toolchain Java 25.
-- Qualité : Spotless, Error Prone, ArchUnit, JUnit 5, AssertJ.
+- Qualité : Spotless, Error Prone, ArchUnit, JUnit 6, AssertJ.
 
 ## Alternatives écartées
 

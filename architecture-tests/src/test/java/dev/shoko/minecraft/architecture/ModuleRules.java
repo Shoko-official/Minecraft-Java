@@ -1,20 +1,30 @@
 package dev.shoko.minecraft.architecture;
 
+import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.target;
+import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.targetOwner;
+import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
+import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.name;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
 import com.tngtech.archunit.lang.ArchRule;
 import com.tngtech.archunit.library.Architectures;
+import java.time.InstantSource;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.random.RandomGenerator;
 
 /**
  * Architecture rules of docs/ARCHITECTURE.md as code. The direct dependencies below are the single
- * source of truth for package-level checks; Gradle enforces the same graph at compile time.
+ * source of truth for package-level checks; Gradle enforces the same graph at compile time, and
+ * ModuleGraphTest keeps both the documentation table and the Gradle modules equal to it.
  */
 final class ModuleRules {
 
@@ -24,6 +34,9 @@ final class ModuleRules {
   /** Modules whose code must be deterministic: no clock, no unseeded randomness. */
   static final List<String> ENGINE =
       List.of("core", "data", "world", "item", "loot", "worldgen", "entity", "game");
+
+  /** Test-only code under the root package, outside every module. */
+  static final String ARCHITECTURE_PACKAGE = "architecture";
 
   private ModuleRules() {}
 
@@ -59,11 +72,20 @@ final class ModuleRules {
     return result;
   }
 
-  static ArchRule layers(String root) {
+  /**
+   * One layer per module; the layers of {@code optional} may be empty. For a layered architecture,
+   * allowEmptyShould is the same switch as optional layers, so modules without code are passed here
+   * instead.
+   */
+  static Architectures.LayeredArchitecture layers(String root, Set<String> optional) {
     Architectures.LayeredArchitecture architecture =
         Architectures.layeredArchitecture().consideringOnlyDependenciesInLayers();
     for (String module : DIRECT.keySet()) {
-      architecture = architecture.layer(module).definedBy(root + "." + module + "..");
+      architecture =
+          (optional.contains(module)
+                  ? architecture.optionalLayer(module)
+                  : architecture.layer(module))
+              .definedBy(root + "." + module + "..");
     }
     for (String module : DIRECT.keySet()) {
       String[] allowed = reachable(module).toArray(String[]::new);
@@ -72,7 +94,21 @@ final class ModuleRules {
               ? architecture.whereLayer(module).mayNotAccessAnyLayer()
               : architecture.whereLayer(module).mayOnlyAccessLayers(allowed);
     }
-    return architecture.withOptionalLayers(true);
+    return architecture;
+  }
+
+  /** Every class under the root package belongs to a module, so that no rule can miss it. */
+  static ArchRule modulePackagesOnly(String root) {
+    String[] modules =
+        DIRECT.keySet().stream().map(m -> root + "." + m + "..").toArray(String[]::new);
+    return classes()
+        .that()
+        .resideInAPackage(root + "..")
+        .and()
+        .resideOutsideOfPackage(root + "." + ARCHITECTURE_PACKAGE + "..")
+        .should()
+        .resideInAnyPackage(modules)
+        .because("a class outside the module packages escapes every architecture rule");
   }
 
   static ArchRule noPackageCycles(String root) {
@@ -83,7 +119,11 @@ final class ModuleRules {
     return slices().matching(root + ".tools.(*)..").should().beFreeOfCycles();
   }
 
-  /** The engine takes time and randomness from explicit, seeded sources only. */
+  /**
+   * The engine takes time and randomness from explicit, seeded sources only. RandomGenerator covers
+   * Random, SplittableRandom, ThreadLocalRandom and SecureRandom; the engine's own generators do
+   * not implement it. InstantSource covers Clock.
+   */
   static ArchRule determinism(String root) {
     String[] packages = ENGINE.stream().map(m -> root + "." + m + "..").toArray(String[]::new);
     return noClasses()
@@ -91,9 +131,20 @@ final class ModuleRules {
         .resideInAnyPackage(packages)
         .should()
         .dependOnClassesThat()
-        .areAssignableTo(java.util.Random.class)
+        .areAssignableTo(RandomGenerator.class)
+        .orShould()
+        .dependOnClassesThat()
+        .areAssignableTo(InstantSource.class)
+        .orShould()
+        .callMethodWhere(targetOwner(resideInAPackage("java.time..")).and(target(name("now"))))
+        .orShould()
+        .callMethod(UUID.class, "randomUUID")
+        .orShould()
+        .callMethod(Collections.class, "shuffle", List.class)
         .orShould()
         .callMethod(Math.class, "random")
+        .orShould()
+        .callMethod(StrictMath.class, "random")
         .orShould()
         .callMethod(System.class, "currentTimeMillis")
         .orShould()

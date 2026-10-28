@@ -3,7 +3,7 @@
 Statut : brouillon
 Jalon : M4
 Risque : A
-Règles : 44 (R1 à R44). D 7, D/S 1 (valeur lue, usage S), C 1, M 0, S 35.
+Règles : 44 (R1 à R44). D 6, D/S 2 (valeur lue, usage ou statut S), C 1, M 0, S 35.
 
 Cette spec ordonne les trois tiers de la génération (forme du terrain, `worldgen-surface-carvers.md`, `worldgen-features-structures.md`) dans les statuts de chunk de 26.3 et définit comment comparer notre pipeline à l'oracle étape par étape, sans lire le code du jeu.
 

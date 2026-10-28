@@ -3,7 +3,7 @@
 Statut : brouillon
 Jalon : M4
 Risque : A
-Règles : 96 (R1 à R96). D 30, D/S 3 (valeur lue, effet S), C 7, C sur S 5, M 0, S 51.
+Règles : 96 (R1 à R96). D 24, D/S 8 (valeur lue, effet S), C 5, C sur S 6, M 0, S 53.
 
 Troisième tiers de la génération : tout ce qui est posé sur un terrain déjà creusé et recouvert (spec `worldgen-surface-carvers.md`) : décoration par étapes (placed features, configured features, modificateurs), minerais, structures (placement, starts, références, jigsaw, anneaux des strongholds, générateurs procéduraux), heightmaps. La lumière initiale et l'ordre des statuts sont dans `worldgen-pipeline.md`.
 
@@ -198,7 +198,7 @@ Mécanisme d'observation commun : les listes `features` et `carvers` d'un biome,
 
 ## Cas limites
 
-- Régions autour de zéro (chunks -1, 0, 33, 34, -34, -35) pour `random_spread` (FV5).
+- Régions autour de zéro (chunks -1, 0, 33, 34, -34, -35) pour `random_spread` (WT1 ; FV5 est un emplacement réservé).
 - Hauteurs hors du monde de `height_range` (fer haut à 384, émeraude à 480, diamant à -144) : les positions sont ignorées par la feature, mais le tirage est consommé (R37).
 - Une position dont le biome final n'inclut pas la feature : rejet par `biome`, mais les tirages précédents sont consommés (R11, R14).
 - Structures dont l'emprise franchit une bordure de chunk : écriture seulement dans le chunk traité (R65), références à plusieurs chunks (R64).
@@ -208,7 +208,7 @@ Mécanisme d'observation commun : les listes `features` et `carvers` d'un biome,
 
 ## Vecteurs de test
 
-`worldgen-features-structures-vectors.md` : inventaires (FV1, FV2), minerais (FV3), ensembles (FV4), `random_spread` (FV5), anneaux (FV6), ordre de décoration (FV7), jigsaw (FV8), sondes WF1 à WF9, WT1 à WT11, WH1 et WH2 ; annexe `wg_ref.py`.
+`worldgen-features-structures-vectors.md` : inventaires (FV1, FV2), minerais (FV3), ensembles (FV4), `random_spread` (FV5, emplacement réservé à WT1), anneaux (FV6), ordre de décoration (FV7), jigsaw (FV8), sondes WF1 à WF9, WT1 à WT11, WH1 et WH2 ; annexe `wg_ref.py`.
 
 ## Questions ouvertes
 
@@ -218,4 +218,4 @@ Mécanisme d'observation commun : les listes `features` et `carvers` d'un biome,
 - **Algorithme de chacun des 47 types de feature utilisés** : spec filles à écrire : `tree` (45 définitions et sous-registres : troncs, feuillages, décorateurs, racines), `simple_block`, `random_selector` et sélecteurs, `overlay`, `block_column`, `vegetation_patch`, `fallen_tree`, `spring_feature`, `disk`, `block_pile`, `huge_fungus`, `sequence`, `bamboo`, `speleothem_cluster`, `fossil`, `multiface_growth`, `iceberg`, `scattered_ore`, `root_system`, `geode`, `lake`, `monster_room`, etc. Chaque spec fille suit le montage "une feature isolée" (WF1).
 - **Générateurs procéduraux (R82)** : 12 types, spec filles ; ordre de priorité : mineshaft, stronghold (portail de l'End), village (jigsaw), monument, manoir.
 - **Assemblage jigsaw (R73)** : l'ordre exact des tirages pondérés et des essais est le point à lever (WT9 et WT10) ; la structure d'un village peut se comparer pièce par pièce (liste `Children` du départ).
-- **Bloquants possibles pour 2a-bis** : (i) consommation aléatoire exacte des filons (R45) si la comparaison échoue, (ii) tirage dans l'assemblage jigsaw si l'ajustement d'hypothèses échoue, (iii) méthodes de réduction de fréquence legacy (R53) si l'espace d'hypothèses est trop grand. Aucun n'est démontré bloquant à ce jour.
+- **Bloquants possibles pour 2a-bis** : (i) consommation aléatoire exacte des filons (R45) si la comparaison échoue, (ii) tirage dans l'assemblage jigsaw si l'ajustement d'hypothèses échoue, (iii) méthodes de réduction de fréquence legacy (R53) si l'espace d'hypothèses est trop grand, (iv) dérivation des graines de feature et de région (R13, R51) si WF3 et WT1 ne la retrouvent pas par coïncidence de traces et ajustement. Aucun n'est démontré bloquant à ce jour.

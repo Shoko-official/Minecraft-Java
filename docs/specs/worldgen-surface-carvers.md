@@ -3,7 +3,7 @@
 Statut : brouillon
 Jalon : M4
 Risque : A
-Règles : 92 (R1 à R92). D 33, C 6, C sur S 6, M 0, S 47.
+Règles : 92 (R1 à R92). D 32, C 4, C sur S 9, M 0, S 47.
 
 Ce document est le deuxième tiers de la génération (après la forme du terrain : bruit, densité, biomes, spec du premier tiers). Il suppose une colonne de densité déjà résolue et décrit ce qui transforme le "solide / vide" en blocs : bedrock, deepslate, surfaces de biome, grandes veines de minerai, remplissage des cavités par les aquifères, creusement par les carvers. Le séquencement avec les autres étapes est dans `worldgen-pipeline.md`.
 

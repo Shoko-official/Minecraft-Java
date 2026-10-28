@@ -2,10 +2,15 @@ package dev.shoko.minecraft.world.chunk;
 
 import dev.shoko.minecraft.core.coord.BlockPos;
 import dev.shoko.minecraft.core.coord.ChunkPos;
+import dev.shoko.minecraft.core.coord.LocalIndex;
 import dev.shoko.minecraft.core.coord.WorldHeight;
 import dev.shoko.minecraft.world.block.BlockState;
 import dev.shoko.minecraft.world.heightmap.Heightmaps;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
  * A column of sections at a chunk position (CF-R2, CF-R3, CF-R20, CF-R22). The sections cover
@@ -17,7 +22,33 @@ import java.util.List;
  */
 public final class Chunk {
 
-  private Chunk() {}
+  private static final int FULL_SKY_LIGHT = 15;
+  // One layer of 16 x 16 values at two per byte.
+  private static final int LAYER_BYTES = 128;
+
+  private final ChunkPos pos;
+  private final WorldHeight height;
+  private final List<ChunkSection> sections;
+  private final Heightmaps heightmaps;
+  private ChunkStatus status;
+  private long lastUpdate;
+  private long inhabitedTime;
+  private ChunkAttachments attachments;
+
+  private Chunk(
+      ChunkHeader header,
+      List<ChunkSection> sections,
+      Heightmaps heightmaps,
+      ChunkAttachments attachments) {
+    this.pos = header.pos();
+    this.height = header.height();
+    this.status = header.status();
+    this.lastUpdate = header.lastUpdate();
+    this.inhabitedTime = header.inhabitedTime();
+    this.sections = sections;
+    this.heightmaps = heightmaps;
+    this.attachments = attachments;
+  }
 
   /**
    * Creates a chunk.
@@ -34,7 +65,28 @@ public final class Chunk {
       List<ChunkSection> sections,
       Heightmaps heightmaps,
       ChunkAttachments attachments) {
-    return Skeleton.throwNotImplemented();
+    WorldHeight height = header.height();
+    if (sections.size() != height.sectionCount()) {
+      throw new IllegalArgumentException(
+          sections.size() + " sections given, the height needs " + height.sectionCount());
+    }
+    for (int rank = 0; rank < sections.size(); rank++) {
+      int expected = height.minSectionY() + rank;
+      if (sections.get(rank).y() != expected) {
+        throw new IllegalArgumentException(
+            "section at rank "
+                + rank
+                + " has y "
+                + sections.get(rank).y()
+                + ", expected "
+                + expected);
+      }
+    }
+    return new Chunk(
+        header,
+        Collections.unmodifiableList(new ArrayList<>(sections)),
+        Objects.requireNonNull(heightmaps, "heightmaps"),
+        Objects.requireNonNull(attachments, "attachments"));
   }
 
   /**
@@ -43,7 +95,7 @@ public final class Chunk {
    * @return the position
    */
   public ChunkPos pos() {
-    return Skeleton.throwNotImplemented();
+    return pos;
   }
 
   /**
@@ -52,7 +104,7 @@ public final class Chunk {
    * @return the height
    */
   public WorldHeight height() {
-    return Skeleton.throwNotImplemented();
+    return height;
   }
 
   /**
@@ -61,7 +113,7 @@ public final class Chunk {
    * @return the status
    */
   public ChunkStatus status() {
-    return Skeleton.throwNotImplemented();
+    return status;
   }
 
   /**
@@ -70,7 +122,7 @@ public final class Chunk {
    * @param status the new status
    */
   public void setStatus(ChunkStatus status) {
-    Skeleton.throwNotImplemented();
+    this.status = Objects.requireNonNull(status, "status");
   }
 
   /**
@@ -79,7 +131,7 @@ public final class Chunk {
    * @return {@code LastUpdate}
    */
   public long lastUpdate() {
-    return Skeleton.throwNotImplemented();
+    return lastUpdate;
   }
 
   /**
@@ -88,7 +140,7 @@ public final class Chunk {
    * @param lastUpdate game tick
    */
   public void setLastUpdate(long lastUpdate) {
-    Skeleton.throwNotImplemented();
+    this.lastUpdate = lastUpdate;
   }
 
   /**
@@ -97,7 +149,7 @@ public final class Chunk {
    * @return {@code InhabitedTime}
    */
   public long inhabitedTime() {
-    return Skeleton.throwNotImplemented();
+    return inhabitedTime;
   }
 
   /**
@@ -106,7 +158,7 @@ public final class Chunk {
    * @param inhabitedTime ticks
    */
   public void setInhabitedTime(long inhabitedTime) {
-    Skeleton.throwNotImplemented();
+    this.inhabitedTime = inhabitedTime;
   }
 
   /**
@@ -115,7 +167,7 @@ public final class Chunk {
    * @return an unmodifiable list of the live sections
    */
   public List<ChunkSection> sections() {
-    return Skeleton.throwNotImplemented();
+    return sections;
   }
 
   /**
@@ -126,7 +178,10 @@ public final class Chunk {
    * @throws IllegalArgumentException if outside the world height
    */
   public ChunkSection section(int sectionY) {
-    return Skeleton.throwNotImplemented();
+    if (sectionY < height.minSectionY() || sectionY > height.maxSectionY()) {
+      throw new IllegalArgumentException("section y " + sectionY + " is outside the world height");
+    }
+    return sections.get(height.sectionIndex(sectionY));
   }
 
   /**
@@ -135,7 +190,7 @@ public final class Chunk {
    * @return the live holder
    */
   public Heightmaps heightmaps() {
-    return Skeleton.throwNotImplemented();
+    return heightmaps;
   }
 
   /**
@@ -144,7 +199,7 @@ public final class Chunk {
    * @return the attachments
    */
   public ChunkAttachments attachments() {
-    return Skeleton.throwNotImplemented();
+    return attachments;
   }
 
   /**
@@ -153,7 +208,7 @@ public final class Chunk {
    * @param attachments the new attachments
    */
   public void setAttachments(ChunkAttachments attachments) {
-    Skeleton.throwNotImplemented();
+    this.attachments = Objects.requireNonNull(attachments, "attachments");
   }
 
   /**
@@ -163,7 +218,9 @@ public final class Chunk {
    * @return the state
    */
   public BlockState blockState(BlockPos pos) {
-    return Skeleton.throwNotImplemented();
+    return sectionOf(pos)
+        .blockStates()
+        .get(LocalIndex.sectionStateIndex(pos.x(), pos.y(), pos.z()));
   }
 
   /**
@@ -174,7 +231,9 @@ public final class Chunk {
    * @return the previous state
    */
   public BlockState setBlockState(BlockPos pos, BlockState state) {
-    return Skeleton.throwNotImplemented();
+    return sectionOf(pos)
+        .blockStates()
+        .set(LocalIndex.sectionStateIndex(pos.x(), pos.y(), pos.z()), state);
   }
 
   /**
@@ -184,7 +243,7 @@ public final class Chunk {
    * @return the biome identifier
    */
   public String biome(BlockPos pos) {
-    return Skeleton.throwNotImplemented();
+    return sectionOf(pos).biomes().get(ChunkSection.biomeIndex(pos.x(), pos.y(), pos.z()));
   }
 
   /**
@@ -195,7 +254,7 @@ public final class Chunk {
    * @return the previous biome identifier
    */
   public String setBiome(BlockPos pos, String biome) {
-    return Skeleton.throwNotImplemented();
+    return sectionOf(pos).biomes().set(ChunkSection.biomeIndex(pos.x(), pos.y(), pos.z()), biome);
   }
 
   /**
@@ -213,6 +272,40 @@ public final class Chunk {
    * @throws IllegalArgumentException if outside the world height
    */
   public NibbleArray effectiveSkyLight(int sectionY) {
-    return Skeleton.throwNotImplemented();
+    section(sectionY);
+    for (int y = sectionY; y <= height.maxSectionY() + 1; y++) {
+      Optional<NibbleArray> stored = storedSkyLight(y);
+      if (stored.isPresent()) {
+        return y == sectionY ? stored.get().copy() : bottomLayerRepeated(stored.get());
+      }
+    }
+    return NibbleArray.filled(FULL_SKY_LIGHT);
+  }
+
+  private Optional<NibbleArray> storedSkyLight(int sectionY) {
+    if (sectionY <= height.maxSectionY()) {
+      return section(sectionY).light().skyLight();
+    }
+    LightOnlySection above = attachments.lightOnlySections().get(sectionY);
+    return above == null ? Optional.empty() : above.light().skyLight();
+  }
+
+  private static NibbleArray bottomLayerRepeated(NibbleArray source) {
+    byte[] bytes = source.toBytes();
+    byte[] repeated = new byte[NibbleArray.BYTE_LENGTH];
+    for (int offset = 0; offset < repeated.length; offset += LAYER_BYTES) {
+      System.arraycopy(bytes, 0, repeated, offset, LAYER_BYTES);
+    }
+    return NibbleArray.ofBytes(repeated);
+  }
+
+  private ChunkSection sectionOf(BlockPos block) {
+    if (!block.chunk().equals(pos)) {
+      throw new IllegalArgumentException(block + " is outside chunk " + pos);
+    }
+    if (!height.contains(block.y())) {
+      throw new IllegalArgumentException(block + " is outside the world height");
+    }
+    return section(block.y() >> 4);
   }
 }

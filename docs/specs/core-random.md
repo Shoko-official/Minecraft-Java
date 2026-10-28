@@ -3,6 +3,7 @@
 Statut : brouillon
 Jalon : M1
 Risque : A
+Mise à jour : 2026-10-28, retours de relecture et de chasse aux bugs du code (PR #8) : R5, R11, R21, R26, R29, exigences d'interface
 
 ## Périmètre
 
@@ -76,6 +77,7 @@ Sondes : P1 à P7, décrites plus bas. Vecteurs : [core-random-vectors.md](core-
 - `bound <= 0` : erreur, aucun pas consommé ;
 - `bound` puissance de deux (1 compris) : `(bound * next(31)) >> 31`, un pas. `nextInt(1)` rend toujours 0 mais consomme un pas ;
 - sinon, boucle : `r = next(31)`, `v = r mod bound` ; `v` est accepté si `r - v + (bound - 1) < 2^31` (calcul exact, sans débordement), sinon on recommence. Forme équivalente (C) : accepté si `r < bound * floor(2^31 / bound)`. Chaque essai coûte un pas.
+- Inégalité stricte (C) : le test non strict `r - v + (bound - 1) <= 2^31` ne diffère du test exact que si `bound * (q + 1) = 2^31 + 1` pour un quotient `q`, c'est-à-dire si `bound` divise 2^31 + 1 = 3 x 715827883. Les bornes 3 et 715827883 sont donc obligatoires dans les vecteurs de rejet : pour 715827883, le test exact rejette tout le tiers haut (`r >= 1431655766`, environ un essai sur trois) que le test non strict accepterait (V-L2, V-L3b) ; pour 3, seules `r = 2^31 - 2` et `2^31 - 1` sont en jeu.
 
 **R6 (D [J])** `nextFloat()` = `next(24) * 2^-24` (un pas, résultat exact en float, dans [0, 1)). `nextDouble()` = `(next(26) * 2^27 + next(27)) * 2^-53` (deux pas, résultat exact en double, dans [0, 1)).
 
@@ -91,7 +93,7 @@ Sondes : P1 à P7, décrites plus bas. Vecteurs : [core-random-vectors.md](core-
 
 **R10 (C)** Saut : `skip(n)` avance l'état de exactement `n` pas, comme `n` appels à `next(b)`. Il peut se calculer en O(log n) en composant l'application affine `x -> a*x + c` par élévation au carré : `(a1, c1)` puis `(a2, c2)` donnent `(a2*a1, a2*c1 + c2)` mod 2^48. Vecteur V-L4 (graine 0, 10^6 pas).
 
-**R11 (C, depuis R3 à R7)** Consommation par appel :
+**R11 (C, depuis R3 à R7)** Consommation par appel, mesurée par le compteur de pas (saturant, voir les exigences d'interface) :
 
 | Appel | Pas |
 |---|---|
@@ -129,7 +131,7 @@ La sortie est calculée sur l'état avant la transition. Vecteurs V-X1 (recoupé
 
 **R20 (S)** `nextGaussian()` suit l'enchaînement de R7 avec le `nextDouble` de X128 : deux pas par essai, cache vidé à toute réinitialisation. Même incertitude sur le logarithme que R9.
 
-**R21 (C, sous R16 à R20)** Consommation : un pas pour `nextLong`, `nextInt`, `nextBoolean`, `nextFloat`, `nextDouble` ; `k` pas pour `nextInt(bound)` (k = 1 sauf rejet, probabilité inférieure à `bound / 2^32`) ; 0 ou 2k pour la gaussienne. `skip(n)` avance de `n` pas ; contrairement à G48, il n'a pas de forme fermée simple pour un `n` quelconque, on l'exécute pas à pas (les sauts polynomiaux de [BV] ne couvrent que des longueurs fixes, 2^64 et 2^96 pas).
+**R21 (C, sous R16 à R20)** Consommation : un pas pour `nextLong`, `nextInt`, `nextBoolean`, `nextFloat`, `nextDouble` ; `k` pas pour `nextInt(bound)` (k = 1 sauf rejet, probabilité inférieure à `bound / 2^32`) ; 0 ou 2k pour la gaussienne. `skip(n)` avance de `n` pas, exécutés un par un (coût O(n)). Aucun saut en forme fermée n'est requis en M1. La transition étant linéaire sur GF(2), un saut en O(log n) par élévation d'une matrice 128 x 128 à la puissance `n` est possible et pourra être ajouté ; les sauts de [BV] n'en sont que deux cas particuliers (2^64 et 2^96 pas). Limite connue : pour de très grands `n` (au-delà de quelques milliards), `skip(n)` sur X128 ne termine pas en pratique ; le compteur de pas reste soumis à la règle de saturation.
 
 ### C. Graines, empreintes et sources dérivées
 
@@ -141,7 +143,7 @@ La sortie est calculée sur l'état avant la transition. Vecteurs V-X1 (recoupé
 
 **R25 (S, documenté [W2], recoupé [R1], [R2])** Emploi par le jeu : les séquences nommées sont initialisées par `E`, l'empreinte R26 et le mélange R23 (détail en R31) ; une source X128 initialisée ou réinitialisée par une graine 64 bits l'est par `Init64`, et la réinitialisation vide la gaussienne en cache. Sonde : P1 (le cas N1 vaut exactement `Init64(0)`).
 
-**R26 (S, documenté [W2] pour le MD5 ; S pour le texte haché et l'ordre des octets)** L'empreinte d'un identifiant est le MD5 (128 bits) de son texte. Hypothèses à lever : le texte est la forme complète `namespace:path` encodée en UTF-8 (`test` et `minecraft:test` donnent la même empreinte, celle de `minecraft:test`) ; les 8 premiers octets, lus en gros-boutiste, forment le mot bas, les 8 suivants le mot haut. Contre-hypothèse : petit-boutiste. Vecteurs V-X4. Sonde : P1, cas N4 contre N4le, et N7.
+**R26 (S, documenté [W2] pour le MD5 ; S pour le texte haché et l'ordre des octets)** L'empreinte d'un identifiant est le MD5 (128 bits) de son texte. Hypothèses à lever : le texte est la forme complète `namespace:path` encodée en UTF-8 (`test` et `minecraft:test` donnent la même empreinte, celle de `minecraft:test`) ; les 8 premiers octets, lus en gros-boutiste, forment le mot bas, les 8 suivants le mot haut. Contre-hypothèse : petit-boutiste. Normalisation avant hachage (S, comportement **provisoire**, aligné sur la règle R22 de la spec `data-datapack-loading`) : un identifiant sans `:` est préfixé par `minecraft:` ; un espace de noms vide (`:test`) devient `minecraft` (`minecraft:test`) ; les trois formes `test`, `:test` et `minecraft:test` ont donc la même empreinte (V-X4). Limite connue : cette fonction ne valide pas l'identifiant. Majuscules, deux `:`, chaîne vide, ou demi-paire de substitution isolée (encodée en `?` par l'UTF-8 de Java) sont hachés tels quels ; la validation incombe à l'appelant. Vecteurs V-X4. Sonde : P1, cas N4 contre N4le, et N7 (joué avec `minecraft:test` puis `test` ; ajouter `:test` si la commande l'accepte).
 
 **R27 à R29 : sources dérivées.** La génération de monde a besoin de sources dérivées d'une graine : d'une autre source, d'un nom ou d'une position. Les sources autorisées n'en décrivent pas la construction dans le jeu ; cette spec n'en fixe donc que le contrat vérifiable, et un comportement **provisoire** qui rend le reste du moteur testable. Le provisoire n'est pas fidèle : aucun vecteur doré ne peut en être tiré. La construction fidèle sera établie par la spec worldgen, à partir de sondes sur le monde généré (ou par appel direct si le propriétaire accepte ADR 0002 point 2a-bis).
 
@@ -149,7 +151,7 @@ La sortie est calculée sur l'état avant la transition. Vecteurs V-X1 (recoupé
 
 **R28 (S, contrat ; provisoire)** Source dérivée d'une autre. Contrat : la fille est une fonction déterministe de l'état de la mère, et la dérivation avance la mère d'un nombre fixe de pas ; ce nombre fait partie de la fidélité et sera fixé par sonde ([R1] signale seulement que cette consommation doit être reproduite). Provisoire : la mère fournit un `nextLong`, la fille est `Init64` de ce long pour X128 et la graine R2 de ce long pour G48 (soit un pas X128, deux pas G48).
 
-**R29 (S, contrat ; provisoire ; hors fidélité M1)** Source par position. Contrat : fonction déterministe d'une graine de dérivation `d` et d'une position entière `(x, y, z)`, définie pour toutes les valeurs `int`, négatives comprises, sans division ; des positions voisines donnent des flux distincts. L'empreinte de position du jeu est inconnue (Q1). Cette spec en est propriétaire : la spec `core-math` (sa règle d'empreinte de position) y renvoie, car il s'agit probablement de la même fonction ; une seule question, Q1, couvre les deux. Provisoire, étiqueté comme tel dans le code : empreinte `hp(x, y, z) = mélange(mélange(mélange(x) XOR y) XOR z)`, les coordonnées étant étendues en signe à 64 bits, et source = `Init64(d XOR hp(x, y, z))`. Vecteurs provisoires (C, non dorés) : V-X6. Le sous-ensemble « source par position » est exclu de la fidélité M1 : il passe à `implémenté` au mieux tant que Q1 n'est pas levée.
+**R29 (S, contrat ; provisoire ; hors fidélité M1)** Source par position. Contrat : fonction déterministe d'une graine de dérivation `d` et d'une position entière `(x, y, z)`, définie pour toutes les valeurs `int`, négatives comprises, sans division ; des positions voisines donnent des flux distincts. L'empreinte de position du jeu est inconnue (Q1). Cette spec en est propriétaire : la spec `core-math` (sa règle d'empreinte de position) y renvoie, car il s'agit probablement de la même fonction ; une seule question, Q1, couvre les deux. Provisoire, étiqueté comme tel dans le code : empreinte `hp(x, y, z) = mélange(mélange(mélange(x) XOR y) XOR z)`, les coordonnées étant étendues en signe à 64 bits, et source = `Init64(d XOR hp(x, y, z))`. Vecteurs provisoires (C, non dorés) : V-X6. Limite connue du provisoire : des positions distinctes très éloignées peuvent avoir la même empreinte, donc le même flux. Exemple prouvé (V-X6) : `(23901, 0, z)` et `(52826, 683136096, z)`, pour tout `z` (empreinte -1813262085031591903 pour `z = 0`). Ce n'est pas une violation du contrat, qui n'exige des flux distincts que pour des voisins, mais un signe de plus que la construction provisoire n'est pas fidèle (Q1). Le sous-ensemble « source par position » est exclu de la fidélité M1 : il passe à `implémenté` au mieux tant que Q1 n'est pas levée.
 
 ### D. Séquences nommées et commande `/random`
 
@@ -200,14 +202,14 @@ L'extrait [E1] ne contraint pas l'intervalle (`minecraft:int_range` accepte `5..
 | `nextGaussian()` | double | non borné |
 | Position (source par position) | trois int | négatifs inclus (R29) |
 
-Exigences d'interface du moteur (pour la testabilité, pas un comportement du jeu) : chaque générateur compte ses pas depuis sa création ou sa dernière initialisation, et ce compteur est lisible par les tests ; `skip(n)` existe pour les deux familles ; aucun générateur ne s'appuie sur `java.util.Random`, `Math.random`, `ThreadLocalRandom` ou l'horloge (`docs/ARCHITECTURE.md`). `java.util.Random` reste permis dans les tests comme référence de R1 à R7.
+Exigences d'interface du moteur (pour la testabilité, pas un comportement du jeu) : chaque générateur compte ses pas depuis sa création ou sa dernière initialisation, et ce compteur `steps()` est lisible par les tests ; il va de 0 à `Long.MAX_VALUE` et **sature** à `Long.MAX_VALUE` au lieu de déborder (un `skip(Long.MAX_VALUE)` suivi d'un tirage ne le rend jamais négatif), tandis que l'état du générateur reste exact (pour G48, `skip(n)` équivaut à `skip(n mod 2^48)`, la période étant 2^48 ; vecteur V-L4) ; `skip(n)` existe pour les deux familles ; aucun générateur ne s'appuie sur `java.util.Random`, `Math.random`, `ThreadLocalRandom` ou l'horloge (`docs/ARCHITECTURE.md`). `java.util.Random` reste permis dans les tests comme référence de R1 à R7.
 
 ## Cas limites
 
 - Graine G48 0, -1, -2^63, 2^63-1, 2^48 : -2^63 et 2^48 équivalent à 0, 2^63-1 équivaut à -1 (R2, vecteurs V-L1).
 - Graine G48 `25214903917` (`0x5DEECE66D`) : état initial nul ; premier `nextInt()` = 0, premier `nextFloat()` = 0.0 exactement (V-L1). Montre que 0.0 est atteignable et que 1.0 ne l'est pas.
 - `nextInt(1)` : rend 0, consomme un pas sur G48 (V-L2, colonne « `nextInt()` suivant »).
-- `nextInt(2^30)` contre `nextInt(2^30 + 1)` : la première ne rejette jamais, la seconde rejette environ un essai sur deux (V-L2, V-L3 : de 2 à 6 pas sur les graines 0 à 15).
+- `nextInt(2^30)` contre `nextInt(2^30 + 1)` : la première ne rejette jamais, la seconde rejette environ un essai sur deux (V-L2, V-L3 : de 2 à 6 pas sur les graines 0 à 15). `nextInt(715827883)` rejette environ un essai sur trois (V-L3b : de 2 à 6 pas).
 - `nextInt(2^31 - 1)` sur G48 : rejet seulement si `next(31) = 2^31 - 1`.
 - `nextLong()` G48 avec second mot négatif : la moitié haute n'est pas le premier tirage (R4).
 - Gaussienne : la valeur en cache survit aux appels intercalés d'autres tirages ; une réinitialisation la supprime (V-L5, appels 6 à 9). `s = 0` est rejeté.
@@ -218,7 +220,11 @@ Exigences d'interface du moteur (pour la testabilité, pas un comportement du je
 - Graine du monde négative et sel non nul combinés par XOR, sans addition (R31, cas N7).
 - `/random value` avec `min = -2^31` ou `max = 2^31 - 1` : le calcul de `max - min + 1` déborde en 32 bits ; le comportement est fixé par P4, pas supposé.
 - `/random value 5..5` (`min == max`) : refus, valeur sans tirage ou valeur avec un tirage (R33, H-R33a à c) ; P4 tranche.
-- Source par position avec coordonnées négatives et extrêmes (R29) : couvertes par les vecteurs provisoires V-X6 ; à reprendre avec l'empreinte fidèle quand Q1 sera levée.
+- Source par position avec coordonnées négatives et extrêmes (R29) : couvertes par les vecteurs provisoires V-X6 ; à reprendre avec l'empreinte fidèle quand Q1 sera levée. Collision provisoire connue : `(23901, 0, z)` et `(52826, 683136096, z)`.
+- `nextInt(3)` et `nextInt(715827883)` sur G48 : seules bornes où un test d'acceptation non strict diverge (R5, V-L3b).
+- Compteur de pas après `skip(Long.MAX_VALUE)` : saturé à `Long.MAX_VALUE`, état exact (V-L4).
+- `skip(n)` X128 avec `n` très grand : ne termine pas en pratique (R21, limite connue).
+- Identifiant `:test` : normalisé en `minecraft:test` ; identifiants invalides non validés par l'empreinte (R26).
 
 ## Vecteurs de test
 
@@ -227,17 +233,18 @@ Dans [core-random-vectors.md](core-random-vectors.md), avec les scripts et la co
 | Bloc | Contenu | Niveau |
 |---|---|---|
 | V-L1 | 10 graines : `nextInt()` x5, `nextLong()` x3, `nextBoolean()` x16, `nextFloat()` x3, `nextDouble()` x3, `nextGaussian()` x4 | D pour `java.util.Random`, S pour le jeu |
-| V-L2 | 4 graines x 10 bornes (1, 2, 7, 10, 16, 26, 100, 2^30, 2^30+1, 2^31-1) | idem |
+| V-L2 | 4 graines x 12 bornes (1, 2, 3, 7, 10, 16, 26, 100, 715827883, 2^30, 2^30+1, 2^31-1) | idem |
 | V-L3 | rejets de `nextInt(2^30+1)` et nombre de pas, graines 0 à 15 | idem (pas : C) |
-| V-L4 | saut de 10^6 pas | C |
+| V-L3b | rejets de `nextInt(715827883)` (borne obligatoire, R5) : résultat, pas, valeur qu'un test non strict rendrait à tort, graines 0 à 15 | idem (pas et valeur fautive : C) |
+| V-L4 | saut de 10^6 pas ; saturation du compteur après `skip(Long.MAX_VALUE)` | C |
 | V-L5 | séquence mixte et réinitialisation, graine 12345 (13 pas) | D / S |
 | V-L6 | prédiction de P5 | S |
 | V-L7 | sensibilité de la gaussienne au logarithme | C |
 | V-X1 | xoroshiro128++ sur 4 états bruts, 5 sorties et état final | D |
 | V-X2 | mélange R23 | D |
 | V-X3 | initialisation par graine 64 bits | C pour la fonction (recoupée JDK), S pour son emploi par le jeu |
-| V-X4 | empreintes MD5 et mots selon l'ordre des octets | D (MD5) / S (ordre) |
-| V-X6 | source par position provisoire (R29), non dorée | C (provisoire) |
+| V-X4 | empreintes MD5 et mots selon l'ordre des octets, formes `test` et `:test` normalisées | D (MD5) / S (ordre, normalisation) |
+| V-X6 | source par position provisoire (R29), non dorée, et collision connue | C (provisoire) |
 | V-X5 | séquences nommées N1 à N7 et contre-hypothèses : état initial, `/random value` prédites, état après 5 tirages | S |
 | O-1 à O-5 | emplacements réservés aux vecteurs de l'oracle | M une fois remplis |
 

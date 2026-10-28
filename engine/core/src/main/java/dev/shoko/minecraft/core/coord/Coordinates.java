@@ -16,6 +16,19 @@ public final class Coordinates {
    */
   public static final int HORIZONTAL_LIMIT = 30_000_000;
 
+  /** A section is 16 blocks wide (R28). */
+  private static final int SECTION_SHIFT = 4;
+
+  private static final int SECTION_MASK = (1 << SECTION_SHIFT) - 1;
+
+  /** A biome cell (quart) is 4 blocks wide (R28). */
+  private static final int QUART_SHIFT = 2;
+
+  /** A region is 32 chunks wide (R28, R33). */
+  private static final int REGION_SHIFT = 5;
+
+  private static final int REGION_MASK = (1 << REGION_SHIFT) - 1;
+
   private Coordinates() {}
 
   /**
@@ -25,7 +38,7 @@ public final class Coordinates {
    * @return the section coordinate
    */
   public static int blockToSection(int block) {
-    return Skeleton.throwNotImplemented();
+    return block >> SECTION_SHIFT;
   }
 
   /**
@@ -35,7 +48,7 @@ public final class Coordinates {
    * @return the local coordinate
    */
   public static int sectionLocal(int block) {
-    return Skeleton.throwNotImplemented();
+    return block & SECTION_MASK;
   }
 
   /**
@@ -46,7 +59,7 @@ public final class Coordinates {
    * @return the lowest block coordinate in it
    */
   public static int sectionToBlock(int section) {
-    return Skeleton.throwNotImplemented();
+    return section << SECTION_SHIFT;
   }
 
   /**
@@ -56,7 +69,7 @@ public final class Coordinates {
    * @return the quart coordinate
    */
   public static int blockToQuart(int block) {
-    return Skeleton.throwNotImplemented();
+    return block >> QUART_SHIFT;
   }
 
   /**
@@ -66,7 +79,7 @@ public final class Coordinates {
    * @return the region coordinate
    */
   public static int chunkToRegion(int chunk) {
-    return Skeleton.throwNotImplemented();
+    return chunk >> REGION_SHIFT;
   }
 
   /**
@@ -77,7 +90,7 @@ public final class Coordinates {
    * @return the local chunk coordinate
    */
   public static int regionLocal(int chunk) {
-    return Skeleton.throwNotImplemented();
+    return chunk & REGION_MASK;
   }
 
   /**
@@ -87,7 +100,7 @@ public final class Coordinates {
    * @return the region coordinate
    */
   public static int blockToRegion(int block) {
-    return Skeleton.throwNotImplemented();
+    return block >> (SECTION_SHIFT + REGION_SHIFT);
   }
 
   /**
@@ -98,6 +111,6 @@ public final class Coordinates {
    * @return {@code true} inside the domain
    */
   public static boolean isWithinHorizontalLimit(int block) {
-    return Skeleton.throwNotImplemented();
+    return block >= -HORIZONTAL_LIMIT && block < HORIZONTAL_LIMIT;
   }
 }

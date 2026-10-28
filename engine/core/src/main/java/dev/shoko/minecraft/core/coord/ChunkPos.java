@@ -8,13 +8,18 @@ package dev.shoko.minecraft.core.coord;
  */
 public record ChunkPos(int x, int z) {
 
+  /** A region is 32 x 32 chunks (R33). */
+  private static final int REGION_WIDTH = 32;
+
+  private static final long LOW_INT_MASK = 0xFFFF_FFFFL;
+
   /**
    * Returns the lowest block x of this chunk, {@code x << 4} (R28).
    *
    * @return the first block x
    */
   public int minBlockX() {
-    return Skeleton.throwNotImplemented();
+    return Coordinates.sectionToBlock(x);
   }
 
   /**
@@ -23,7 +28,7 @@ public record ChunkPos(int x, int z) {
    * @return the first block z
    */
   public int minBlockZ() {
-    return Skeleton.throwNotImplemented();
+    return Coordinates.sectionToBlock(z);
   }
 
   /**
@@ -32,7 +37,7 @@ public record ChunkPos(int x, int z) {
    * @return the region position
    */
   public RegionPos region() {
-    return Skeleton.throwNotImplemented();
+    return new RegionPos(Coordinates.chunkToRegion(x), Coordinates.chunkToRegion(z));
   }
 
   /**
@@ -42,7 +47,7 @@ public record ChunkPos(int x, int z) {
    * @return the index, in {@code [0, 1023]}
    */
   public int indexInRegion() {
-    return Skeleton.throwNotImplemented();
+    return Coordinates.regionLocal(x) + REGION_WIDTH * Coordinates.regionLocal(z);
   }
 
   /**
@@ -53,7 +58,7 @@ public record ChunkPos(int x, int z) {
    * @return the packed position
    */
   public long pack() {
-    return Skeleton.throwNotImplemented();
+    return (x & LOW_INT_MASK) | ((long) z << Integer.SIZE);
   }
 
   /**
@@ -64,6 +69,6 @@ public record ChunkPos(int x, int z) {
    * @return the position
    */
   public static ChunkPos unpack(long packed) {
-    return Skeleton.throwNotImplemented();
+    return new ChunkPos((int) packed, (int) (packed >>> Integer.SIZE));
   }
 }

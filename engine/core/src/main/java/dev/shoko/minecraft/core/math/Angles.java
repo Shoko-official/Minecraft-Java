@@ -10,6 +10,9 @@ package dev.shoko.minecraft.core.math;
  */
 public final class Angles {
 
+  private static final int FULL_TURN = 360;
+  private static final int HALF_TURN = 180;
+
   private Angles() {}
 
   /**
@@ -21,7 +24,7 @@ public final class Angles {
    * @return the angle in {@code [-pi, pi]}
    */
   public static double atan2(double y, double x) {
-    return Skeleton.throwNotImplemented();
+    return StrictMath.atan2(y, x);
   }
 
   /**
@@ -31,7 +34,14 @@ public final class Angles {
    * @return the normalized angle
    */
   public static int normalizeDegrees(int degrees) {
-    return Skeleton.throwNotImplemented();
+    int r = degrees % FULL_TURN;
+    if (r >= HALF_TURN) {
+      r -= FULL_TURN;
+    }
+    if (r < -HALF_TURN) {
+      r += FULL_TURN;
+    }
+    return r;
   }
 
   /**
@@ -41,7 +51,14 @@ public final class Angles {
    * @return the normalized angle, NaN for NaN
    */
   public static float normalizeDegrees(float degrees) {
-    return Skeleton.throwNotImplemented();
+    float r = degrees % FULL_TURN;
+    if (r >= HALF_TURN) {
+      r -= FULL_TURN;
+    }
+    if (r < -HALF_TURN) {
+      r += FULL_TURN;
+    }
+    return r;
   }
 
   /**
@@ -51,6 +68,13 @@ public final class Angles {
    * @return the normalized angle, NaN for NaN
    */
   public static double normalizeDegrees(double degrees) {
-    return Skeleton.throwNotImplemented();
+    double r = degrees % FULL_TURN;
+    if (r >= HALF_TURN) {
+      r -= FULL_TURN;
+    }
+    if (r < -HALF_TURN) {
+      r += FULL_TURN;
+    }
+    return r;
   }
 }

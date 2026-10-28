@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.core.coord;
 
+import dev.shoko.minecraft.core.math.Rounding;
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -9,17 +11,40 @@ import java.util.Optional;
  */
 public enum Direction {
   /** Identifier 0, vector {@code (0, -1, 0)} (R35). */
-  DOWN,
+  DOWN("down", 0, 0, -1, 0),
   /** Identifier 1, vector {@code (0, 1, 0)} (R35). */
-  UP,
+  UP("up", 1, 0, 1, 0),
   /** Identifier 2, vector {@code (0, 0, -1)}; 2D identifier 2, yaw 180 (R35, R36). */
-  NORTH,
+  NORTH("north", 2, 0, 0, -1),
   /** Identifier 3, vector {@code (0, 0, 1)}; 2D identifier 0, yaw 0 (R35, R36). */
-  SOUTH,
+  SOUTH("south", 3, 0, 0, 1),
   /** Identifier 4, vector {@code (-1, 0, 0)}; 2D identifier 1, yaw 90 (R35, R36). */
-  WEST,
+  WEST("west", 4, -1, 0, 0),
   /** Identifier 5, vector {@code (1, 0, 0)}; 2D identifier 3, yaw -90 (R35, R36). */
-  EAST;
+  EAST("east", 5, 1, 0, 0);
+
+  // Constants are declared in identifier order, so the position in values() is the identifier.
+  private static final List<Direction> BY_ID = List.of(values());
+
+  /** Horizontal directions in 2D identifier order (R36). */
+  private static final List<Direction> BY_HORIZONTAL_ID = List.of(SOUTH, WEST, NORTH, EAST);
+
+  /** One 2D identifier step is a quarter turn (R36). */
+  private static final double DEGREES_PER_HORIZONTAL_ID = 90.0;
+
+  private final String serializedName;
+  private final int id;
+  private final int stepX;
+  private final int stepY;
+  private final int stepZ;
+
+  Direction(String serializedName, int id, int stepX, int stepY, int stepZ) {
+    this.serializedName = serializedName;
+    this.id = id;
+    this.stepX = stepX;
+    this.stepY = stepY;
+    this.stepZ = stepZ;
+  }
 
   /**
    * Returns the canonical identifier, from 0 for {@link #DOWN} to 5 for {@link #EAST} (R35).
@@ -27,7 +52,7 @@ public enum Direction {
    * @return the identifier
    */
   public int id() {
-    return Skeleton.throwNotImplemented();
+    return id;
   }
 
   /**
@@ -37,7 +62,7 @@ public enum Direction {
    * @return the direction, or empty outside {@code [0, 5]}
    */
   public static Optional<Direction> byId(int id) {
-    return Skeleton.throwNotImplemented();
+    return id >= 0 && id < BY_ID.size() ? Optional.of(BY_ID.get(id)) : Optional.empty();
   }
 
   /**
@@ -46,7 +71,7 @@ public enum Direction {
    * @return the opposite direction
    */
   public Direction opposite() {
-    return Skeleton.throwNotImplemented();
+    return BY_ID.get(id() ^ 1);
   }
 
   /**
@@ -55,7 +80,7 @@ public enum Direction {
    * @return -1, 0 or 1
    */
   public int stepX() {
-    return Skeleton.throwNotImplemented();
+    return stepX;
   }
 
   /**
@@ -64,7 +89,7 @@ public enum Direction {
    * @return -1, 0 or 1
    */
   public int stepY() {
-    return Skeleton.throwNotImplemented();
+    return stepY;
   }
 
   /**
@@ -73,7 +98,7 @@ public enum Direction {
    * @return -1, 0 or 1
    */
   public int stepZ() {
-    return Skeleton.throwNotImplemented();
+    return stepZ;
   }
 
   /**
@@ -82,7 +107,10 @@ public enum Direction {
    * @return the axis
    */
   public Axis axis() {
-    return Skeleton.throwNotImplemented();
+    if (stepX != 0) {
+      return Axis.X;
+    }
+    return stepY != 0 ? Axis.Y : Axis.Z;
   }
 
   /**
@@ -92,7 +120,7 @@ public enum Direction {
    * @return the lowercase name
    */
   public String serializedName() {
-    return Skeleton.throwNotImplemented();
+    return serializedName;
   }
 
   /**
@@ -103,7 +131,11 @@ public enum Direction {
    * @throws IllegalStateException for {@link #UP} and {@link #DOWN}
    */
   public int horizontalId() {
-    return Skeleton.throwNotImplemented();
+    int horizontalId = BY_HORIZONTAL_ID.indexOf(this);
+    if (horizontalId < 0) {
+      throw new IllegalStateException(this + " is not horizontal");
+    }
+    return horizontalId;
   }
 
   /**
@@ -113,7 +145,9 @@ public enum Direction {
    * @return the direction, or empty outside {@code [0, 3]}
    */
   public static Optional<Direction> byHorizontalId(int horizontalId) {
-    return Skeleton.throwNotImplemented();
+    return horizontalId >= 0 && horizontalId < BY_HORIZONTAL_ID.size()
+        ? Optional.of(BY_HORIZONTAL_ID.get(horizontalId))
+        : Optional.empty();
   }
 
   /**
@@ -124,7 +158,8 @@ public enum Direction {
    * @throws IllegalStateException for {@link #UP} and {@link #DOWN}
    */
   public double yaw() {
-    return Skeleton.throwNotImplemented();
+    // East is -90 rather than 270: R36 gives yaws in [-180, 180], north staying at 180.
+    return this == EAST ? -DEGREES_PER_HORIZONTAL_ID : horizontalId() * DEGREES_PER_HORIZONTAL_ID;
   }
 
   /**
@@ -136,6 +171,7 @@ public enum Direction {
    * @return the horizontal direction
    */
   public static Direction fromYaw(double yaw) {
-    return Skeleton.throwNotImplemented();
+    int quarterTurns = Rounding.floorToInt(yaw / DEGREES_PER_HORIZONTAL_ID + 0.5);
+    return BY_HORIZONTAL_ID.get(quarterTurns & (BY_HORIZONTAL_ID.size() - 1));
   }
 }

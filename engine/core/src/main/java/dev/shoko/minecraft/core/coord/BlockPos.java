@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.core.coord;
 
+import dev.shoko.minecraft.core.math.Rounding;
+
 /**
  * Integer position of a block (R27 to R29). Any {@code int} triple is representable; the valid
  * world domain (R25, R26) is checked by callers, not here.
@@ -9,6 +11,17 @@ package dev.shoko.minecraft.core.coord;
  * @param z block z, south positive
  */
 public record BlockPos(int x, int y, int z) {
+
+  /** Width of the packed x and z fields (R29). */
+  private static final int HORIZONTAL_BITS = 26;
+
+  /** Width of the packed y field (R29). */
+  private static final int Y_BITS = 12;
+
+  private static final int Z_SHIFT = Y_BITS;
+  private static final int X_SHIFT = Y_BITS + HORIZONTAL_BITS;
+  private static final long HORIZONTAL_MASK = (1L << HORIZONTAL_BITS) - 1;
+  private static final long Y_MASK = (1L << Y_BITS) - 1;
 
   /**
    * Returns the block containing a point: {@code floorToInt} of each coordinate (R27, provisional).
@@ -20,7 +33,7 @@ public record BlockPos(int x, int y, int z) {
    * @return the containing block
    */
   public static BlockPos containing(double x, double y, double z) {
-    return Skeleton.throwNotImplemented();
+    return new BlockPos(Rounding.floorToInt(x), Rounding.floorToInt(y), Rounding.floorToInt(z));
   }
 
   /**
@@ -29,7 +42,7 @@ public record BlockPos(int x, int y, int z) {
    * @return the chunk position
    */
   public ChunkPos chunk() {
-    return Skeleton.throwNotImplemented();
+    return new ChunkPos(Coordinates.blockToSection(x), Coordinates.blockToSection(z));
   }
 
   /**
@@ -38,7 +51,10 @@ public record BlockPos(int x, int y, int z) {
    * @return the section position
    */
   public SectionPos section() {
-    return Skeleton.throwNotImplemented();
+    return new SectionPos(
+        Coordinates.blockToSection(x),
+        Coordinates.blockToSection(y),
+        Coordinates.blockToSection(z));
   }
 
   /**
@@ -50,7 +66,7 @@ public record BlockPos(int x, int y, int z) {
    * @return the packed position
    */
   public long pack() {
-    return Skeleton.throwNotImplemented();
+    return ((x & HORIZONTAL_MASK) << X_SHIFT) | ((z & HORIZONTAL_MASK) << Z_SHIFT) | (y & Y_MASK);
   }
 
   /**
@@ -61,6 +77,9 @@ public record BlockPos(int x, int y, int z) {
    * @return the position, each field sign-extended
    */
   public static BlockPos unpack(long packed) {
-    return Skeleton.throwNotImplemented();
+    int x = (int) (packed >> X_SHIFT);
+    int z = (int) ((packed << (Long.SIZE - X_SHIFT)) >> (Long.SIZE - HORIZONTAL_BITS));
+    int y = (int) ((packed << (Long.SIZE - Y_BITS)) >> (Long.SIZE - Y_BITS));
+    return new BlockPos(x, y, z);
   }
 }

@@ -17,7 +17,7 @@ public final class PowersOfTwo {
    * @return the power of two, in {@code [1, 2^30]}
    */
   public static int ceilingPowerOfTwo(int v) {
-    return Skeleton.throwNotImplemented();
+    return 1 << ceilingLog2(v);
   }
 
   /**
@@ -28,6 +28,7 @@ public final class PowersOfTwo {
    * @return the number of bits, in {@code [0, 30]}
    */
   public static int ceilingLog2(int v) {
-    return Skeleton.throwNotImplemented();
+    // v - 1 has exactly ceil(log2(v)) significant bits; for v = 1 it is 0, which has none.
+    return Integer.SIZE - Integer.numberOfLeadingZeros(v - 1);
   }
 }

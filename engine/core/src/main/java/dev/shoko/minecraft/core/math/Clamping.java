@@ -24,7 +24,7 @@ public final class Clamping {
    * @return the clamped value
    */
   public static int clamp(int v, int lo, int hi) {
-    return Skeleton.throwNotImplemented();
+    return v < lo ? lo : Math.min(v, hi);
   }
 
   /**
@@ -36,7 +36,7 @@ public final class Clamping {
    * @return the clamped value
    */
   public static long clamp(long v, long lo, long hi) {
-    return Skeleton.throwNotImplemented();
+    return v < lo ? lo : Math.min(v, hi);
   }
 
   /**
@@ -49,7 +49,7 @@ public final class Clamping {
    * @return the clamped value
    */
   public static float clamp(float v, float lo, float hi) {
-    return Skeleton.throwNotImplemented();
+    return v < lo ? lo : Math.min(v, hi);
   }
 
   /**
@@ -62,6 +62,6 @@ public final class Clamping {
    * @return the clamped value
    */
   public static double clamp(double v, double lo, double hi) {
-    return Skeleton.throwNotImplemented();
+    return v < lo ? lo : Math.min(v, hi);
   }
 }

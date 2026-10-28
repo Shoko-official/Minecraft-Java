@@ -3,15 +3,31 @@ package dev.shoko.minecraft.core.coord;
 /** Rotations of a structure template about the vertical axis (R38, provisional until probe P38). */
 public enum Rotation {
   /** Name {@code none}: identity (R38). */
-  NONE,
+  NONE("none", 0),
   /**
    * Name {@code clockwise_90}: north to east, east to south, south to west, west to north (R38).
    */
-  CLOCKWISE_90,
+  CLOCKWISE_90("clockwise_90", 1),
   /** Name {@code 180}: each horizontal direction to its opposite (R38). */
-  CLOCKWISE_180,
+  CLOCKWISE_180("180", 2),
   /** Name {@code counterclockwise_90}: inverse of {@link #CLOCKWISE_90} (R38). */
-  COUNTERCLOCKWISE_90;
+  COUNTERCLOCKWISE_90("counterclockwise_90", 3);
+
+  /** Quarter turns in a full turn. */
+  private static final int QUARTERS_MASK = 3;
+
+  /** Steps of the {@code rotation} block property in a quarter turn: 16 per full turn (R38). */
+  private static final int SIXTEENTHS_PER_QUARTER = 4;
+
+  private static final int SIXTEENTHS_MASK = 15;
+
+  private final String serializedName;
+  private final int clockwiseQuarters;
+
+  Rotation(String serializedName, int clockwiseQuarters) {
+    this.serializedName = serializedName;
+    this.clockwiseQuarters = clockwiseQuarters;
+  }
 
   /**
    * Returns the name of this rotation in commands: {@code none}, {@code clockwise_90}, {@code 180}
@@ -20,7 +36,7 @@ public enum Rotation {
    * @return the name
    */
   public String serializedName() {
-    return Skeleton.throwNotImplemented();
+    return serializedName;
   }
 
   /**
@@ -31,7 +47,12 @@ public enum Rotation {
    * @return the rotated direction
    */
   public Direction rotate(Direction direction) {
-    return Skeleton.throwNotImplemented();
+    if (!direction.axis().isHorizontal()) {
+      return direction;
+    }
+    // 2D identifiers go south, west, north, east: one clockwise quarter turn adds 1 (R36, R38).
+    int rotated = (direction.horizontalId() + clockwiseQuarters) & QUARTERS_MASK;
+    return Direction.byHorizontalId(rotated).orElseThrow();
   }
 
   /**
@@ -43,6 +64,6 @@ public enum Rotation {
    * @return the rotated value, in {@code [0, 15]}
    */
   public int rotateSixteenths(int value) {
-    return Skeleton.throwNotImplemented();
+    return (value + SIXTEENTHS_PER_QUARTER * clockwiseQuarters) & SIXTEENTHS_MASK;
   }
 }

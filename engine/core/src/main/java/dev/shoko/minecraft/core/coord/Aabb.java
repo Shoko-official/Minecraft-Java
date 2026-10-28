@@ -31,7 +31,13 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return the normalized box
    */
   public static Aabb ofCorners(double x1, double y1, double z1, double x2, double y2, double z2) {
-    return Skeleton.throwNotImplemented();
+    return new Aabb(
+        Math.min(x1, x2),
+        Math.min(y1, y2),
+        Math.min(z1, z2),
+        Math.max(x1, x2),
+        Math.max(y1, y2),
+        Math.max(z1, z2));
   }
 
   /**
@@ -41,7 +47,8 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return the block's box
    */
   public static Aabb ofBlock(BlockPos pos) {
-    return Skeleton.throwNotImplemented();
+    // Adding 1.0 rather than 1 keeps the far corner exact even at Integer.MAX_VALUE.
+    return new Aabb(pos.x(), pos.y(), pos.z(), pos.x() + 1.0, pos.y() + 1.0, pos.z() + 1.0);
   }
 
   /**
@@ -53,7 +60,12 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return {@code true} if the interiors overlap
    */
   public boolean intersects(Aabb other) {
-    return Skeleton.throwNotImplemented();
+    return minX < other.maxX
+        && maxX > other.minX
+        && minY < other.maxY
+        && maxY > other.minY
+        && minZ < other.maxZ
+        && maxZ > other.minZ;
   }
 
   /**
@@ -64,7 +76,12 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return {@code true} if the point is inside
    */
   public boolean contains(Vec3 point) {
-    return Skeleton.throwNotImplemented();
+    return point.x() >= minX
+        && point.x() < maxX
+        && point.y() >= minY
+        && point.y() < maxY
+        && point.z() >= minZ
+        && point.z() < maxZ;
   }
 
   /**
@@ -74,7 +91,13 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return the moved box
    */
   public Aabb move(Vec3 offset) {
-    return Skeleton.throwNotImplemented();
+    return new Aabb(
+        minX + offset.x(),
+        minY + offset.y(),
+        minZ + offset.z(),
+        maxX + offset.x(),
+        maxY + offset.y(),
+        maxZ + offset.z());
   }
 
   /**
@@ -85,7 +108,8 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return the inflated box
    */
   public Aabb inflate(double amount) {
-    return Skeleton.throwNotImplemented();
+    return new Aabb(
+        minX - amount, minY - amount, minZ - amount, maxX + amount, maxY + amount, maxZ + amount);
   }
 
   /**
@@ -96,6 +120,15 @@ public record Aabb(double minX, double minY, double minZ, double maxX, double ma
    * @return the extended box
    */
   public Aabb expandTowards(Vec3 direction) {
-    return Skeleton.throwNotImplemented();
+    double dx = direction.x();
+    double dy = direction.y();
+    double dz = direction.z();
+    return new Aabb(
+        dx < 0 ? minX + dx : minX,
+        dy < 0 ? minY + dy : minY,
+        dz < 0 ? minZ + dz : minZ,
+        dx > 0 ? maxX + dx : maxX,
+        dy > 0 ? maxY + dy : maxY,
+        dz > 0 ? maxZ + dz : maxZ);
   }
 }

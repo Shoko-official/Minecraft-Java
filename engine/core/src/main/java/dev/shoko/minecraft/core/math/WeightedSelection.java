@@ -27,8 +27,38 @@ public final class WeightedSelection {
    * @param nextIntBelow bounded draw of {@code core-random}: given {@code W > 0}, returns an
    *     integer in {@code [0, W)}; called at most once
    * @return the index of the picked entry in {@code weights}, or empty if no weight is positive
+   * @throws ArithmeticException if the positive weights add up beyond {@code Integer.MAX_VALUE}
+   * @throws IllegalStateException if {@code nextIntBelow} returns a value outside {@code [0, W)}
    */
   public static OptionalInt weightedPick(int[] weights, IntUnaryOperator nextIntBelow) {
-    return Skeleton.throwNotImplemented();
+    int total = 0;
+    int candidates = 0;
+    int lastCandidate = -1;
+    for (int i = 0; i < weights.length; i++) {
+      if (weights[i] > 0) {
+        total = Math.addExact(total, weights[i]);
+        candidates++;
+        lastCandidate = i;
+      }
+    }
+    if (candidates == 0) {
+      return OptionalInt.empty();
+    }
+    if (candidates == 1) {
+      return OptionalInt.of(lastCandidate);
+    }
+    int r = nextIntBelow.applyAsInt(total);
+    if (r < 0 || r >= total) {
+      throw new IllegalStateException("bounded draw " + r + " outside [0, " + total + ")");
+    }
+    for (int i = 0; i < weights.length; i++) {
+      if (weights[i] > 0) {
+        r -= weights[i];
+        if (r < 0) {
+          return OptionalInt.of(i);
+        }
+      }
+    }
+    throw new IllegalStateException("weighted walk ended without a pick");
   }
 }

@@ -21,7 +21,7 @@ public final class RealModulo {
    * @return the floored remainder, which may equal {@code b} after rounding
    */
   public static double realModFloor(double a, double b) {
-    return Skeleton.throwNotImplemented();
+    return a - Math.floor(a / b) * b;
   }
 
   /**
@@ -32,7 +32,8 @@ public final class RealModulo {
    * @return the floored remainder, which may equal {@code b} after rounding
    */
   public static float realModFloor(float a, float b) {
-    return Skeleton.throwNotImplemented();
+    // The floor of a float is itself representable as a float, so the casts are exact.
+    return a - (float) Math.floor(a / b) * b;
   }
 
   /**
@@ -43,7 +44,7 @@ public final class RealModulo {
    * @return the wrapped remainder
    */
   public static double realModWrap(double a, double b) {
-    return Skeleton.throwNotImplemented();
+    return ((a % b) + b) % b;
   }
 
   /**
@@ -54,6 +55,6 @@ public final class RealModulo {
    * @return the wrapped remainder
    */
   public static float realModWrap(float a, float b) {
-    return Skeleton.throwNotImplemented();
+    return ((a % b) + b) % b;
   }
 }

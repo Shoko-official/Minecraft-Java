@@ -9,6 +9,17 @@ package dev.shoko.minecraft.core.coord;
  */
 public record SectionPos(int x, int y, int z) {
 
+  /** Width of the packed x and z fields (R31). */
+  private static final int HORIZONTAL_BITS = 22;
+
+  /** Width of the packed y field (R31). */
+  private static final int Y_BITS = 20;
+
+  private static final int Z_SHIFT = Y_BITS;
+  private static final int X_SHIFT = Y_BITS + HORIZONTAL_BITS;
+  private static final long HORIZONTAL_MASK = (1L << HORIZONTAL_BITS) - 1;
+  private static final long Y_MASK = (1L << Y_BITS) - 1;
+
   /**
    * Packs this position into a {@code long}, network format (R31, provisional until a capture in
    * M8): x on 22 bits shifted by 42, z on 22 bits shifted by 20, y on the 20 low bits, each field
@@ -18,7 +29,7 @@ public record SectionPos(int x, int y, int z) {
    * @return the packed position
    */
   public long pack() {
-    return Skeleton.throwNotImplemented();
+    return ((x & HORIZONTAL_MASK) << X_SHIFT) | ((z & HORIZONTAL_MASK) << Z_SHIFT) | (y & Y_MASK);
   }
 
   /**
@@ -29,6 +40,9 @@ public record SectionPos(int x, int y, int z) {
    * @return the position
    */
   public static SectionPos unpack(long packed) {
-    return Skeleton.throwNotImplemented();
+    int x = (int) (packed >> X_SHIFT);
+    int z = (int) ((packed << (Long.SIZE - X_SHIFT)) >> (Long.SIZE - HORIZONTAL_BITS));
+    int y = (int) ((packed << (Long.SIZE - Y_BITS)) >> (Long.SIZE - Y_BITS));
+    return new SectionPos(x, y, z);
   }
 }

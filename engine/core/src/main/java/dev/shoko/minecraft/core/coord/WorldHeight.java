@@ -18,7 +18,7 @@ public record WorldHeight(int minY, int height) {
    * @return the highest block y
    */
   public int maxY() {
-    return Skeleton.throwNotImplemented();
+    return minY + height - 1;
   }
 
   /**
@@ -28,7 +28,7 @@ public record WorldHeight(int minY, int height) {
    * @return {@code true} inside the dimension
    */
   public boolean contains(int y) {
-    return Skeleton.throwNotImplemented();
+    return y >= minY && y <= maxY();
   }
 
   /**
@@ -37,7 +37,7 @@ public record WorldHeight(int minY, int height) {
    * @return the lowest section y
    */
   public int minSectionY() {
-    return Skeleton.throwNotImplemented();
+    return Coordinates.blockToSection(minY);
   }
 
   /**
@@ -46,7 +46,7 @@ public record WorldHeight(int minY, int height) {
    * @return the highest section y
    */
   public int maxSectionY() {
-    return Skeleton.throwNotImplemented();
+    return Coordinates.blockToSection(maxY());
   }
 
   /**
@@ -55,7 +55,7 @@ public record WorldHeight(int minY, int height) {
    * @return the section count, 24 for the Overworld
    */
   public int sectionCount() {
-    return Skeleton.throwNotImplemented();
+    return maxSectionY() - minSectionY() + 1;
   }
 
   /**
@@ -66,6 +66,6 @@ public record WorldHeight(int minY, int height) {
    * @return the list index, 0 for the lowest section
    */
   public int sectionIndex(int sectionY) {
-    return Skeleton.throwNotImplemented();
+    return sectionY - minSectionY();
   }
 }

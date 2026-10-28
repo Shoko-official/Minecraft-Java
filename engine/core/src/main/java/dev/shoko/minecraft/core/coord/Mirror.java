@@ -3,11 +3,17 @@ package dev.shoko.minecraft.core.coord;
 /** Mirrors of a structure template (R38, provisional until probe P38). */
 public enum Mirror {
   /** Name {@code none}: identity (R38). */
-  NONE,
+  NONE("none"),
   /** Name {@code left_right}: swaps north and south (R38). */
-  LEFT_RIGHT,
+  LEFT_RIGHT("left_right"),
   /** Name {@code front_back}: swaps east and west (R38). */
-  FRONT_BACK;
+  FRONT_BACK("front_back");
+
+  private final String serializedName;
+
+  Mirror(String serializedName) {
+    this.serializedName = serializedName;
+  }
 
   /**
    * Returns the name of this mirror in commands: {@code none}, {@code left_right} or {@code
@@ -16,7 +22,7 @@ public enum Mirror {
    * @return the name
    */
   public String serializedName() {
-    return Skeleton.throwNotImplemented();
+    return serializedName;
   }
 
   /**
@@ -28,6 +34,10 @@ public enum Mirror {
    * @return the mirrored direction
    */
   public Direction mirror(Direction direction) {
-    return Skeleton.throwNotImplemented();
+    return switch (this) {
+      case NONE -> direction;
+      case LEFT_RIGHT -> direction.axis() == Axis.Z ? direction.opposite() : direction;
+      case FRONT_BACK -> direction.axis() == Axis.X ? direction.opposite() : direction;
+    };
   }
 }

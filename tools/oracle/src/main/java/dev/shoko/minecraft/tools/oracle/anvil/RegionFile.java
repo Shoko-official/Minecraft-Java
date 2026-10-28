@@ -113,14 +113,17 @@ public final class RegionFile {
     return location(chunkX, chunkZ) != 0;
   }
 
-  /** Last save time recorded in the header, in epoch seconds, 0 when absent. */
-  public int timestamp(int chunkX, int chunkZ) {
-    return data.getInt(TIMESTAMPS_OFFSET + index(chunkX, chunkZ) * Integer.BYTES);
+  /** Last save time recorded in the header, unsigned epoch seconds, 0 when absent. */
+  public long timestamp(int chunkX, int chunkZ) {
+    location(chunkX, chunkZ);
+    return Integer.toUnsignedLong(
+        data.getInt(TIMESTAMPS_OFFSET + index(chunkX, chunkZ) * Integer.BYTES));
   }
 
   /**
    * Decodes a chunk, or returns empty when the header has no entry for it. An entry that points
-   * outside the file, into the header, or to an inconsistent length fails with the chunk named.
+   * outside the file, into the header, onto sectors of another chunk, or to an inconsistent length
+   * fails with the chunk named.
    */
   public Optional<NamedCompound> chunk(int chunkX, int chunkZ) throws IOException {
     int location = location(chunkX, chunkZ);
@@ -133,6 +136,7 @@ public final class RegionFile {
     if (offset < HEADER_SECTORS || sectors == 0) {
       throw new IOException(where + ": invalid location, sector " + offset + " count " + sectors);
     }
+    checkNoOverlap(index(chunkX, chunkZ), offset, sectors, where);
     long start = (long) offset * SECTOR_BYTES;
     if (start + CHUNK_HEADER_BYTES > data.capacity()) {
       throw new IOException(where + ": sector " + offset + " is outside the file");
@@ -155,6 +159,58 @@ public final class RegionFile {
       return Optional.of(decode(compression, new ByteArrayInputStream(payload)));
     } catch (IOException e) {
       throw new IOException(where + ": " + e.getMessage(), e);
+    }
+  }
+
+  /**
+   * Like {@link #chunk}, and also checks that the {@code xPos} and {@code zPos} ints at the root of
+   * the chunk name the requested position, which catches a chunk stored in the wrong slot.
+   */
+  public Optional<NamedCompound> chunkCheckingPosition(int chunkX, int chunkZ) throws IOException {
+    Optional<NamedCompound> chunk = chunk(chunkX, chunkZ);
+    if (chunk.isPresent()) {
+      Object x = chunk.get().value().get("xPos");
+      Object z = chunk.get().value().get("zPos");
+      if (!Integer.valueOf(chunkX).equals(x) || !Integer.valueOf(chunkZ).equals(z)) {
+        throw new IOException(
+            source
+                + " chunk ("
+                + chunkX
+                + ","
+                + chunkZ
+                + "): its NBT says xPos="
+                + x
+                + " zPos="
+                + z);
+      }
+    }
+    return chunk;
+  }
+
+  /** Fails when the sectors of the chunk at {@code slot} are also claimed by another chunk. */
+  private void checkNoOverlap(int slot, int offset, int sectors, String where) throws IOException {
+    for (int other = 0; other < CHUNK_COUNT; other++) {
+      int location = data.getInt(other * Integer.BYTES);
+      if (other == slot || location == 0) {
+        continue;
+      }
+      int otherOffset = location >>> 8;
+      int otherEnd = otherOffset + (location & 0xff);
+      if (otherOffset < offset + sectors && offset < otherEnd) {
+        int otherX = regionX * CHUNKS_PER_SIDE + other % CHUNKS_PER_SIDE;
+        int otherZ = regionZ * CHUNKS_PER_SIDE + other / CHUNKS_PER_SIDE;
+        throw new IOException(
+            where
+                + ": sectors "
+                + offset
+                + ".."
+                + (offset + sectors - 1)
+                + " overlap those of chunk ("
+                + otherX
+                + ","
+                + otherZ
+                + ")");
+      }
     }
   }
 

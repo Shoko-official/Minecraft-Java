@@ -3,7 +3,9 @@ package dev.shoko.minecraft.tools.oracle;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -12,9 +14,12 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.api.io.TempDir;
 
 class OracleServerTest {
@@ -24,15 +29,19 @@ class OracleServerTest {
 
   private final List<String> log = Collections.synchronizedList(new ArrayList<>());
 
-  private static OracleOptions fake(
+  static List<String> javaCommand(Class<?> main, String... args) {
+    List<String> command = new ArrayList<>();
+    command.add(OracleOptions.currentJava().toString());
+    command.add("-cp");
+    command.add(System.getProperty("java.class.path"));
+    command.add(main.getName());
+    command.addAll(List.of(args));
+    return command;
+  }
+
+  static OracleOptions fake(
       Path runDir, String mode, boolean acceptEula, Duration startup, Duration stop) {
-    List<String> command =
-        List.of(
-            OracleOptions.currentJava().toString(),
-            "-cp",
-            System.getProperty("java.class.path"),
-            FakeServerMain.class.getName(),
-            mode);
+    ServerCommand command = ServerCommand.unchecked(javaCommand(FakeServerMain.class, mode));
     return new OracleOptions(runDir, command, ServerSettings.of(-42L), acceptEula, startup, stop);
   }
 
@@ -77,40 +86,122 @@ class OracleServerTest {
     assertThat(properties.getProperty("level-seed")).isEqualTo("-42");
     assertThat(properties.getProperty("enable-rcon")).isEqualTo("true");
     assertThat(properties.getProperty("online-mode")).isEqualTo("false");
+    assertThat(properties.getProperty("rcon.password")).isEmpty();
     assertThat(properties.getProperty("rcon.port"))
         .isNotEqualTo(properties.getProperty("server-port"));
   }
 
   @Test
-  void neverWritesTheRconPasswordAnywhereButTheProperties(@TempDir Path dir) throws Exception {
+  void reusesAWorldWithTheSameSeedAfterTheRun(@TempDir Path dir) throws Exception {
     Path runDir = dir.resolve("run-test");
+    OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add).close();
+    Files.createDirectories(runDir.resolve("world"));
+
     try (OracleServer server =
         OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add)) {
+      assertThat(server.command("seed")).isEqualTo("ran: seed");
+    }
+  }
+
+  /** Password of the running server, read while it is still in the properties. */
+  private static String runPassword(Path runDir) throws IOException {
+    return properties(runDir).getProperty("rcon.password");
+  }
+
+  @Test
+  void leavesTheRconPasswordNowhereOnceStopped(@TempDir Path dir) throws Exception {
+    Path runDir = dir.resolve("run-test");
+    String password;
+    try (OracleServer server =
+        OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add)) {
+      password = runPassword(runDir);
       server.command("list");
     }
-    String password = properties(runDir).getProperty("rcon.password");
 
     assertThat(password).matches("[0-9a-f]{48}");
     assertThat(log).isNotEmpty().noneMatch(line -> line.contains(password));
     try (Stream<Path> files = Files.walk(runDir)) {
       for (Path file : files.filter(Files::isRegularFile).toList()) {
-        if (!file.getFileName().toString().equals("server.properties")) {
-          assertThat(Files.readString(file, StandardCharsets.ISO_8859_1))
-              .as(file.toString())
-              .doesNotContain(password);
-        }
+        assertThat(Files.readString(file, StandardCharsets.ISO_8859_1))
+            .as(file.toString())
+            .doesNotContain(password);
       }
     }
   }
 
   @Test
+  void emptiesThePasswordAlsoWhenTheServerIsDestroyedOrFailsToStart(@TempDir Path dir)
+      throws Exception {
+    Path destroyed = dir.resolve("run-destroyed");
+    OracleOptions ignoring = fake(destroyed, "ignore-stop", true, STARTUP, Duration.ofSeconds(1));
+    OracleServer.start(ignoring, log::add).close();
+    Path failed = dir.resolve("run-failed");
+
+    assertThatThrownBy(
+            () -> OracleServer.start(fake(failed, "crash", true, STARTUP, STOP), log::add))
+        .isInstanceOf(IOException.class);
+    assertThat(runPassword(destroyed)).isEmpty();
+    assertThat(runPassword(failed)).isEmpty();
+  }
+
+  @Test
   void drawsANewPasswordForEachRun(@TempDir Path dir) throws Exception {
     Path runDir = dir.resolve("run-test");
-    OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add).close();
-    String first = properties(runDir).getProperty("rcon.password");
-    OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add).close();
+    String first;
+    try (OracleServer server =
+        OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add)) {
+      assertThat(server.command("seed")).isEqualTo("ran: seed");
+      first = runPassword(runDir);
+    }
+    try (OracleServer server =
+        OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add)) {
+      assertThat(server.command("seed")).isEqualTo("ran: seed");
+      assertThat(runPassword(runDir)).hasSize(48).isNotEqualTo(first);
+    }
+  }
 
-    assertThat(properties(runDir).getProperty("rcon.password")).isNotEqualTo(first);
+  @Test
+  void checksTheReferenceJarBeforeWritingAnything(@TempDir Path cache) {
+    OracleOptions options = OracleOptions.defaults(cache, "probe", ServerSettings.of(1), true);
+
+    assertThatThrownBy(() -> OracleServer.start(options, log::add))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("state.json is missing: run tools/bootstrap");
+    assertThat(cache).isEmptyDirectory();
+  }
+
+  @Test
+  @Timeout(90)
+  void destroysTheServerWhenTheJvmExitsWithoutStoppingIt(@TempDir Path dir) throws Exception {
+    Process host =
+        new ProcessBuilder(javaCommand(HostMain.class, dir.resolve("run-host").toString()))
+            .redirectErrorStream(true)
+            .start();
+    long pid = -1;
+    StringBuilder output = new StringBuilder();
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(host.getInputStream(), StandardCharsets.UTF_8))) {
+      String line;
+      while ((line = reader.readLine()) != null) {
+        output.append(line).append('\n');
+        if (line.startsWith("PID ")) {
+          pid = Long.parseLong(line.substring(4));
+        }
+      }
+    }
+    assertThat(host.waitFor(30, TimeUnit.SECONDS)).as(output.toString()).isTrue();
+    assertThat(pid).as(output.toString()).isPositive();
+    Optional<ProcessHandle> server = ProcessHandle.of(pid);
+    try {
+      if (server.isPresent()) {
+        server.get().onExit().get(20, TimeUnit.SECONDS);
+      }
+      assertThat(server.map(ProcessHandle::isAlive)).isNotEqualTo(Optional.of(true));
+    } catch (java.util.concurrent.TimeoutException e) {
+      throw new AssertionError("server " + pid + " survived its JVM\n" + output, e);
+    } finally {
+      server.ifPresent(ProcessHandle::destroyForcibly);
+    }
   }
 
   @Test

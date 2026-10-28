@@ -134,11 +134,45 @@ class StateComparatorTest {
             new Divergence(
                 Kind.ORDER,
                 SECTION_2_4 + "/block(32,71,-12)",
-                SECTION_2_4 + "/block(32,71,-12)",
-                SECTION_2_4 + "/block(33,71,-12)",
+                Integer.toString(first),
+                Integer.toString(first + 1),
                 first,
-                first));
+                first + 1));
     assertThat(result.actualDigest()).isNotEqualTo(result.expectedDigest());
+  }
+
+  @Test
+  void countsOneMovedEntryOnceWhicheverWayItMoved() {
+    List<CanonicalState.Entry> lastFirst = WorldFixture.entries();
+    lastFirst.add(0, lastFirst.remove(lastFirst.size() - 1));
+    List<CanonicalState.Entry> firstLast = WorldFixture.entries();
+    firstLast.add(firstLast.remove(0));
+    CanonicalState reference = WorldFixture.reference();
+
+    for (List<CanonicalState.Entry> moved : List.of(lastFirst, firstLast)) {
+      CanonicalState other = state(moved);
+      Comparison forward = StateComparator.compare(reference, other);
+      Comparison backward = StateComparator.compare(other, reference);
+
+      assertThat(forward.count()).isEqualTo(1);
+      assertThat(backward.count()).isEqualTo(1);
+      assertThat(forward.first().orElseThrow().kind()).isEqualTo(Kind.ORDER);
+    }
+    assertThat(compareWith(lastFirst).first().orElseThrow().key())
+        .isEqualTo(WorldFixture.entries().get(43).key());
+    assertThat(compareWith(firstLast).first().orElseThrow().key())
+        .isEqualTo(WorldFixture.entries().get(0).key());
+  }
+
+  @Test
+  void countsTheMinimalNumberOfMovedEntriesInBothDirections() {
+    List<CanonicalState.Entry> actual = WorldFixture.entries();
+    Collections.swap(actual, 3, 30);
+    Collections.swap(actual, 10, 11);
+    CanonicalState other = state(actual);
+
+    assertThat(compareWith(actual).count()).isEqualTo(3);
+    assertThat(StateComparator.compare(other, WorldFixture.reference()).count()).isEqualTo(3);
   }
 
   @Test
@@ -149,10 +183,10 @@ class StateComparatorTest {
     Comparison result = compareWith(actual);
 
     assertThat(result.verdict()).isEqualTo(Verdict.DIVERGENT);
+    assertThat(result.count()).isEqualTo(22);
     assertThat(result.divergences()).allMatch(d -> d.kind() == Kind.ORDER);
     assertThat(result.first().orElseThrow().key()).isEqualTo(SECTION_2_4 + "/palette(0)");
-    assertThat(result.first().orElseThrow().actual())
-        .isEqualTo("chunk(3,-1)/section(4)/palette(0)");
+    assertThat(result.first().orElseThrow().actual()).isEqualTo("22");
   }
 
   @Test
@@ -168,6 +202,19 @@ class StateComparatorTest {
     assertThat(result.count()).isEqualTo(2);
     assertThat(result.first().orElseThrow().key()).isEqualTo(early);
     assertThat(result.divergences().get(1).key()).isEqualTo(late);
+  }
+
+  @Test
+  void placesAnEarlyExtraEntryBeforeALaterDefect() {
+    List<CanonicalState.Entry> actual = WorldFixture.entries();
+    String late = "chunk(3,-1)/section(5)/block(48,86,-12)";
+    actual.set(indexOf(actual, late), entry(late, "minecraft:gold_block"));
+    String extra = SECTION_2_4 + "/block(40,64,-16)";
+    actual.add(indexOf(actual, SECTION_2_4 + "/palette(2)") + 1, entry(extra, "minecraft:stone"));
+
+    Comparison result = compareWith(actual);
+
+    assertThat(result.divergences()).extracting(Divergence::key).containsExactly(extra, late);
   }
 
   @Test

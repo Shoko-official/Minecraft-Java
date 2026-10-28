@@ -73,6 +73,34 @@ class CanonicalStateTest {
   }
 
   @Test
+  void separatesKeysThatDifferOnlyByTheSeparator() {
+    CanonicalState state =
+        CanonicalState.builder()
+            .add("chunk(0,0)/heightmap", "64")
+            .add("chunk(0,0)/heightmaps/x", "70")
+            .build();
+    CanonicalState heightmapOnly =
+        CanonicalState.builder().add("chunk(0,0)/heightmap", "64").build();
+
+    assertThat(state.digestOf("chunk(0,0)/heightmap")).isEqualTo(heightmapOnly.digest());
+    assertThat(state.digestOf("chunk(0,0)/heightmaps"))
+        .isEqualTo(CanonicalState.builder().add("chunk(0,0)/heightmaps/x", "70").build().digest());
+    assertThat(state.digestsAt(2))
+        .containsOnlyKeys("chunk(0,0)/heightmap", "chunk(0,0)/heightmaps");
+  }
+
+  @Test
+  void listsSubStatesFoundOnlyInTheActualState() {
+    CanonicalState expected = WorldFixture.reference();
+    var actual = WorldFixture.entries();
+    actual.add(WorldFixture.entry("chunk(9,-9)/section(0)/palette(0)", "minecraft:stone"));
+    actual.add(2, WorldFixture.entry("chunk(-5,0)/biome", "minecraft:plains"));
+
+    assertThat(StateComparator.divergentSubStates(expected, WorldFixture.state(actual), 1))
+        .containsExactly("chunk(-5,0)", "chunk(9,-9)");
+  }
+
+  @Test
   void subStateDigestsSingleOutTheDivergentChunk() {
     CanonicalState expected = WorldFixture.reference();
     var actual = WorldFixture.entries();

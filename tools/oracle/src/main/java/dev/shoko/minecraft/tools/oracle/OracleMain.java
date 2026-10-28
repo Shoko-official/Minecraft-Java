@@ -2,7 +2,6 @@ package dev.shoko.minecraft.tools.oracle;
 
 import java.io.IOException;
 import java.io.PrintStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,11 +45,6 @@ public final class OracleMain {
       err.println("oracle: " + new EulaNotAcceptedException().getMessage());
       err.println(USAGE);
       return EXIT_USAGE;
-    }
-    Path jar = OracleOptions.serverJar(parsed.cacheDir);
-    if (!Files.isRegularFile(jar)) {
-      err.println("oracle: " + jar + " is missing, run tools/bootstrap first");
-      return EXIT_FAILURE;
     }
     OracleOptions options =
         OracleOptions.defaults(parsed.cacheDir, parsed.name, parsed.settings(), true);

@@ -15,6 +15,7 @@ import java.util.Properties;
 final class ServerProperties {
 
   static final String FILE_NAME = "server.properties";
+  static final String PASSWORD_KEY = "rcon.password";
 
   private ServerProperties() {}
 
@@ -37,7 +38,7 @@ final class ServerProperties {
     line(text, "motd", "oracle");
     line(text, "enable-rcon", "true");
     line(text, "rcon.port", Integer.toString(rconPort));
-    line(text, "rcon.password", rconPassword);
+    line(text, PASSWORD_KEY, rconPassword);
     line(text, "enable-query", "false");
     line(text, "region-file-compression", "deflate");
     return text.toString();
@@ -54,6 +55,22 @@ final class ServerProperties {
       properties.load(reader);
     }
     return Optional.ofNullable(properties.getProperty("level-seed"));
+  }
+
+  /**
+   * Empties the RCON password once the server has exited, keeping every other line, the seed
+   * included, so that the world can still be reused. Does nothing when the file is absent.
+   */
+  static void redactPassword(Path runDir) throws IOException {
+    Path file = runDir.resolve(FILE_NAME);
+    if (!Files.isRegularFile(file)) {
+      return;
+    }
+    StringBuilder text = new StringBuilder();
+    for (String line : Files.readAllLines(file, StandardCharsets.ISO_8859_1)) {
+      text.append(line.startsWith(PASSWORD_KEY + "=") ? PASSWORD_KEY + "=" : line).append('\n');
+    }
+    Files.writeString(file, text, StandardCharsets.ISO_8859_1);
   }
 
   private static void line(StringBuilder text, String key, String value) {

@@ -15,6 +15,10 @@ final class BudgetInputStream extends FilterInputStream {
     this.limit = limit;
   }
 
+  long consumed() {
+    return consumed;
+  }
+
   long remaining() {
     return limit - consumed;
   }

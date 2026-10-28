@@ -5,8 +5,8 @@ package dev.shoko.minecraft.tools.diff;
  *
  * <p>For {@link Kind#VALUE}, {@code expected} and {@code actual} are the two values of {@code key}.
  * For {@link Kind#MISSING} and {@link Kind#EXTRA}, the absent side holds {@link #ABSENT}. For
- * {@link Kind#ORDER}, they are the keys found at the same position of each state: {@code key} is
- * expected there but {@code actual} comes first.
+ * {@link Kind#ORDER}, {@code key} was moved: {@code expected} and {@code actual} are its positions
+ * in each state, in decimal (see {@link StateComparator} for which keys count as moved).
  *
  * @param expectedIndex position in the expected state, or -1 for an extra entry
  * @param actualIndex position in the actual state, or -1 for a missing entry
@@ -25,7 +25,7 @@ public record Divergence(
     MISSING,
     /** Key present in the actual state only. */
     EXTRA,
-    /** Key present on both sides but in another order. */
+    /** Key present on both sides, moved relative to the keys kept in place. */
     ORDER
   }
 }

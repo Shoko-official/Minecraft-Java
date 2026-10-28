@@ -21,7 +21,9 @@ public final class StaticRegistryData {
    *
    * <p>Each registry has a {@code protocol_id}, its entries each with a {@code protocol_id}, and
    * possibly a {@code default}. The entry ids of a registry must be exactly 0 to n-1 and the
-   * registry ids distinct; otherwise the registry is dropped with an {@code INVALID_VALUE} error.
+   * registry ids distinct; otherwise the registry is dropped with a {@code CODEC_NUMBER_RANGE}
+   * error at the id (provisional: the R61 table has no closer code). A report of the wrong shape
+   * gives a {@code CODEC_TYPE_MISMATCH} or {@code CODEC_MISSING_FIELD} error.
    *
    * @param report the parsed {@code generated/reports/registries.json}
    * @return the registries in order of their protocol ids (R26), or empty when the report is

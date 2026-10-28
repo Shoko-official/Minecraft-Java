@@ -9,7 +9,8 @@ import java.util.SequencedCollection;
  * follows the code point order of the identifiers (determinism).
  *
  * <p>The flags of a world are {@link #vanilla()} plus the flags enabled by the packs active at
- * creation (R45, provisional).
+ * creation (R45, provisional). The game module computes and keeps that set; the loader only
+ * receives it as input (R66 a).
  */
 public final class FeatureFlags {
 

@@ -6,8 +6,8 @@ import java.util.Optional;
 /**
  * The result of an operation that keeps going after a problem: a value, when there is one, and the
  * diagnostics found on the way. An empty value means the input produced nothing (R54); a present
- * value may come with error diagnostics when part of it was dropped, such as a failed tag (R36).
- * Immutable.
+ * value may come with error diagnostics when part of it was dropped, such as a failed tag (R36), or
+ * when the state it describes is reported as unusable, such as a broken pack (R4, R5). Immutable.
  *
  * @param <T> the type of the value
  */
@@ -68,7 +68,8 @@ public final class Outcome<T> {
   }
 
   /**
-   * Tells whether a diagnostic has {@link Severity#ERROR}.
+   * Tells whether a diagnostic has {@link Severity#ERROR}, that is whether its code has that
+   * severity (R61).
    *
    * @return whether at least one diagnostic is an error
    */

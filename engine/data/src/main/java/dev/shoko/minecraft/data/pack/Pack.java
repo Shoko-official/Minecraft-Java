@@ -19,7 +19,9 @@ public final class Pack {
    * @param type the kind of pack
    * @param files the files of the pack
    * @return the pack, or empty when there is no usable {@code pack.mcmeta} (R7: the pack is
-   *     ignored, with an {@code INVALID_PACK_META} diagnostic)
+   *     ignored, with a {@code PACK_INVALID} warning on the origin {@code (id, pack.mcmeta)}, plus
+   *     the {@code JSON_*} error when the file is not valid JSON). A pack whose format fields are
+   *     unusable is present and broken (R4, R5), with the diagnostics of {@code PackMetaReader}
    * @throws IOException when {@code pack.mcmeta} cannot be read from the files
    */
   public static Outcome<Pack> open(String id, PackOrigin origin, PackType type, PackFiles files)

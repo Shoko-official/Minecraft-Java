@@ -20,7 +20,8 @@ public final class RegistryCatalog {
    *
    * <p>Each registry gives a {@link RegistryDescriptor}; the entries of the {@code others} section
    * give {@link RegistryDescriptor.Kind#CONTENT} descriptors. A report that does not have this
-   * shape gives no value and an {@code INVALID_VALUE} error.
+   * shape gives no value and a {@code CODEC_TYPE_MISMATCH} or {@code CODEC_MISSING_FIELD} error at
+   * the faulty path (the R61 table has no code of its own for a report; provisional).
    *
    * @param report the parsed {@code generated/reports/datapack.json}
    * @return the catalog, or empty when the report is unusable, with the diagnostics found

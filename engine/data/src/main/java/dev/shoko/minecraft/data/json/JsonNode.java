@@ -34,7 +34,9 @@ public sealed interface JsonNode
 
   /**
    * Compares values, ignoring file, path and the order of object members. Numbers are equal when
-   * they have the same form and the same exact value (R50): {@code 1} differs from {@code 1.0}.
+   * they have the same form and the same exact value (R59 e): {@code 1} differs from {@code 1.0}
+   * and {@code -0.0} from {@code 0.0}, while {@code -0} equals {@code 0}. Member order is not
+   * compared; read {@link JsonObject#members()} to observe it.
    *
    * @param other another node
    * @return whether both trees hold the same value

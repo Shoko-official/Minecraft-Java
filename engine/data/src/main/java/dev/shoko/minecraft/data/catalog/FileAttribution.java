@@ -1,18 +1,17 @@
 package dev.shoko.minecraft.data.catalog;
 
-import dev.shoko.minecraft.data.diag.DiagnosticCode;
-import dev.shoko.minecraft.data.diag.Severity;
 import dev.shoko.minecraft.data.id.Identifier;
 
 /**
  * What a file of a pack is, once stacked: an element of a registry, a tag, an opaque content file,
- * pack metadata, or something ignored.
+ * pack metadata, a file skipped silently, or a file ignored with a diagnostic.
  */
 public sealed interface FileAttribution
     permits FileAttribution.Element,
         FileAttribution.Tag,
         FileAttribution.Content,
         FileAttribution.Metadata,
+        FileAttribution.Skipped,
         FileAttribution.Ignored {
 
   /**
@@ -46,12 +45,17 @@ public sealed interface FileAttribution
   record Metadata() implements FileAttribution {}
 
   /**
-   * A file the loader does not use, with the diagnostic to report for it (R12, R15, R16, R24).
-   *
-   * @param severity how serious it is, {@link Severity#INFO} for rules that ignore by design
-   * @param code the cause, such as {@code UNKNOWN_FOLDER} or {@code INVALID_IDENTIFIER}
-   * @param message a description for humans
+   * A file of another extension than the folder takes, ignored without any diagnostic (R12,
+   * provisional: the R61 table lists no diagnostic for it).
    */
-  record Ignored(Severity severity, DiagnosticCode code, String message)
-      implements FileAttribution {}
+  record Skipped() implements FileAttribution {}
+
+  /**
+   * A file the loader does not use, reported with the {@code FILE_IGNORED} information diagnostic
+   * (R15, R16, R24): a file in an unknown folder or in a static registry folder, a tag under a
+   * registry that takes none, or a namespace or path that breaks the identifier syntax.
+   *
+   * @param message a description for humans, naming the cause
+   */
+  record Ignored(String message) implements FileAttribution {}
 }

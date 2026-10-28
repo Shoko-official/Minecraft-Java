@@ -73,16 +73,17 @@ public final class LoadedData {
   }
 
   /**
-   * Returns the feature flags in effect, as given in the request.
+   * Returns the feature flags in effect, repeated from the request without change (R66 e).
    *
-   * @return the flags
+   * @return the flags, iterated in code point order
    */
   public FeatureFlags featureFlags() {
     return Skeleton.throwNotImplemented();
   }
 
   /**
-   * Returns the report of each pack.
+   * Returns the report of each pack of the request, the packs discarded for inactive flags included
+   * (R66 c).
    *
    * @return the reports from the lowest to the highest priority
    */

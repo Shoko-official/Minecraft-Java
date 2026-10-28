@@ -12,13 +12,20 @@ public final class DatapackLoader {
    * Loads the packs of a request. In order:
    *
    * <ol>
-   *   <li>Every pack gets a {@link PackReport}: format compatibility (R5, R6), required flags and
-   *       the experimental mark (R17). An incompatible pack is still loaded: activating it is the
-   *       caller's choice (R6).
+   *   <li>Every pack gets a {@link PackReport}: format compatibility (R5, R6), required flags, the
+   *       flags among them that are not active, and the experimental mark (R17). An incompatible
+   *       pack is still loaded: activating it is the caller's choice (R6).
+   *   <li>A pack whose required flags are not all in {@link LoadRequest#activeFlags()} is discarded
+   *       before anything else, as if it were not in the stack: none of its files, filters or
+   *       overlays take part in the load. One {@code PACK_FLAGS_INACTIVE} error is reported on the
+   *       origin {@code (pack, pack.mcmeta)} at the root path; the other packs load normally. The
+   *       loader never changes the flags and knows no list of valid flags (R66).
    *   <li>Every stacked path is attributed by a {@code PathClassifier} (R8 to R16, R24); ignored
-   *       files give their diagnostic and the load goes on.
-   *   <li>Every element file and tag file is read as JSON (R49 to R54). An invalid file is reported
-   *       and counts as absent, without hiding the version of a pack of lower priority (R54).
+   *       files give their {@code FILE_IGNORED} diagnostic (none for a wrong extension, R12) and
+   *       the load goes on.
+   *   <li>Every element file and tag file is read as JSON (R49 to R54, R57 to R61). An invalid file
+   *       is reported with its single error and counts as absent, without hiding the version of a
+   *       pack of lower priority (R54); the warnings of a valid file are kept.
    *   <li>Elements are kept as trees, the version of the highest priority winning (R41), without
    *       checking their schema: any JSON type is a valid element (R29).
    *   <li>Tags are merged and resolved registry by registry, against the entries of static

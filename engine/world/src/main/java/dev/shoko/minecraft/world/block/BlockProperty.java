@@ -23,7 +23,12 @@ public record BlockProperty(String name, List<String> values) {
    * @throws IllegalArgumentException if the value is not in the list
    */
   public int rankOf(String value) {
-    return Skeleton.throwNotImplemented();
+    int rank = values.indexOf(value);
+    if (rank < 0) {
+      throw new IllegalArgumentException(
+          "'" + value + "' is not a value of property " + name + ": " + values);
+    }
+    return rank;
   }
 
   /**
@@ -32,6 +37,6 @@ public record BlockProperty(String name, List<String> values) {
    * @return the number of values
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return values.size();
   }
 }

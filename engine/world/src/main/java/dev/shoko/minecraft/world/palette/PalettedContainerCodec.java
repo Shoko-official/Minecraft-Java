@@ -1,6 +1,15 @@
 package dev.shoko.minecraft.world.palette;
 
 import dev.shoko.minecraft.core.nbt.CompoundTag;
+import dev.shoko.minecraft.core.nbt.ListTag;
+import dev.shoko.minecraft.core.nbt.LongArrayTag;
+import dev.shoko.minecraft.core.nbt.NbtTag;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.SequencedMap;
 
 /**
  * Converts a {@link PalettedContainer} to and from the Compound stored in a section (CF-R6 to
@@ -22,7 +31,16 @@ import dev.shoko.minecraft.core.nbt.CompoundTag;
  */
 public final class PalettedContainerCodec<T> {
 
-  private PalettedContainerCodec() {}
+  private static final String PALETTE = "palette";
+  private static final String DATA = "data";
+
+  private final ContainerLayout layout;
+  private final PaletteEntryCodec<T> entries;
+
+  private PalettedContainerCodec(ContainerLayout layout, PaletteEntryCodec<T> entries) {
+    this.layout = layout;
+    this.entries = entries;
+  }
 
   /**
    * Creates a codec for one kind of container.
@@ -34,7 +52,7 @@ public final class PalettedContainerCodec<T> {
    */
   public static <T> PalettedContainerCodec<T> of(
       ContainerLayout layout, PaletteEntryCodec<T> entries) {
-    return Skeleton.throwNotImplemented();
+    return new PalettedContainerCodec<>(layout, entries);
   }
 
   /**
@@ -45,7 +63,56 @@ public final class PalettedContainerCodec<T> {
    * @throws PaletteFormatException if the Compound does not follow the form above
    */
   public PalettedContainer<T> decode(CompoundTag container) throws PaletteFormatException {
-    return Skeleton.throwNotImplemented();
+    List<T> palette = decodePalette(container);
+    if (palette.size() == 1) {
+      return PalettedContainer.filled(layout.entryCount(), palette.getFirst());
+    }
+    if (!(container.entries().get(DATA) instanceof LongArrayTag data)) {
+      throw new PaletteFormatException(
+          "data is missing or not a Long_Array for a palette of " + palette.size() + " entries");
+    }
+    int expected = layout.longCount(palette.size());
+    if (data.size() != expected) {
+      throw new PaletteFormatException(
+          "data has " + data.size() + " longs, " + expected + " expected");
+    }
+    int[] indices =
+        BitPacking.unpack(data.toArray(), layout.entryCount(), layout.bitsFor(palette.size()));
+    for (int position = 0; position < indices.length; position++) {
+      if (indices[position] >= palette.size()) {
+        throw new PaletteFormatException(
+            "index "
+                + indices[position]
+                + " at position "
+                + position
+                + " is outside a palette of "
+                + palette.size());
+      }
+    }
+    return PalettedContainer.ofPalette(palette, indices);
+  }
+
+  private List<T> decodePalette(CompoundTag container) throws PaletteFormatException {
+    if (!(container.entries().get(PALETTE) instanceof ListTag list)) {
+      throw new PaletteFormatException("palette is missing or not a List");
+    }
+    int size = list.elements().size();
+    if (size < 1) {
+      throw new PaletteFormatException("palette is empty");
+    }
+    if (size > layout.maxPaletteSize()) {
+      throw new PaletteFormatException(
+          "palette has " + size + " entries, at most " + layout.maxPaletteSize() + " allowed");
+    }
+    List<T> palette = new ArrayList<>(size);
+    for (int k = 0; k < size; k++) {
+      try {
+        palette.add(entries.decode(list.elements().get(k)));
+      } catch (PaletteFormatException e) {
+        throw new PaletteFormatException("palette[" + k + "]: " + e.getMessage());
+      }
+    }
+    return palette;
   }
 
   /**
@@ -56,6 +123,27 @@ public final class PalettedContainerCodec<T> {
    * @throws IllegalArgumentException if the size differs from the layout
    */
   public CompoundTag encode(PalettedContainer<T> container) {
-    return Skeleton.throwNotImplemented();
+    if (container.size() != layout.entryCount()) {
+      throw new IllegalArgumentException(
+          "container has " + container.size() + " positions, " + layout.entryCount() + " expected");
+    }
+    List<T> distinct = container.distinctValues();
+    List<NbtTag> palette = new ArrayList<>(distinct.size());
+    Map<T, Integer> slots = new HashMap<>();
+    for (T value : distinct) {
+      slots.put(value, palette.size());
+      palette.add(entries.encode(value));
+    }
+    SequencedMap<String, NbtTag> result = new LinkedHashMap<>();
+    result.put(PALETTE, ListTag.of(palette));
+    if (distinct.size() > 1) {
+      int[] indices = new int[layout.entryCount()];
+      for (int position = 0; position < indices.length; position++) {
+        indices[position] = slots.get(container.get(position));
+      }
+      long[] data = BitPacking.pack(indices, layout.bitsFor(distinct.size()));
+      result.put(DATA, LongArrayTag.of(data));
+    }
+    return CompoundTag.of(result);
   }
 }

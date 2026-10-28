@@ -1,6 +1,9 @@
 package dev.shoko.minecraft.world.biome;
 
+import dev.shoko.minecraft.core.nbt.CompoundTag;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.StringTag;
+import dev.shoko.minecraft.world.WarningCode;
 import dev.shoko.minecraft.world.WarningSink;
 import dev.shoko.minecraft.world.palette.PaletteEntryCodec;
 import dev.shoko.minecraft.world.palette.PaletteFormatException;
@@ -22,7 +25,13 @@ public final class BiomeEntryCodec implements PaletteEntryCodec<String> {
    */
   public static final String FALLBACK_BIOME = "minecraft:plains";
 
-  private BiomeEntryCodec() {}
+  private final BiomeCatalog catalog;
+  private final WarningSink warnings;
+
+  private BiomeEntryCodec(BiomeCatalog catalog, WarningSink warnings) {
+    this.catalog = catalog;
+    this.warnings = warnings;
+  }
 
   /**
    * Creates a codec.
@@ -32,16 +41,31 @@ public final class BiomeEntryCodec implements PaletteEntryCodec<String> {
    * @return the codec
    */
   public static BiomeEntryCodec of(BiomeCatalog catalog, WarningSink warnings) {
-    return Skeleton.throwNotImplemented();
+    return new BiomeEntryCodec(catalog, warnings);
   }
 
   @Override
   public String decode(NbtTag entry) throws PaletteFormatException {
-    return Skeleton.throwNotImplemented();
+    String id;
+    if (entry instanceof StringTag text) {
+      id = text.value();
+    } else if (entry instanceof CompoundTag compound
+        && compound.get("Name").orElse(null) instanceof StringTag name) {
+      id = name.value();
+    } else {
+      throw new PaletteFormatException(
+          "biome palette entry is not a String or a Compound with Name: " + entry.type());
+    }
+    if (catalog.contains(id)) {
+      return id;
+    }
+    warnings.warn(
+        WarningCode.UNKNOWN_BIOME, "unknown biome " + id + ", replaced by " + FALLBACK_BIOME);
+    return FALLBACK_BIOME;
   }
 
   @Override
   public NbtTag encode(String value) {
-    return Skeleton.throwNotImplemented();
+    return new StringTag(value);
   }
 }

@@ -9,14 +9,16 @@ public final class OutputLimitExceededException extends Exception {
 
   private static final long serialVersionUID = 1L;
 
+  private final long limit;
+
   /**
    * Creates a fault.
    *
    * @param limit the limit that was exceeded, in bytes
    */
   public OutputLimitExceededException(long limit) {
-    super("decompressed output exceeds the limit");
-    Skeleton.throwNotImplemented();
+    super("decompressed output exceeds the limit of " + limit + " bytes");
+    this.limit = limit;
   }
 
   /**
@@ -25,6 +27,6 @@ public final class OutputLimitExceededException extends Exception {
    * @return the limit, in bytes
    */
   public long limit() {
-    return Skeleton.throwNotImplemented();
+    return limit;
   }
 }

@@ -1,8 +1,15 @@
 package dev.shoko.minecraft.world.block;
 
+import dev.shoko.minecraft.core.nbt.CompoundTag;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.StringTag;
+import dev.shoko.minecraft.world.WarningCode;
 import dev.shoko.minecraft.world.WarningSink;
 import dev.shoko.minecraft.world.palette.PaletteEntryCodec;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.SequencedMap;
 
 /**
  * Converts a block state to and from an entry of a {@code block_states} palette (R16 to R22).
@@ -31,7 +38,13 @@ import dev.shoko.minecraft.world.palette.PaletteEntryCodec;
  */
 public final class BlockStateEntryCodec implements PaletteEntryCodec<BlockState> {
 
-  private BlockStateEntryCodec() {}
+  private final BlockStateRegistry registry;
+  private final WarningSink warnings;
+
+  private BlockStateEntryCodec(BlockStateRegistry registry, WarningSink warnings) {
+    this.registry = registry;
+    this.warnings = warnings;
+  }
 
   /**
    * Creates a codec over a registry.
@@ -41,16 +54,96 @@ public final class BlockStateEntryCodec implements PaletteEntryCodec<BlockState>
    * @return the codec
    */
   public static BlockStateEntryCodec of(BlockStateRegistry registry, WarningSink warnings) {
-    return Skeleton.throwNotImplemented();
+    return new BlockStateEntryCodec(registry, warnings);
   }
 
   @Override
   public BlockState decode(NbtTag entry) {
-    return Skeleton.throwNotImplemented();
+    return switch (entry) {
+      case StringTag name ->
+          byName(name.value()).map(registry::defaultState).orElseGet(this::unknown);
+      case CompoundTag compound when compound.get("id").orElse(null) instanceof StringTag name ->
+          decodeCompound(name.value(), compound.get("properties").orElse(null));
+      default -> malformed(entry);
+    };
+  }
+
+  private Optional<BlockType> byName(String id) {
+    Optional<BlockType> block = registry.block(id);
+    if (block.isEmpty()) {
+      warnings.warn(WarningCode.UNKNOWN_BLOCK, "unknown block " + id + ", replaced by air");
+    }
+    return block;
+  }
+
+  private BlockState unknown() {
+    return registry.air();
+  }
+
+  private BlockState malformed(NbtTag entry) {
+    warnings.warn(
+        WarningCode.MALFORMED_PALETTE_ENTRY,
+        "palette entry is neither a String nor a Compound with a String id ("
+            + entry.type()
+            + "), replaced by air");
+    return registry.air();
+  }
+
+  private BlockState decodeCompound(String id, NbtTag properties) {
+    Optional<BlockType> found = byName(id);
+    if (found.isEmpty()) {
+      return registry.air();
+    }
+    BlockType block = found.get();
+    CompoundTag given = properties instanceof CompoundTag compound ? compound : CompoundTag.empty();
+    Map<String, String> values = new LinkedHashMap<>();
+    for (BlockProperty property : block.properties()) {
+      values.put(
+          property.name(), valueOf(block, property, given.get(property.name()).orElse(null)));
+    }
+    for (String key : given.entries().keySet()) {
+      if (block.property(key).isEmpty()) {
+        warnings.warn(
+            WarningCode.UNKNOWN_PROPERTY, "block " + id + " has no property " + key + ", ignored");
+      }
+    }
+    return registry.state(block, values);
+  }
+
+  private String valueOf(BlockType block, BlockProperty property, NbtTag given) {
+    String fallback = block.valueOf(block.defaultStateId(), property.name());
+    if (given == null) {
+      warnings.warn(
+          WarningCode.DEFAULTED_PROPERTY,
+          "block " + block.id() + " property " + property.name() + " is missing, took " + fallback);
+      return fallback;
+    }
+    if (given instanceof StringTag text && property.values().contains(text.value())) {
+      return text.value();
+    }
+    warnings.warn(
+        WarningCode.INVALID_PROPERTY_VALUE,
+        "block "
+            + block.id()
+            + " property "
+            + property.name()
+            + " has an invalid value, took "
+            + fallback);
+    return fallback;
   }
 
   @Override
   public NbtTag encode(BlockState value) {
-    return Skeleton.throwNotImplemented();
+    BlockType block = value.block();
+    SequencedMap<String, NbtTag> entry = new LinkedHashMap<>();
+    entry.put("id", new StringTag(block.id()));
+    if (!block.properties().isEmpty()) {
+      SequencedMap<String, NbtTag> properties = new LinkedHashMap<>();
+      for (BlockProperty property : block.properties()) {
+        properties.put(property.name(), new StringTag(value.value(property.name())));
+      }
+      entry.put("properties", CompoundTag.of(properties));
+    }
+    return CompoundTag.of(entry);
   }
 }

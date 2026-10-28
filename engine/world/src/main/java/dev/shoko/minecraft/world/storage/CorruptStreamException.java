@@ -16,7 +16,6 @@ public final class CorruptStreamException extends Exception {
    */
   public CorruptStreamException(String message) {
     super(message);
-    Skeleton.throwNotImplemented();
   }
 
   /**
@@ -27,6 +26,5 @@ public final class CorruptStreamException extends Exception {
    */
   public CorruptStreamException(String message, Throwable cause) {
     super(message, cause);
-    Skeleton.throwNotImplemented();
   }
 }

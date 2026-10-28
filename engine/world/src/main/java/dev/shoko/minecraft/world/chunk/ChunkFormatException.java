@@ -10,6 +10,9 @@ public final class ChunkFormatException extends Exception {
 
   private static final long serialVersionUID = 1L;
 
+  private final Reason reason;
+  private final String path;
+
   /** What is wrong with the tree. */
   public enum Reason {
     /** A required field is missing. */
@@ -29,7 +32,8 @@ public final class ChunkFormatException extends Exception {
    */
   public ChunkFormatException(Reason reason, String path, String message) {
     super(message);
-    Skeleton.throwNotImplemented();
+    this.reason = reason;
+    this.path = path;
   }
 
   /**
@@ -42,7 +46,8 @@ public final class ChunkFormatException extends Exception {
    */
   public ChunkFormatException(Reason reason, String path, String message, Throwable cause) {
     super(message, cause);
-    Skeleton.throwNotImplemented();
+    this.reason = reason;
+    this.path = path;
   }
 
   /**
@@ -51,7 +56,7 @@ public final class ChunkFormatException extends Exception {
    * @return the reason
    */
   public Reason reason() {
-    return Skeleton.throwNotImplemented();
+    return reason;
   }
 
   /**
@@ -60,6 +65,6 @@ public final class ChunkFormatException extends Exception {
    * @return the path, such as {@code Sections.-4.Records}
    */
   public String path() {
-    return Skeleton.throwNotImplemented();
+    return path;
   }
 }

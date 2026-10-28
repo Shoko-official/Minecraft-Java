@@ -23,7 +23,8 @@ public final class BitPacking {
    * @throws IllegalArgumentException if bits is out of range
    */
   public static int entriesPerLong(int bits) {
-    return Skeleton.throwNotImplemented();
+    checkBits(bits);
+    return Long.SIZE / bits;
   }
 
   /**
@@ -36,7 +37,11 @@ public final class BitPacking {
    * @throws IllegalArgumentException if an argument is out of range
    */
   public static int longCount(int entryCount, int bits) {
-    return Skeleton.throwNotImplemented();
+    if (entryCount < 0) {
+      throw new IllegalArgumentException("negative entry count " + entryCount);
+    }
+    int perLong = entriesPerLong(bits);
+    return (int) (((long) entryCount + perLong - 1) / perLong);
   }
 
   /**
@@ -48,7 +53,18 @@ public final class BitPacking {
    * @throws IllegalArgumentException if a value is negative or does not fit in {@code bits} bits
    */
   public static long[] pack(int[] values, int bits) {
-    return Skeleton.throwNotImplemented();
+    int perLong = entriesPerLong(bits);
+    long limit = 1L << bits;
+    long[] packed = new long[longCount(values.length, bits)];
+    for (int i = 0; i < values.length; i++) {
+      int value = values[i];
+      if (value < 0 || value >= limit) {
+        throw new IllegalArgumentException(
+            "value " + value + " at " + i + " does not fit in " + bits + " bits");
+      }
+      packed[i / perLong] |= (long) value << (bits * (i % perLong));
+    }
+    return packed;
   }
 
   /**
@@ -62,6 +78,24 @@ public final class BitPacking {
    *     bits)}
    */
   public static int[] unpack(long[] data, int entryCount, int bits) {
-    return Skeleton.throwNotImplemented();
+    int perLong = entriesPerLong(bits);
+    if (data.length != longCount(entryCount, bits)) {
+      throw new IllegalArgumentException(
+          "expected " + longCount(entryCount, bits) + " longs, got " + data.length);
+    }
+    // An int entry is never negative (pack rejects negatives), so bit 31 of a 32 bit entry is
+    // dropped.
+    long mask = (1L << Math.min(bits, Integer.SIZE - 1)) - 1;
+    int[] values = new int[entryCount];
+    for (int i = 0; i < entryCount; i++) {
+      values[i] = (int) ((data[i / perLong] >>> (bits * (i % perLong))) & mask);
+    }
+    return values;
+  }
+
+  private static void checkBits(int bits) {
+    if (bits < 1 || bits > Integer.SIZE) {
+      throw new IllegalArgumentException("bits per entry must be from 1 to 32: " + bits);
+    }
   }
 }

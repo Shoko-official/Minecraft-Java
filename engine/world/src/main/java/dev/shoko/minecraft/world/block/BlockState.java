@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.world.block;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.SequencedMap;
 
 /**
@@ -23,7 +25,7 @@ public record BlockState(BlockType block, int id) {
    * @throws IllegalArgumentException if the block has no such property
    */
   public String value(String propertyName) {
-    return Skeleton.throwNotImplemented();
+    return block.valueOf(id, propertyName);
   }
 
   /**
@@ -35,7 +37,7 @@ public record BlockState(BlockType block, int id) {
    * @throws IllegalArgumentException if the property is unknown or the value is not in its list
    */
   public BlockState with(String propertyName, String value) {
-    return Skeleton.throwNotImplemented();
+    return new BlockState(block, block.withValue(id, propertyName, value));
   }
 
   /**
@@ -45,6 +47,20 @@ public record BlockState(BlockType block, int id) {
    * @return an unmodifiable map from property name to value
    */
   public SequencedMap<String, String> values() {
-    return Skeleton.throwNotImplemented();
+    SequencedMap<String, String> values = new LinkedHashMap<>();
+    for (BlockProperty property : block.properties()) {
+      values.put(property.name(), block.valueOf(id, property.name()));
+    }
+    return Collections.unmodifiableSequencedMap(values);
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return other instanceof BlockState state && state.id == id;
+  }
+
+  @Override
+  public int hashCode() {
+    return id;
   }
 }

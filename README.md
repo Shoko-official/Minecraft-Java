@@ -40,4 +40,12 @@ Build, format, analyse statique, règles d'architecture et tests (Gradle téléc
 ./gradlew build
 ```
 
-Formater le code : `./gradlew spotlessApply`. Le bootstrap des données de référence arrive avec la suite du jalon M0, voir la roadmap.
+Formater le code : `./gradlew spotlessApply`.
+
+Télécharger et vérifier le jeu de référence (serveur officiel, données, rapports ; environ 70 Mo, relançable sans effet) :
+
+```bash
+./gradlew :tools:bootstrap:run
+```
+
+Le cache est `.cache/` à la racine, ou le dossier donné par `--cache-dir` ou la variable `MINECRAFT_CACHE_DIR` (utile pour partager un cache entre plusieurs copies de travail). Les assets graphiques seront récupérés au jalon M9.

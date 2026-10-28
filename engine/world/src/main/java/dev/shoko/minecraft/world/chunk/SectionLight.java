@@ -4,7 +4,9 @@ import java.util.Optional;
 
 /**
  * The stored light of one section: {@code BlockLight} and {@code SkyLight}, each optional (CF-R14,
- * CF-R15). Absent block light means no block light in the section. Mutable, confined to the thread
+ * CF-R15, CF-R30). Absent block light means no block light in the section. Absent sky light is a
+ * state of its own, distinct from an array of zeros: it is kept as it is on reading and on writing,
+ * and {@link Chunk#effectiveSkyLight(int)} derives what it means. Mutable, confined to the thread
  * that ticks the world.
  */
 public final class SectionLight {

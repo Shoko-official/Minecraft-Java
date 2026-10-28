@@ -14,7 +14,7 @@
  *       dev.shoko.minecraft.world.block.BlockStateRegistry}, which fails with {@link
  *       dev.shoko.minecraft.world.block.BlockReportException} on any inconsistency (R3, R5 to R7).
  *   <li>NBT form of a state in a palette: {@link
- *       dev.shoko.minecraft.world.block.BlockStateEntryCodec} (R16 to R21).
+ *       dev.shoko.minecraft.world.block.BlockStateEntryCodec} (R16 to R22).
  * </ul>
  *
  * <p>State identifiers depend on the loaded block set: they are never written to disk. The

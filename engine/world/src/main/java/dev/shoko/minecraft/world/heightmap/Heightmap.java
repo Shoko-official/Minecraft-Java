@@ -30,13 +30,14 @@ public final class Heightmap {
   }
 
   /**
-   * Reads a heightmap from its packed form (CF-R17, CF-R19).
+   * Reads a heightmap from its packed form (CF-R17, CF-R34).
    *
    * @param data the longs of the Long_Array
    * @param height the vertical extent of the dimension
    * @return the heightmap, or empty when {@code data.length} is not {@link #longCount(WorldHeight)}
-   *     (the type is then recomputed later, never invented)
-   * @throws IllegalArgumentException if a stored value exceeds {@code height.height()}
+   *     (36 is the old continuous packing and is invalid in the Overworld) or a decoded value
+   *     exceeds {@code height.height()} (385 to 511 fit in 9 bits); the type is then unknown,
+   *     recomputed later and never invented
    */
   public static Optional<Heightmap> fromLongs(long[] data, WorldHeight height) {
     return Skeleton.throwNotImplemented();
@@ -53,7 +54,9 @@ public final class Heightmap {
   }
 
   /**
-   * Returns the number of longs of the packed form (CF-R17).
+   * Returns the number of longs of the packed form (CF-R17), {@code ceil(256 / floor(64 / b))} with
+   * {@code b} from {@link #bitsPerColumn(WorldHeight)}; not a constant, a dimension of another
+   * height has another length.
    *
    * @param height the vertical extent of the dimension
    * @return the length, 37 for heights 256 and 384

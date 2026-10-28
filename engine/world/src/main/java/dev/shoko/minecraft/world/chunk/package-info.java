@@ -15,8 +15,11 @@
  *       dev.shoko.minecraft.world.chunk.BlockEntityData}, {@link
  *       dev.shoko.minecraft.world.chunk.ScheduledTickEntry} and {@link
  *       dev.shoko.minecraft.world.chunk.StructureData} (R21 to R26).
- *   <li>The NBT schema: {@link dev.shoko.minecraft.world.chunk.ChunkCodec} (R20 to R26), failing
- *       with {@link dev.shoko.minecraft.world.chunk.ChunkFormatException}.
+ *   <li>Sections of light outside the world height: {@link
+ *       dev.shoko.minecraft.world.chunk.LightOnlySection} (R31).
+ *   <li>The NBT schema: {@link dev.shoko.minecraft.world.chunk.ChunkCodec} (R20 to R26, R30 to
+ *       R35), which answers with the three issues of {@link dev.shoko.minecraft.world.ReadResult}.
+ *       {@link dev.shoko.minecraft.world.chunk.ChunkFormatException} serves the sidecar files only.
  * </ul>
  *
  * <p>The engine reads only {@code DataVersion} 5023 (see the chunk codec). Calculating light and

@@ -11,12 +11,15 @@ import java.util.SequencedMap;
  * @param blockEntities block entities in file order
  * @param blockTicks scheduled block ticks
  * @param fluidTicks scheduled fluid ticks
- * @param postProcessing one list per section of the world height, bottom to top, of packed local
- *     positions as stored (Short values kept verbatim: their bit layout is provisional, CF-R24)
+ * @param postProcessing one list per section of the world height, bottom to top (missing lists are
+ *     empty), of local positions packed as {@code x | (y << 4) | (z << 8)} (CF-R24, provisional). A
+ *     Short with a non-zero high nibble and any list beyond the sections are dropped on reading,
+ *     each with a warning; the order of the Short values is kept
  * @param structures starts and references
  * @param entities entities of a proto-chunk, opaque; empty for a complete chunk, whose entities
  *     live in {@code entities/} files
- * @param lightOnlySections light of sections outside the world height, by section y (CF-R15)
+ * @param lightOnlySections the light sections of section y {@code sMin - 1} and {@code sMax + 1},
+ *     by section y, bottom to top, only those that were read (CF-R31)
  */
 public record ChunkAttachments(
     List<BlockEntityData> blockEntities,
@@ -25,7 +28,7 @@ public record ChunkAttachments(
     List<List<Short>> postProcessing,
     StructureData structures,
     List<CompoundTag> entities,
-    SequencedMap<Integer, SectionLight> lightOnlySections) {
+    SequencedMap<Integer, LightOnlySection> lightOnlySections) {
 
   /**
    * Returns attachments with every list empty and no structure start or reference.

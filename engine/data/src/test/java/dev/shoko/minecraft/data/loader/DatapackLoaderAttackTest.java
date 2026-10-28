@@ -17,6 +17,7 @@ import dev.shoko.minecraft.data.testing.Packs;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -122,7 +123,7 @@ class DatapackLoaderAttackTest {
       TagResolution tags = data.tags(Identifier.parse(name)).orElseThrow();
       Set<String> resolved = ids(tags.tags());
       Set<String> failed = ids(tags.failed());
-      assertThat(resolved).as("%s %s", context, name).doesNotContainAnyElementsOf(failed);
+      assertThat(Collections.disjoint(resolved, failed)).as("%s %s", context, name).isTrue();
       for (Identifier tag : tags.tags()) {
         List<Identifier> members = tags.members(tag).orElseThrow();
         assertThat(ids(members)).as("%s tag %s", context, tag).isSubsetOf(universe.get(name));

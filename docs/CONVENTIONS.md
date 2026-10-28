@@ -28,7 +28,7 @@ Le dépôt est jeune : ces règles sont la référence. En cas de doute, imiter 
 | Paquet | 15 classes | 25 classes |
 | PR | 600 lignes de diff | 1 000 lignes |
 
-Au-delà de la cible, la question est : cette classe a-t-elle une seule responsabilité ? Au-delà du maximum, la CI échoue. Un dépassement justifié est enregistré dans une liste d'exceptions versionnée avec la raison.
+Au-delà de la cible, la question est : cette classe a-t-elle une seule responsabilité ? Contrôle automatique : la CI échoue aujourd'hui au-delà de 600 lignes par fichier Java ; les autres budgets (méthode, paramètres, paquet) s'automatisent avec le squelette Gradle, la taille de PR reste une cible relue par le `reviewer`. Un dépassement justifié est enregistré dans `scripts/hygiene-exceptions.txt` avec la raison.
 
 ## Une responsabilité par classe
 

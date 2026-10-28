@@ -2,7 +2,7 @@
 
 Réimplémentation fidèle de Minecraft Java Edition 26.3 en Java 25 et LWJGL.
 
-Objectif : à seed, données et entrées égales, produire le même monde, les mêmes comportements par tick, le même butin et les mêmes sauvegardes que le jeu de référence. Le code vise la lisibilité et des modules de taille raisonnable.
+Objectif : reproduire le jeu de référence au plus près. À seed égale, le monde généré et les règles déterministes sont comparés bit à bit avec le vrai jeu ; les comportements qui dépendent d'un aléa de partie (butin, IA, spawn) sont comparés par scénarios contrôlés ou statistiquement (voir [la vérification](docs/VERIFICATION.md)). Le code vise la lisibilité et des modules de taille raisonnable.
 
 Projet personnel, non affilié à Mojang ni à Microsoft. Aucun asset ni aucune donnée Mojang n'est versionné dans ce dépôt (voir [ADR 0003](docs/adr/0003-assets-et-donnees-hors-depot.md)).
 

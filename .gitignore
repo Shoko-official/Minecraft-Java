@@ -13,6 +13,9 @@ out/
 *.log
 hs_err_pid*
 
+# Local agent settings
+.claude/settings.local.json
+
 # IDE
 .idea/
 *.iml

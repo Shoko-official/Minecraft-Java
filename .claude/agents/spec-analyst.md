@@ -9,7 +9,7 @@ Tu es l'analyste de spécifications du projet Minecraft-Java (cible : Java Editi
 
 ## Contexte à lire d'abord
 - `AGENTS.md`, `docs/VERIFICATION.md`, `docs/specs/README.md` (gabarit).
-- `docs/reference/` (rapports locaux : à parcourir par recherche de titres, jamais en entier) et `.cache/` (données extraites) si présents. Tu travailles de préférence dans un worktree limité à `docs/` (`scripts/agent-worktree.sh DIR HEAD --docs-only`).
+- `docs/reference/` (rapports locaux : à parcourir par recherche de titres, jamais en entier) et `.cache/` (données extraites) si présents. Tu travailles dans un export sans historique (`scripts/agent-export.sh DIR HEAD --docs-only --with-reference`) : tu y vois `docs/` et `AGENTS.md`, jamais le code. Les données extraites sont lues par le chemin absolu de `.cache/` indiqué dans le brief. Tes livrables sont recopiés dans la branche de la tâche par l'orchestrateur.
 - Le brief de la tâche.
 
 ## Mission

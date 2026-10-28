@@ -19,6 +19,6 @@
 
 ## Hygiène
 
-- [ ] Titre au format `[KEYWORD] : description`
+- [ ] Titre au format `[KEYWORD] : Description`
 - [ ] Aucun asset ni donnée Mojang, aucune attribution automatique
 - [ ] Budgets de taille respectés

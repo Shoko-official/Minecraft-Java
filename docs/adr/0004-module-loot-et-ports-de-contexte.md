@@ -9,7 +9,7 @@ Les conditions de butin (état de bloc, position, propriétés d'entité) et les
 ## Décision
 
 - `item` ne contient que objets, composants, inventaires et recettes (données et règles sans monde).
-- Nouveau module `engine/loot` : tables de butin, prédicats, fournisseurs de nombres et évaluation des valeurs d'enchantements. Il dépend de `core`, `data`, `world` et `item`.
+- Nouveau module `engine/loot` : tables de butin, prédicats, fournisseurs de nombres et évaluation des valeurs d'enchantements. Il dépend directement de `world` et `item` (donc de `core` et `data` par transitivité).
 - Les effets de statut vivent dans `entity`.
 - Les actions d'enchantement à effet de bord (remplacer un bloc, invoquer, exploser) sont exécutées par `game` ou `entity` via des ports : `loot` déclare de petites interfaces de lecture et d'action (`EntityView`, `ActionSink`), `entity` et `game` les implémentent et appellent `loot`. Aucune dépendance de `loot` vers `entity`.
 

@@ -14,7 +14,7 @@ Réimplémentation de Minecraft Java 26.3 (Java 25, LWJGL). À lire avant toute 
 ## Git
 
 - Branche de travail `type/sujet-court`, jamais de commit direct sur `main`.
-- Commit et titre de PR : `[KEYWORD] : description courte en français`. Mots-clés : FEAT, FIX, REFACTOR, TEST, DOCS, CHORE, PERF, BUILD, CI, REVERT.
+- Commit et titre de PR : `[KEYWORD] : Description courte en français`. Mots-clés : FEAT, FIX, REFACTOR, TEST, DOCS, CHORE, PERF, BUILD, CI, REVERT.
 - Merge squash uniquement.
 - Aucune mention d'outil ou d'attribution automatique dans les commits, PR, code ou docs.
 - Activer les hooks : `bash scripts/install-hooks.sh`.

@@ -32,7 +32,7 @@ git commit -m "[TEST] : Vecteurs dorés du bruit de Perlin"
 
 Règles :
 
-- Un commit = un changement cohérent qui compile et passe les tests.
+- Un commit = un changement cohérent. À la fusion, le résultat compile et passe les tests ; sur une branche de travail, des commits de tests écrits d'abord (rouges) sont permis, puisque le squash les absorbe.
 - Première ligne : 72 caractères visés, 100 au maximum.
 - Corps optionnel pour le pourquoi, séparé par une ligne vide.
 - Aucune mention d'outil, d'assistant ou d'attribution automatique.

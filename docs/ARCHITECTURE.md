@@ -1,6 +1,6 @@
 # Architecture
 
-Cible : Minecraft Java 26.3 (data version 5023, protocole 777), Java 25. Ce document décrit l'organisation du code, pas le comportement du jeu (voir `docs/specs/`).
+Cible : Minecraft Java 26.3 (data version 5023 et protocole 777 issus des rapports, à confirmer par `bootstrap`), Java 25. Ce document décrit l'organisation du code, pas le comportement du jeu (voir `docs/specs/`).
 
 ## Principes
 
@@ -15,7 +15,7 @@ Cible : Minecraft Java 26.3 (data version 5023, protocole 777), Java 25. Ce docu
 | Module | Responsabilité | Dépendances directes |
 |---|---|---|
 | `engine/core` | RNG (legacy, xoroshiro, positionnel), `Mth` et tables, identifiants, NBT (binaire et SNBT), géométrie, utilitaires | rien |
-| `engine/data` | Chargement des datapacks, codecs JSON, registres, tags, résolution des références | core |
+| `engine/data` | Infrastructure de chargement des datapacks : sources et priorités, arbres JSON, registres et références, combinateurs de codecs, tags (ADR 0005) | core |
 | `engine/world` | Blocs et états, sections et palettes, chunks, heightmaps, lumière, fluides, ticks planifiés et aléatoires, stockage Anvil | data |
 | `engine/item` | Objets et composants, inventaires, recettes | data |
 | `engine/loot` | Tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, ports de contexte (ADR 0004) | world, item |
@@ -27,7 +27,9 @@ Cible : Minecraft Java 26.3 (data version 5023, protocole 777), Java 25. Ce docu
 | `client` | Rendu LWJGL, audio, interface, entrées, resource packs, modèles | net |
 | `tools/bootstrap` | Téléchargement vérifié et extraction des données de référence | aucun module du moteur |
 | `tools/oracle` | Pilotage du vrai serveur de référence, production des états de référence | aucun module du moteur |
-| `tools/diff` | Comparateurs d'état, cartes PNG, rapports de divergence, scénarios | engine/*, tools/oracle |
+| `tools/diff` | Comparateurs d'état, cartes PNG, rapports de divergence, scénarios | engine/world, engine/worldgen, engine/entity, engine/loot, engine/game, tools/oracle |
+
+Le décodage typé des données est fait par le module qui possède le type, pas par `data`, et les block entities à inventaire sont des comportements enregistrés par `game` dans `world` (ADR 0005).
 
 Les dépendances transitives suivent le graphe (par exemple `game` atteint `core` via `world` et `data`). Les dépendances directes sont celles déclarées dans le `build.gradle.kts` du module.
 
@@ -57,6 +59,7 @@ flowchart TD
     diff --> worldgen
     diff --> entity
     diff --> loot
+    diff --> game
     diff --> oracle["tools/oracle"]
     bootstrap["tools/bootstrap"]
 ```

@@ -11,7 +11,7 @@ Identité exacte de la version de référence : versions, empreintes et sources 
 ## Sources
 
 - Rapport de recherche `Rapport_Integral_Overworld_Minecraft_Java_26_3.md`, partie I (indice, voir ADR 0002).
-- Fichier de version `26.3.json` du lanceur local, identique au manifeste officiel `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json` pour les champs vérifiés. Vérification faite le 2026-10-28 par comparaison des champs `downloads.server`, `downloads.client`, `javaVersion` et `releaseTime`.
+- Fichier de version `26.3.json` du lanceur local, vérifié contre le JSON de version officiel (référencé par le manifeste `https://piston-meta.mojang.com/mc/game/version_manifest_v2.json`, SHA-1 `5df1795e16eea19d75b923d66ecca9ce183353c5`). Vérification faite le 2026-10-28 sur les champs `downloads.server`, `downloads.client`, `javaVersion`, `assetIndex` et `releaseTime`.
 
 ## Règles
 
@@ -31,7 +31,7 @@ Identité exacte de la version de référence : versions, empreintes et sources 
 
 ## Entrées / sorties
 
-Téléchargement des bundles : `https://piston-data.mojang.com/v1/objects/<sha1>/server.jar` (et `client.jar`). Le manifeste ne publie que la taille et le SHA-1 : les SHA-256 (R8, R9) ne sont pas vérifiables par lui.
+Téléchargement des bundles : `https://piston-data.mojang.com/v1/objects/<sha1>/server.jar` (et `client.jar`). Le JSON de version ne publie que la taille et le SHA-1 : les SHA-256 (R8, R9) ne sont pas vérifiables par lui.
 
 ## Cas limites
 

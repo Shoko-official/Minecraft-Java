@@ -17,7 +17,7 @@ Les sorties de l'oracle sont mises en cache dans `.cache/oracle/<version>/<seed>
 
 | Niveau | Nom | Quoi | Coût | Quand |
 |---|---|---|---|---|
-| L0 | Statique | Format, Error Prone, ArchUnit, budgets de taille, hygiène | secondes | chaque PR |
+| L0 | Statique | Hygiène du dépôt dès aujourd'hui ; format, Error Prone, ArchUnit et budgets de méthode avec le squelette Gradle (jalon M0) | secondes | chaque PR |
 | L1 | Unitaire | JUnit 5, vecteurs dorés issus de l'oracle | secondes | chaque PR |
 | L2 | Différentiel | Comparaison de notre état avec celui de l'oracle, même entrée | minutes (cache) | échantillon à chaque PR de niveau A ou B, complet avant chaque jalon |
 | L3 | Visuel | Images : cartes de biomes et de hauteurs, vue de dessus, planche "nous / référence / écart" ; plus tard mobs, textures, UI | minutes | dès qu'un sous-système a une sortie visible |
@@ -53,6 +53,10 @@ Hypothèse S, à lever par une sonde au jalon M5 : l'aléa en cours de partie (r
 ## Où tournent les niveaux lourds
 
 L2 et L3 tournent en local sur la machine du développeur (tâche planifiée ou lancement manuel), pas en CI GitHub : le JAR de référence n'est pas redistribué et l'acceptation de l'EULA est personnelle. La PR reçoit en commentaire le rapport résumé, avec les commandes pour le reproduire.
+
+## Sondes et vecteurs
+
+Une sonde est une expérience sur l'oracle qui lève une règle de niveau S ou produit un vecteur doré (entrées, sorties, commande exacte). Les sondes sont décrites dans les specs ; leur exécution est faite par l'`oracle-differ` avec les outils du `tooling-engineer`, et les résultats sont écrits dans `reports/probes/`. L'orchestrateur copie ensuite les vecteurs dans la spec ou dans `src/test/resources/golden/` de la branche de la tâche. Ni le `spec-analyst` ni le `test-engineer` ne lancent l'oracle.
 
 ## Vérification visuelle
 

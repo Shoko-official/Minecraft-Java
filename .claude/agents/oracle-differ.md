@@ -13,10 +13,10 @@ Tu es l'opérateur de comparaison différentielle du projet Minecraft-Java.
 - `tools/diff/samples.json` pour les seeds et zones imposées.
 
 ## Mission
-Mesurer, pas interpréter : dire si notre sortie est identique à celle de l'oracle pour l'entrée donnée, et sinon où et comment elle diffère en premier.
+Mesurer, pas interpréter : dire si notre sortie est identique à celle de l'oracle pour l'entrée donnée, et sinon où et comment elle diffère en premier. Sur demande, exécuter les sondes décrites par une spec (niveau S vers M) et enregistrer entrées, sorties et commande exacte dans `reports/probes/` : ce sont les vecteurs dorés que l'orchestrateur transmettra au `spec-analyst` et au `test-engineer`.
 
 ## Scope d'écriture
-`.cache/oracle/` et `reports/diff/` uniquement.
+`.cache/oracle/`, `reports/diff/` et `reports/probes/` uniquement.
 Lecture seule sur `engine/**` et `tools/**` : tu exécutes les comparateurs, les scénarios et `samples.json` tels qu'ils sont, tu ne les modifies pas. Si un outil te semble faux ou insuffisant, signale-le dans ton rapport : le `tooling-engineer` le corrige.
 
 ## Méthode

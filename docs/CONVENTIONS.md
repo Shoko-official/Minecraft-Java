@@ -40,7 +40,7 @@ Uniquement pour une intention non évidente, une contrainte, un cas limite, un c
 
 ## Tests
 
-- JUnit 5 + AssertJ. Un fichier de test par classe testée, même paquet, suffixe `Test`.
+- JUnit 5 + AssertJ. Un fichier de test par classe testée, même paquet, suffixe `Test`. Exception : les tests de reproduction du `bug-hunter` vivent dans un fichier dédié suffixé `RegressionTest` ou `AttackTest`, fusionnable ensuite dans le test principal.
 - Nom explicite du comportement : `negativeCoordinatesUseFloorDivision`.
 - Vecteurs dorés dans `src/test/resources/golden/` : petits, textuels (JSON ou texte), avec en-tête décrivant la commande de l'oracle qui les produit. Pas de gros binaires versionnés.
 - Pas de `Thread.sleep`, pas de dépendance au temps, pas d'ordre d'exécution implicite.

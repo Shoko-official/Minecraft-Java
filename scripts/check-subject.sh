@@ -7,7 +7,7 @@ export LC_ALL=C.UTF-8
 
 subject="${1:?subject required}"
 keywords='FEAT|FIX|REFACTOR|TEST|DOCS|CHORE|PERF|BUILD|CI|REVERT'
-pattern="^\[(${keywords})\] : [[:upper:][:digit:]].{3,}$"
+pattern="^\[(${keywords})\] : [[:upper:]].{3,}$"
 dashes=$'\xe2\x80\x93|\xe2\x80\x94'
 
 fail() { echo "invalid subject: \"$subject\" ($1)" >&2; exit 1; }

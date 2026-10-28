@@ -13,13 +13,16 @@ Les définitions exécutables des rôles sont versionnées dans le dossier d'age
 
 ## Ce qui est contraint techniquement, et ce qui ne l'est pas
 
-Le champ `tools` d'un agent limite ses outils, mais `Bash` peut écrire et `Read` lit tout le dépôt. Les consignes de scope sont donc déclaratives. Pour les rôles où l'isolation compte, on la rend structurelle avec `scripts/agent-worktree.sh` :
+Le champ `tools` d'un agent limite ses outils, mais `Bash` peut écrire et `Read` lit tout le dépôt. Les consignes de scope sont donc déclaratives. Deux scripts réduisent ce qu'un agent peut voir :
 
-| Rôle | Isolation |
+- `scripts/agent-export.sh` exporte un instantané **sans `.git` ni historique** (`git archive`) : c'est la seule vraie isolation, parce que ce qui n'est pas exporté ne peut pas être lu. Le dossier n'est pas un dépôt : l'orchestrateur recopie les livrables dans la branche de la tâche.
+- `scripts/agent-worktree.sh` crée un worktree détaché à un commit précis. Il partage la base d'objets : il évite l'exposition accidentelle mais n'empêche pas de lire d'autres branches ou commits avec des commandes git.
+
+| Rôle | Vue fournie |
 |---|---|
-| `spec-analyst` | worktree `--docs-only` : il ne voit que `docs/` et `AGENTS.md`, jamais le code source |
-| `test-engineer` | worktree sur le commit qui ne contient que le squelette d'API (signatures levant `UnsupportedOperationException`), avant toute implémentation |
-| `reviewer`, `bug-hunter` | worktree jetable sur la branche à relire, supprimé ensuite ; le reviewer lit `git log --format=%s`, jamais les corps de commit |
+| `spec-analyst` | Export `--docs-only --with-reference` : `docs/`, `AGENTS.md` et les rapports locaux. Les données extraites sont lues par le chemin absolu de `.cache/` donné dans le brief |
+| `test-engineer` | Worktree au commit du squelette d'API. L'implémentation de l'unité testée n'existe pas encore à ce moment : c'est la blindness par construction. Le module peut contenir le code des tâches précédentes, qui n'est pas l'objet du test |
+| `reviewer`, `bug-hunter` | Worktree jetable sur la branche à relire, supprimé ensuite. Le reviewer lit `git log --format=%s`, jamais les corps de commit |
 
 Risques résiduels connus, assumés : le `spec-analyst` garde l'accès web pour la documentation publique et doit s'en tenir aux sources autorisées par l'ADR 0002 ; le `reviewer` vérifie que les specs ne contiennent pas de détails internes. Un contrôle plus dur (hooks sur les outils, restriction de domaines) pourra être ajouté dans les réglages des agents si ces règles sont violées en pratique.
 
@@ -37,7 +40,11 @@ Risques résiduels connus, assumés : le `spec-analyst` garde l'accès web pour 
 | `reviewer` | rien (verdict en sortie) | Relecture non biaisée : justesse, propreté, taille, conventions, sécurité | recevoir le résumé de l'auteur, corriger lui-même |
 | `bug-hunter` | tests de reproduction dans `src/test` | Attaque adverse : coordonnées négatives, bordures, overflow, déterminisme, concurrence | corriger le code |
 
-L'orchestrateur (la session principale) crée les branches, rédige les briefs, route les livrables, ouvre et fusionne les PR, et met à jour `docs/features/matrix.md` sur la base de rapports de vérification favorables. Il ne s'auto-valide pas : le verdict du `reviewer` est requis. `.claude/agents/` est modifié par PR `[DOCS]` ou `[CHORE]` relue comme le reste.
+L'orchestrateur (la session principale) crée les branches, rédige les briefs, route les livrables, ouvre et fusionne les PR, et met à jour `docs/features/matrix.md` sur la base de rapports de vérification favorables. Il ne s'auto-valide pas : le verdict du `reviewer` est requis.
+
+Fichiers sans rôle dédié : les fichiers de gouvernance (`README.md`, `AGENTS.md`, `CLAUDE.md`, `docs/WORKFLOW.md`, `docs/VERIFICATION.md`, `docs/AGENTS.md`, `.claude/agents/`, `.gitignore`, `.gitattributes`, `.editorconfig`) sont modifiés par l'orchestrateur dans des PR `[DOCS]` ou `[CHORE]` relues par le `reviewer`. `gradlew`, `gradlew.bat` et `gradle.properties` suivent les fichiers Gradle de l'`architect`.
+
+**Retour des livrables.** Un agent qui travaille dans un export ou un worktree détaché ne commite pas sur la branche de la tâche : l'orchestrateur recopie ou cherry-pick ses fichiers, puis commite. Les vecteurs dorés produits par l'`oracle-differ` (`reports/probes/`) sont transmis de la même façon au `spec-analyst` et au `test-engineer`.
 
 ## Format d'un brief
 
@@ -60,12 +67,14 @@ Interdit dans un brief : hypothèses sur la cause, jugement sur la qualité du c
 
 ```mermaid
 flowchart TD
-    S[spec-analyst : spec] --> K[implementer : squelette d'API, commit séparé]
+    S[spec-analyst : spec] --> A[architect : build.gradle.kts du module s'il est neuf]
+    A --> K[implementer : squelette d'API, commit séparé]
     K --> T[test-engineer : tests aveugles sur le squelette, rouges]
     T --> I[implementer : code jusqu'au vert]
     I --> O[oracle-differ : diff L2]
     O -->|écarts| I
     O -->|ok| V[visual-analyst : L3 si visible]
+    V -->|écarts| I
     V --> B[bug-hunter : tests adverses]
     B -->|bug| I
     B -->|ok| R[reviewer : verdict]
@@ -79,7 +88,7 @@ Parcours selon le risque :
 - **B** : squelette, `test-engineer` (non nécessairement en aveugle), `implementer`, `reviewer`, oracle si le comportement est observable.
 - **C** : `implementer`, `tooling-engineer` ou `architect` selon le chemin, puis `reviewer`.
 
-L'`implementer` n'écrit jamais les tests qu'il doit satisfaire, y compris en niveau B : l'auteur ne se vérifie pas.
+L'`implementer` n'écrit jamais les tests qu'il doit satisfaire, y compris en niveau B : l'auteur ne se vérifie pas. Un refactor qui change des signatures casse des tests : le `test-engineer` les adapte mécaniquement, et le `reviewer` vérifie qu'aucune assertion n'a été affaiblie.
 
 Plafond de boucle : au bout de trois allers-retours implementer / vérificateur sans convergence, l'orchestrateur s'arrête, relit la spec et le diagnostic bruts, et reformule la tâche ou la spec au lieu de relancer.
 

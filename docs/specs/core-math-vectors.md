@@ -3,6 +3,7 @@
 Statut : brouillon
 Jalon : M1
 Risque : A
+Révision : 3 (vecteurs ajoutés après relecture du code, PR #9, recalculés par `Fix2.java`)
 
 Compagnon de `core-math.md`. Tous les vecteurs ci-dessous sont de niveau C : calculés en Java 21.0.10 (OpenJDK, x64, Windows) avec les opérateurs du langage et `java.lang.StrictMath` (R3), recoupés en Python 3.14.7 pour V11. Ils fixent notre contrat ; quand une règle est S, la colonne du candidat **provisoire** est la cible des tests en aveugle, et elle ne devient une référence qu'après la sonde indiquée. Les identifiants sont ceux, neutres, de `core-math.md`. Notation hexadécimale : bits IEEE 754 bruts.
 
@@ -148,7 +149,7 @@ La première ligne recoupe l'exemple publié [W-RF]. Commande oracle : P30.
 
 ## V9. Directions (R35, R36)
 
-| Id 3D | Nom | Vecteur | Opposé | Id 2D | Lacet |
+| Id 3D | Nom | Vecteur | Opposé | Id 2D | Lacet (provisoire) |
 |---:|---|---|---|---:|---:|
 | 0 | down | (0, -1, 0) | up | - | - |
 | 1 | up | (0, 1, 0) | down | - | - |
@@ -157,7 +158,19 @@ La première ligne recoupe l'exemple publié [W-RF]. Commande oracle : P30.
 | 4 | west | (-1, 0, 0) | east | 1 | 90 |
 | 5 | east | (1, 0, 0) | west | 3 | -90 |
 
-Lacet vers direction (candidat R36) : 44.999 -> south, 45 -> west, -45 -> south, -45.001 -> east, 135 -> north, 180 -> north. Commandes oracle : P35, P36.
+`fromYaw` (provisoire R36, en `double`) :
+
+| yaw | `yaw / 90 + 0.5` arrondi | `floorToInt` | direction |
+|---|---|---:|---|
+| 44.999 | 0.99998888... | 0 | south |
+| 44.99999999999999 (`Math.nextDown(45.0)`) | 1.0 (0.49999999999999994 + 0.5) | 1 | west |
+| 45.0 | 1.0 | 1 | west |
+| -45.0 | 0.0 | 0 | south |
+| -45.001 | -0.0000111... | -1 | east |
+| 135.0 | 2.0 | 2 | north |
+| 180.0 | 2.5 | 2 | north |
+| 1e12 | saturé | 2147483647 | east (hors domaine) |
+| 1e12 + 90 | saturé | 2147483647 | east au lieu de south (hors domaine, seuil 90·2^31 = 1.9327352832E11) | Commandes oracle : P35, P36.
 
 ## V10. Modulo réel (R10, deux fonctions distinctes, aucune provisoire unique)
 
@@ -171,7 +184,14 @@ Lacet vers direction (candidat R36) : 44.999 -> south, 45 -> west, -45 -> south,
 | (5.5, -2) | -0.5 | -0.5 |
 | (-1e-14, 1) | 0.99999999999999 | 0.99999999999999 |
 
-`fractionalPart(x) = x - floorToLong(x)` : `fractionalPart(-0.25) = 0.75`, `fractionalPart(2.75) = 0.75`, `fractionalPart(-1e-20) = 1.0`.
+Variante `float` (tout en `float`) contre calcul mixte promu en `double` :
+
+| Appel | `float` pur | mixte |
+|---|---|---|
+| `realModFloor(-93950.03f, 0.74358845f)` | 0.140625f (0x3e100000) | 0.1383352279663086 |
+| `realModWrap(0.14161503f, 7.8575983f)` | 0.14161491f (0x3e110380) | 0.14161503314971924 |
+
+`fractionalPart(x) = x - floorToLong(x)` : `fractionalPart(-0.25) = 0.75`, `fractionalPart(2.75) = 0.75`, `fractionalPart(-1e-20) = 1.0`, `fractionalPart(3.00000000025E9) = 0.25` (domaine `long`, hors domaine `int`) ; hors domaine `long` : `fractionalPart(1e19) = 7.766279631452242E17` (limite connue).
 
 ## V11. Interpolation linéaire `interpolate` (R11 à R14)
 
@@ -195,6 +215,15 @@ Forme A `a + t*(b-a)` (provisoire), forme B `(1-t)*a + t*b`.
 La ligne `(0.3, -1.5, 3.5)` sert à P11 : densité nulle (air) en forme A, positive (pierre) en forme B, dans les deux précisions.
 
 Bilinéaire, forme A, x d'abord (provisoire) : `bilinear(0.3, 0.7 ; 0.1, -0.9, 0.35, 0.77) = 0.2731999999999999` (0x3fd17c1bda5119cc ; identique ici quel que soit l'ordre ; l'ordre diffère sur 55,1 % de l'échantillon décrit en R12). Trilinéaire : `trilinear(0.25, 0.5, 0.75 ; 1, 2, 3, 4, 5, 6, 7, 8) = 5.25` (coins dans l'ordre 000, 100, 010, 110, 001, 101, 011, 111).
+
+Vecteurs qui séparent les ordres, paramètres dans l'ordre exact de l'API de R12 (`bilinear(tx, ty, v00, v10, v01, v11)`, `trilinear(tx, ty, tz, v000, v100, v010, v110, v001, v101, v011, v111)`) :
+
+| Appel | x, puis y, puis z (provisoire) | autre ordre |
+|---|---|---|
+| `bilinear(0.3, 0.1, 0.1, -0.9, 0.35, 0.77)` | -0.1324 (0xbfc0f27bb2fec56d) | y d'abord : -0.13239999999999996 (0xbfc0f27bb2fec56c) |
+| `trilinear(0.3, 0.7, 0.9, 0.1, -0.9, 0.35, 0.77, -0.2, 0.6, 0.45, -0.33)` | 0.1742 (0x3fc64c2f837b4a23) | z, puis y, puis x : 0.17420000000000002 (0x3fc64c2f837b4a24) |
+
+`clampedInterpolate(1, 1e20, 1) = 0.0` en forme A : `t = 1` n'est pas remplacé par `b`.
 
 Inverse et correspondance : `inverseInterpolate(5, 0, 10) = 0.5`, `inverseInterpolate(-5, 0, 10) = -0.5`, `inverseInterpolate(5, 10, 0) = 0.5`, `inverseInterpolate(1, 1, 1) = NaN`, `inverseInterpolate(2, 1, 1) = Infinity` ; `remap(0.5 ; 0, 1 -> -64, 320) = 128.0`, `remap(25 ; 10, 20 -> 0, 100) = 150.0` (non borné), `remapClamped(25 ; 10, 20 -> 0, 100) = 100.0` ; `clampedInterpolate(-0.5, 0, 10) = 0.0`, `clampedInterpolate(1.5, 0, 10) = 10.0`, `clampedInterpolate(0.5, 0, 10) = 5.0`.
 
@@ -259,6 +288,8 @@ Candidats : FI = entrée `float`, indice `(int)(x * 10430.378f) & 65535`, cosinu
 | 1e10 | -0.4875060250875107 | -9.58738E-5 | -0.48755017 | -9.58738E-5 | 0.873119622676856 | -9.58738E-5 | 0.873095 |
 | NaN | NaN | 0.0 | 0.0 | 0.0 | NaN | 0.0 | 0.0 |
 
+Limite connue de DL hors domaine (|x| >= `2^63 / K` = 8.84279719003555E14) : `1e15 * K = 1.0430378350470453E19`, dont l'indice périodique serait 22528 (`table[22528] = 0.8314696`) ; la conversion vers `long` sature et `tableSin(1e15)` rend l'entrée 65535 (`-9.58738E-5`) ; pour `x = -1e15`, l'indice vaut 0.
+
 Sonde P17, lacet 37° (radians `0.6457718232379019` en `double`, `0.6457718f` en `float`) : `StrictMath.sin` `0.6018150231520483`, `StrictMath.cos` `0.7986355100472928` ; table (tous candidats) `0.6017657` et `0.7986727` ; valeurs strictes arrondies en `float` `0.60181504` et `0.7986355`.
 
 ## V15. Normalisation d'angle `normalizeDegrees` (R20, provisoire, `double`)
@@ -299,7 +330,18 @@ Commande oracle : P10.
 
 ## V17. Sélection pondérée `weightedPick` (R23, provisoire)
 
-`r` est le résultat du tirage borné de `core-random` ; les vecteurs ci-dessous fixent seulement le parcours. Poids `[3, 0, 5, 2]`, total 10 : `r = 0, 1, 2 -> 0` ; `r = 3..7 -> 2` ; `r = 8, 9 -> 3`. L'entrée de poids 0 n'est jamais retenue. Liste `[7]` : entrée 0 sans tirage. Liste `[0, 0]` : aucun résultat, aucun tirage.
+`r` est le résultat du tirage borné de `core-random` ; les vecteurs ci-dessous fixent seulement le parcours. Poids `[3, 0, 5, 2]`, total 10 : `r = 0, 1, 2 -> 0` ; `r = 3..7 -> 2` ; `r = 8, 9 -> 3`. L'entrée de poids 0 au moment de l'appel n'est jamais retenue ; les poids sont lus une seule fois (instantané), une modification pendant le tirage n'a pas d'effet. Liste `[7]` : entrée 0 sans tirage. Liste `[0, 0]` : aucun résultat, aucun tirage.
+
+## V17b. Rotation de la propriété `rotation` 0..15 (R38, provisoire)
+
+`rotateSixteenths(r)` pour `clockwise_90` = `(r + 4) & 15` :
+
+| r | `(r + 4) & 15` | `(r + 4) % 16` (à ne pas utiliser) |
+|---:|---:|---:|
+| -10 | 10 | -6 |
+| 0 | 4 | 4 |
+| 12 | 0 | 0 |
+| 15 | 3 | 3 |
 
 ## V18. Boîtes alignées (R40 à R42, provisoires jusqu'à P41)
 

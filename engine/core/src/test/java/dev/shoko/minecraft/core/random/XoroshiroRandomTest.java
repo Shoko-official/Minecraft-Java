@@ -5,11 +5,13 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 import java.util.SplittableRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.random.RandomGenerator;
 import java.util.random.RandomGeneratorFactory;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -20,6 +22,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * 64-bit seed (spec core-random R13, R15, R16, R21, R24, R25). The raw output is only observable
  * through {@code nextLong()}, which R16 (hypothesis H-X1, level S) defines as the output itself.
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class XoroshiroRandomTest {
 
   static Stream<Arguments> vectorVX1() {

@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.Random;
 import java.util.SplittableRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
@@ -14,11 +16,27 @@ import org.junit.jupiter.params.provider.MethodSource;
  * methods are compared: the two-bound methods of {@code java.util.Random} follow other algorithms
  * (R12). The seed list is fixed: a seeded {@link SplittableRandom} only enumerates it.
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class Lcg48RandomReferenceTest {
 
   private static final int DRAWS = 300;
   private static final int[] BOUNDS = {
-    1, 2, 3, 5, 6, 7, 10, 16, 26, 100, 1000, 1 << 20, (1 << 30) + 1, 1_431_655_766, 2_147_483_647
+    1,
+    2,
+    3,
+    5,
+    6,
+    7,
+    10,
+    16,
+    26,
+    100,
+    1000,
+    1 << 20,
+    715_827_883,
+    (1 << 30) + 1,
+    1_431_655_766,
+    2_147_483_647
   };
 
   static LongStream seeds() {

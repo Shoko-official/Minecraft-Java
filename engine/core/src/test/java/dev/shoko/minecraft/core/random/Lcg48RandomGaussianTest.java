@@ -3,9 +3,11 @@ package dev.shoko.minecraft.core.random;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.shoko.minecraft.core.random.Lcg48Vectors.BasicDraws;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.LongStream;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -16,6 +18,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * provisional choice (R9, level S, question Q3), so every test that depends on the exact bits of a
  * gaussian is marked provisional.
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class Lcg48RandomGaussianTest {
 
   static Stream<Arguments> vectorVL1() {

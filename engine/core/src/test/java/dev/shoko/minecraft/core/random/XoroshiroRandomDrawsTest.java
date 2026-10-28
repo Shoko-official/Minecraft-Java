@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -16,6 +18,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * H-X5, probes P2, P3, P6, questions Q3, Q8): all tests are provisional and will follow the probes.
  * The raw output {@code r} is read through a twin generator's {@code nextLong()} (R16, H-X1).
  */
+@Timeout(value = 10, unit = TimeUnit.SECONDS, threadMode = Timeout.ThreadMode.SEPARATE_THREAD)
 class XoroshiroRandomDrawsTest {
 
   private static final long MASK_32 = 0xFFFFFFFFL;

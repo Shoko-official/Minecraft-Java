@@ -97,11 +97,12 @@ class RandomSequenceSettingsTest {
     assertThat(state).isNotEqualTo(new Seed128(1165417471098110475L, -2632000392545274068L));
   }
 
-  // spec: core-random R31, R26 (S, provisional): N7 played with "minecraft:test" and "test"
+  // spec: core-random R31, R26 (S, provisional): N7 played with "minecraft:test", "test", ":test"
   @Test
   void provisionalIdentifierWithoutNamespaceGivesTheSameStateAsMinecraftNamespace() {
     RandomSequenceSettings settings = new RandomSequenceSettings(7, true, true);
     assertThat(settings.initialState(12345L, "test"))
+        .isEqualTo(settings.initialState(12345L, ":test"))
         .isEqualTo(settings.initialState(12345L, "minecraft:test"))
         .isEqualTo(new Seed128(-8196287188144295939L, 4607975983393672058L));
   }

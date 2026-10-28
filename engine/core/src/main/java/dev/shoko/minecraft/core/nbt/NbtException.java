@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.core.nbt;
 
 import java.io.Serial;
+import java.util.Objects;
 import java.util.OptionalLong;
 
 /**
@@ -12,6 +13,11 @@ import java.util.OptionalLong;
 public final class NbtException extends Exception {
 
   @Serial private static final long serialVersionUID = 1L;
+
+  private static final long NO_OFFSET = -1;
+
+  private final Reason reason;
+  private final long offset;
 
   /**
    * Why an operation failed. Binary offsets count decompressed bytes from the first byte of the
@@ -98,7 +104,11 @@ public final class NbtException extends Exception {
    */
   public NbtException(Reason reason, long offset, String message) {
     super(message);
-    Skeleton.throwNotImplemented();
+    if (offset < 0) {
+      throw new IllegalArgumentException("negative offset " + offset);
+    }
+    this.reason = Objects.requireNonNull(reason, "reason");
+    this.offset = offset;
   }
 
   /**
@@ -109,7 +119,8 @@ public final class NbtException extends Exception {
    */
   public NbtException(Reason reason, String message) {
     super(message);
-    Skeleton.throwNotImplemented();
+    this.reason = Objects.requireNonNull(reason, "reason");
+    this.offset = NO_OFFSET;
   }
 
   /**
@@ -122,7 +133,8 @@ public final class NbtException extends Exception {
    */
   public NbtException(Reason reason, String message, Throwable cause) {
     super(message, cause);
-    Skeleton.throwNotImplemented();
+    this.reason = Objects.requireNonNull(reason, "reason");
+    this.offset = NO_OFFSET;
   }
 
   /**
@@ -131,7 +143,7 @@ public final class NbtException extends Exception {
    * @return the reason
    */
   public Reason reason() {
-    return Skeleton.throwNotImplemented();
+    return reason;
   }
 
   /**
@@ -140,6 +152,6 @@ public final class NbtException extends Exception {
    * @return the offset, or empty for the reasons that have none
    */
   public OptionalLong offset() {
-    return Skeleton.throwNotImplemented();
+    return offset == NO_OFFSET ? OptionalLong.empty() : OptionalLong.of(offset);
   }
 }

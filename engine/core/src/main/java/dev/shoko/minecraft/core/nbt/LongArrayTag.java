@@ -1,12 +1,18 @@
 package dev.shoko.minecraft.core.nbt;
 
+import java.util.Arrays;
+
 /**
  * Long_Array value: signed 64-bit integers behind a signed 32-bit element count (R2, R9).
  * Immutable: values are copied in and out.
  */
 public final class LongArrayTag implements NbtTag {
 
-  private LongArrayTag() {}
+  private final long[] values;
+
+  private LongArrayTag(long[] values) {
+    this.values = values;
+  }
 
   /**
    * Returns an array tag holding a copy of these values (R2, R9).
@@ -15,7 +21,7 @@ public final class LongArrayTag implements NbtTag {
    * @return the tag; later changes to {@code values} do not affect it
    */
   public static LongArrayTag of(long... values) {
-    return Skeleton.throwNotImplemented();
+    return new LongArrayTag(values.clone());
   }
 
   /**
@@ -24,7 +30,7 @@ public final class LongArrayTag implements NbtTag {
    * @return a new array; changing it does not affect this tag
    */
   public long[] toArray() {
-    return Skeleton.throwNotImplemented();
+    return values.clone();
   }
 
   /**
@@ -33,7 +39,7 @@ public final class LongArrayTag implements NbtTag {
    * @return the element count, 0 or more
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return values.length;
   }
 
   /**
@@ -44,7 +50,7 @@ public final class LongArrayTag implements NbtTag {
    * @throws IndexOutOfBoundsException when {@code index} is out of range
    */
   public long get(int index) {
-    return Skeleton.throwNotImplemented();
+    return values[index];
   }
 
   /**
@@ -54,7 +60,7 @@ public final class LongArrayTag implements NbtTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.LONG_ARRAY;
   }
 
   /**
@@ -66,7 +72,7 @@ public final class LongArrayTag implements NbtTag {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof LongArrayTag tag && Arrays.equals(values, tag.values);
   }
 
   /**
@@ -76,6 +82,6 @@ public final class LongArrayTag implements NbtTag {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return Arrays.hashCode(values);
   }
 }

@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.core.nbt;
 
+import java.util.Objects;
+
 /**
  * String value: any Java string, never {@code null} (constructing with {@code null} throws {@link
  * NullPointerException}). It is written in modified UTF-8 behind an unsigned 16-bit byte length
@@ -10,6 +12,10 @@ package dev.shoko.minecraft.core.nbt;
  */
 public record StringTag(String value) implements NbtTag {
 
+  public StringTag {
+    Objects.requireNonNull(value, "value");
+  }
+
   /**
    * Returns {@link TagType#STRING} (R1).
    *
@@ -17,6 +23,6 @@ public record StringTag(String value) implements NbtTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.STRING;
   }
 }

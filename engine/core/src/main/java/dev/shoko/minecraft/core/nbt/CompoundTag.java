@@ -1,5 +1,8 @@
 package dev.shoko.minecraft.core.nbt;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.SequencedMap;
 
@@ -16,7 +19,14 @@ import java.util.SequencedMap;
  */
 public final class CompoundTag implements NbtTag {
 
-  private CompoundTag() {}
+  private static final CompoundTag EMPTY = new CompoundTag(new LinkedHashMap<>());
+
+  private final SequencedMap<String, NbtTag> entries;
+
+  /** Takes ownership of {@code entries}, a private copy. */
+  private CompoundTag(SequencedMap<String, NbtTag> entries) {
+    this.entries = Collections.unmodifiableSequencedMap(entries);
+  }
 
   /**
    * Returns a compound holding these entries in their iteration order (R6, R30).
@@ -26,7 +36,11 @@ public final class CompoundTag implements NbtTag {
    * @throws NullPointerException when {@code entries}, a key or a value is {@code null}
    */
   public static CompoundTag of(SequencedMap<String, ? extends NbtTag> entries) {
-    return Skeleton.throwNotImplemented();
+    var copy = new LinkedHashMap<String, NbtTag>();
+    entries.forEach(
+        (key, value) ->
+            copy.put(Objects.requireNonNull(key, "key"), Objects.requireNonNull(value, "value")));
+    return copy.isEmpty() ? EMPTY : new CompoundTag(copy);
   }
 
   /**
@@ -36,7 +50,7 @@ public final class CompoundTag implements NbtTag {
    * @return the empty compound
    */
   public static CompoundTag empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -45,7 +59,7 @@ public final class CompoundTag implements NbtTag {
    * @return an unmodifiable map
    */
   public SequencedMap<String, NbtTag> entries() {
-    return Skeleton.throwNotImplemented();
+    return entries;
   }
 
   /**
@@ -55,7 +69,7 @@ public final class CompoundTag implements NbtTag {
    * @return the value, or empty when the key is absent
    */
   public Optional<NbtTag> get(String key) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(entries.get(key));
   }
 
   /**
@@ -65,7 +79,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to byte, or 0
    */
   public byte getByte(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.byteValue() : 0;
   }
 
   /**
@@ -75,7 +89,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to short, or 0
    */
   public short getShort(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.shortValue() : 0;
   }
 
   /**
@@ -85,7 +99,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to int, or 0
    */
   public int getInt(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.intValue() : 0;
   }
 
   /**
@@ -95,7 +109,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to long, or 0
    */
   public long getLong(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.longValue() : 0;
   }
 
   /**
@@ -105,7 +119,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to float, or 0
    */
   public float getFloat(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.floatValue() : 0;
   }
 
   /**
@@ -115,7 +129,7 @@ public final class CompoundTag implements NbtTag {
    * @return the numeric value converted to double, or 0
    */
   public double getDouble(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof NumericTag number ? number.doubleValue() : 0;
   }
 
   /**
@@ -126,7 +140,7 @@ public final class CompoundTag implements NbtTag {
    * @return the boolean, or {@code false}
    */
   public boolean getBoolean(String key) {
-    return Skeleton.throwNotImplemented();
+    return getByte(key) != 0;
   }
 
   /**
@@ -136,7 +150,7 @@ public final class CompoundTag implements NbtTag {
    * @return the text, or the empty string
    */
   public String getString(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof StringTag text ? text.value() : "";
   }
 
   /**
@@ -146,7 +160,7 @@ public final class CompoundTag implements NbtTag {
    * @return a copy of the elements, or an empty array
    */
   public byte[] getByteArray(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof ByteArrayTag array ? array.toArray() : new byte[0];
   }
 
   /**
@@ -156,7 +170,7 @@ public final class CompoundTag implements NbtTag {
    * @return a copy of the elements, or an empty array
    */
   public int[] getIntArray(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof IntArrayTag array ? array.toArray() : new int[0];
   }
 
   /**
@@ -166,7 +180,7 @@ public final class CompoundTag implements NbtTag {
    * @return a copy of the elements, or an empty array
    */
   public long[] getLongArray(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof LongArrayTag array ? array.toArray() : new long[0];
   }
 
   /**
@@ -176,7 +190,7 @@ public final class CompoundTag implements NbtTag {
    * @return the list, or {@link ListTag#empty()}
    */
   public ListTag getList(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof ListTag list ? list : ListTag.empty();
   }
 
   /**
@@ -186,7 +200,7 @@ public final class CompoundTag implements NbtTag {
    * @return the compound, or {@link #empty()}
    */
   public CompoundTag getCompound(String key) {
-    return Skeleton.throwNotImplemented();
+    return entries.get(key) instanceof CompoundTag compound ? compound : EMPTY;
   }
 
   /**
@@ -196,7 +210,7 @@ public final class CompoundTag implements NbtTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.COMPOUND;
   }
 
   /**
@@ -207,7 +221,8 @@ public final class CompoundTag implements NbtTag {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    // Map equality ignores iteration order, as R28 requires.
+    return other instanceof CompoundTag compound && entries.equals(compound.entries);
   }
 
   /**
@@ -217,6 +232,6 @@ public final class CompoundTag implements NbtTag {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return entries.hashCode();
   }
 }

@@ -3,7 +3,10 @@ package dev.shoko.minecraft.core.nbt.binary;
 import dev.shoko.minecraft.core.nbt.NamedTag;
 import dev.shoko.minecraft.core.nbt.NbtException;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -31,7 +34,13 @@ public final class NbtReader {
    */
   public static final int MAX_DEPTH = 512;
 
-  private NbtReader() {}
+  private final NbtCompression compression;
+  private final long maxBytes;
+
+  private NbtReader(NbtCompression compression, long maxBytes) {
+    this.compression = Objects.requireNonNull(compression, "compression");
+    this.maxBytes = maxBytes;
+  }
 
   /**
    * Returns a reader without size limit, as used for files (R32).
@@ -40,7 +49,7 @@ public final class NbtReader {
    * @return the reader
    */
   public static NbtReader of(NbtCompression compression) {
-    return Skeleton.throwNotImplemented();
+    return new NbtReader(compression, Long.MAX_VALUE);
   }
 
   /**
@@ -53,7 +62,10 @@ public final class NbtReader {
    * @throws IllegalArgumentException when {@code maxBytes} is less than 1
    */
   public static NbtReader of(NbtCompression compression, long maxBytes) {
-    return Skeleton.throwNotImplemented();
+    if (maxBytes < 1) {
+      throw new IllegalArgumentException("maxBytes must be 1 or more: " + maxBytes);
+    }
+    return new NbtReader(compression, maxBytes);
   }
 
   /**
@@ -64,7 +76,7 @@ public final class NbtReader {
    * @throws NbtException when the bytes are not a valid root
    */
   public Optional<NamedTag> readNamed(InputStream in) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return read(in, TagDecoder::readNamed);
   }
 
   /**
@@ -75,7 +87,7 @@ public final class NbtReader {
    * @throws NbtException when the bytes are not a valid root
    */
   public Optional<NamedTag> readNamed(byte[] data) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return readNamed(new ByteArrayInputStream(data));
   }
 
   /**
@@ -86,7 +98,7 @@ public final class NbtReader {
    * @throws NbtException when the bytes are not a valid root
    */
   public Optional<NbtTag> readUnnamed(InputStream in) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return read(in, TagDecoder::readUnnamed);
   }
 
   /**
@@ -97,6 +109,21 @@ public final class NbtReader {
    * @throws NbtException when the bytes are not a valid root
    */
   public Optional<NbtTag> readUnnamed(byte[] data) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return readUnnamed(new ByteArrayInputStream(data));
+  }
+
+  private <T> T read(InputStream source, Root<T> root) throws NbtException {
+    Objects.requireNonNull(source, "source");
+    try (InputStream in = ContainerCodec.open(source, compression)) {
+      return root.read(new TagDecoder(new BinaryInput(in, maxBytes)));
+    } catch (IOException e) {
+      throw ContainerCodec.readFailure(e);
+    }
+  }
+
+  /** The root form to decode: named (files) or unnamed (network). */
+  @FunctionalInterface
+  private interface Root<T> {
+    T read(TagDecoder decoder) throws NbtException;
   }
 }

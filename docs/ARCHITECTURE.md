@@ -1,6 +1,6 @@
 # Architecture
 
-Cible : Minecraft Java 26.3 (data version 5023 et protocole 777 issus des rapports, à confirmer par `bootstrap`), Java 25. Ce document décrit l'organisation du code, pas le comportement du jeu (voir `docs/specs/`).
+Cible : Minecraft Java 26.3 (data version 5023 et protocole 777, confirmés par `bootstrap` sur le `version.json` du bundle serveur officiel, voir `docs/specs/reference-binaries.md`), Java 25. Ce document décrit l'organisation du code, pas le comportement du jeu (voir `docs/specs/`).
 
 ## Principes
 

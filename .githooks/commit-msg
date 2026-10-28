@@ -6,10 +6,10 @@ msg_file="${1:-}"
 [ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
 
 root="$(git rev-parse --show-toplevel)"
-comment_char="$(git config --get core.commentChar 2>/dev/null || true)"
-case "$comment_char" in "" | auto) comment_char='#' ;; esac
 
-subject="$(tr -d '\r' < "$msg_file" | awk -v c="$comment_char" 'index($0, c) != 1' | head -n 1)"
+# The subject is the first line of the file. awk reads the file directly: no pipeline, hence
+# no SIGPIPE on very large messages such as the diff that "git commit -v" appends.
+subject="$(awk 'NR == 1 { sub(/\r$/, ""); print }' "$msg_file")"
 
 # Empty messages are rejected by git itself.
 [ -n "$subject" ] || exit 0

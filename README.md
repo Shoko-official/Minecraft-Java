@@ -11,8 +11,8 @@ Projet personnel, non affilié à Mojang ni à Microsoft. Aucun asset ni aucune 
 | Élément | Valeur |
 |---|---|
 | Version du jeu | 26.3 |
-| Data version | 5023 |
-| Protocole | 777 |
+| Data version | 5023 (à confirmer au premier bootstrap) |
+| Protocole | 777 (à confirmer au premier bootstrap) |
 | Java | 25 |
 
 ## Documentation

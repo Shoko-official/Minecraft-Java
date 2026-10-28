@@ -7,6 +7,9 @@ import dev.shoko.minecraft.data.diag.JsonPath;
  * A node of a JSON document. Any type may be the root of a registry element (R29). The nodes are
  * records; their {@code equals} compares every component, location included, so use {@link
  * #sameValueAs(JsonNode)} to compare values.
+ *
+ * <p>A tree costs about a hundred bytes of heap per node, and nothing bounds the number of nodes of
+ * a file but the size ceiling of {@code PackFiles.MAX_FILE_BYTES}.
  */
 public sealed interface JsonNode
     permits JsonObject, JsonArray, JsonString, JsonNumber, JsonBoolean, JsonNull {

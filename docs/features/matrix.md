@@ -30,8 +30,9 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | IA des mobs | M7 | A | non-spécifié | |
 | Spawn naturel | M7 | A | non-spécifié | |
 | Dégâts, effets, combat | M7 | A | non-spécifié | |
-| Commandes | M8 | B | non-spécifié | |
-| Protocole 777 | M8 | B | non-spécifié | |
+| Commandes | M8 | B | spécifié | `docs/specs/server-commands.md` (brouillon, règles S) |
+| Protocole 777 | M8 | B | spécifié | `docs/specs/net-protocol-777.md` (brouillon, règles S ; IDs de paquets D) |
+| Boucle de tick, `/tick`, gamerules, temps, persistance serveur | M8 | B | spécifié | `docs/specs/server-game-loop.md` (brouillon, règles S) |
 | Rendu terrain | M9 | B | non-spécifié | |
 | Modèles et animations de mobs | M9 | B | non-spécifié | |
 | Audio | M9 | C | non-spécifié | |

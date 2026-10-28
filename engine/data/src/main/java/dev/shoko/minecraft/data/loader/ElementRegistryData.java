@@ -2,8 +2,11 @@ package dev.shoko.minecraft.data.loader;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.SequencedMap;
+import java.util.TreeMap;
 
 /**
  * The elements of one registry loaded from files, kept as JSON trees until the owning module
@@ -12,7 +15,13 @@ import java.util.SequencedMap;
  */
 public final class ElementRegistryData {
 
-  private ElementRegistryData() {}
+  private final Identifier registry;
+  private final SequencedMap<Identifier, JsonNode> elements;
+
+  ElementRegistryData(Identifier registry, Map<Identifier, JsonNode> elements) {
+    this.registry = registry;
+    this.elements = Collections.unmodifiableSequencedMap(new TreeMap<>(elements));
+  }
 
   /**
    * Returns the name of the registry.
@@ -20,7 +29,7 @@ public final class ElementRegistryData {
    * @return the identifier, such as {@code minecraft:loot_table}
    */
   public Identifier registry() {
-    return Skeleton.throwNotImplemented();
+    return registry;
   }
 
   /**
@@ -30,7 +39,7 @@ public final class ElementRegistryData {
    * @return an unmodifiable map; a file that was invalid is absent (R54)
    */
   public SequencedMap<Identifier, JsonNode> elements() {
-    return Skeleton.throwNotImplemented();
+    return elements;
   }
 
   /**
@@ -40,6 +49,6 @@ public final class ElementRegistryData {
    * @return the tree, or empty when absent
    */
   public Optional<JsonNode> get(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(elements.get(id));
   }
 }

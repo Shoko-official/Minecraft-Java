@@ -42,6 +42,6 @@ public final class DatapackLoader {
    * @throws IOException when a pack cannot be listed or a file cannot be read
    */
   public static Outcome<LoadedData> load(LoadRequest request) throws IOException {
-    return Skeleton.throwNotImplemented();
+    return new LoadRun(request).run();
   }
 }

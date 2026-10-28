@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.world.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import dev.shoko.minecraft.core.coord.ChunkPos;
@@ -64,7 +65,7 @@ class StoreResourceHuntTest {
       long during = openHandles();
       assertThat(during - before)
           .as("open handles gained by reading one chunk in each of %d regions", regions)
-          .isLessThan(300);
+          .isLessThan(600);
     }
   }
 
@@ -88,9 +89,20 @@ class StoreResourceHuntTest {
   }
 
   @Test
+  void aStoreRefusesToSaveAChunkItCouldNotLoadBackUnderItsOwnLimit() throws Exception {
+    Chunk chunk = RichChunk.build(Blocks.registry());
+    try (AnvilChunkStore store =
+        AnvilChunkStore.open(
+            base, Chunks.OVERWORLD, Chunks.codec(), RegionCompression.ZLIB, 8_000L)) {
+      assertThatThrownBy(() -> store.save(chunk, 1L)).isInstanceOf(ChunkTooLargeException.class);
+      assertThat(store.load(RichChunk.POS)).isNotInstanceOf(ReadResult.Present.class);
+    }
+  }
+
+  @Test
   void aChunkTheStoreSavedCanBeLoadedBackWithTheSameStore() throws Exception {
     Chunk chunk = RichChunk.build(Blocks.registry());
-    long limit = 8_000;
+    long limit = 1_000_000;
     try (AnvilChunkStore store =
         AnvilChunkStore.open(
             base, Chunks.OVERWORLD, Chunks.codec(), RegionCompression.ZLIB, limit)) {

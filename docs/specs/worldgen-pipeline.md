@@ -76,7 +76,7 @@ Convention de preuve : D, C, M, S comme dans les autres specs de ce jalon ; une 
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R23 | Les heightmaps `_WG` (`WORLD_SURFACE_WG`, `OCEAN_FLOOR_WG`) sont disponibles dès la fin de `terrain` ; elles servent aux départs de structure (25 structures avec projection `WORLD_SURFACE_WG`) et à 27 usages de features (R22 de `worldgen-features-structures.md`). Provisoire. | S |
+| R23 | Les heightmaps `_WG` (`WORLD_SURFACE_WG`, `OCEAN_FLOOR_WG`) sont disponibles dès la fin de `terrain` ; elles servent aux départs de structure (25 structures avec projection `WORLD_SURFACE_WG`) et à 27 usages de features (19 `WORLD_SURFACE_WG` et 8 `OCEAN_FLOOR_WG`, dont 3 par `surface_relative_threshold_filter` ; R22 de `worldgen-features-structures.md`). Provisoire. | S |
 | R24 | Les heightmaps non `_WG` sont celles de `features` (`MOTION_BLOCKING` 47 usages, `OCEAN_FLOOR` 37, `MOTION_BLOCKING_NO_LEAVES` 3) ; elles sont amorcées à partir des blocs au début de `features`. Provisoire. WH1. | S |
 | R25 | Aucune heightmap n'est recalculée depuis zéro après `full`, hors changements de blocs. | S |
 

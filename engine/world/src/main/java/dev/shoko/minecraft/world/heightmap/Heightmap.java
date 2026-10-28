@@ -1,6 +1,8 @@
 package dev.shoko.minecraft.world.heightmap;
 
 import dev.shoko.minecraft.core.coord.WorldHeight;
+import dev.shoko.minecraft.world.palette.BitPacking;
+import java.util.Arrays;
 import java.util.Optional;
 
 /**
@@ -15,7 +17,16 @@ import java.util.Optional;
  */
 public final class Heightmap {
 
-  private Heightmap() {}
+  private static final int COLUMNS = 256;
+  private static final int WIDTH = 16;
+
+  private final WorldHeight height;
+  private final int[] columns;
+
+  private Heightmap(WorldHeight height, int[] columns) {
+    this.height = height;
+    this.columns = columns;
+  }
 
   /**
    * Creates a heightmap with the same value in every column.
@@ -26,7 +37,10 @@ public final class Heightmap {
    * @throws IllegalArgumentException if the value is out of range
    */
   public static Heightmap filled(WorldHeight height, int value) {
-    return Skeleton.throwNotImplemented();
+    checkValue(height, value);
+    int[] columns = new int[COLUMNS];
+    Arrays.fill(columns, value);
+    return new Heightmap(height, columns);
   }
 
   /**
@@ -40,7 +54,16 @@ public final class Heightmap {
    *     recomputed later and never invented
    */
   public static Optional<Heightmap> fromLongs(long[] data, WorldHeight height) {
-    return Skeleton.throwNotImplemented();
+    if (data.length != longCount(height)) {
+      return Optional.empty();
+    }
+    int[] columns = BitPacking.unpack(data, COLUMNS, bitsPerColumn(height));
+    for (int value : columns) {
+      if (value > height.height()) {
+        return Optional.empty();
+      }
+    }
+    return Optional.of(new Heightmap(height, columns));
   }
 
   /**
@@ -50,7 +73,7 @@ public final class Heightmap {
    * @return the bits, 9 for heights 256 and 384
    */
   public static int bitsPerColumn(WorldHeight height) {
-    return Skeleton.throwNotImplemented();
+    return Integer.SIZE - Integer.numberOfLeadingZeros(height.height());
   }
 
   /**
@@ -62,7 +85,7 @@ public final class Heightmap {
    * @return the length, 37 for heights 256 and 384
    */
   public static int longCount(WorldHeight height) {
-    return Skeleton.throwNotImplemented();
+    return BitPacking.longCount(COLUMNS, bitsPerColumn(height));
   }
 
   /**
@@ -74,7 +97,7 @@ public final class Heightmap {
    * @throws IndexOutOfBoundsException if a coordinate is out of range
    */
   public int get(int localX, int localZ) {
-    return Skeleton.throwNotImplemented();
+    return columns[indexOf(localX, localZ)];
   }
 
   /**
@@ -87,7 +110,9 @@ public final class Heightmap {
    * @throws IllegalArgumentException if the value is out of range
    */
   public void set(int localX, int localZ, int value) {
-    Skeleton.throwNotImplemented();
+    int index = indexOf(localX, localZ);
+    checkValue(height, value);
+    columns[index] = value;
   }
 
   /**
@@ -96,6 +121,21 @@ public final class Heightmap {
    * @return a new array of {@link #longCount(WorldHeight)} longs
    */
   public long[] toLongs() {
-    return Skeleton.throwNotImplemented();
+    return BitPacking.pack(columns, bitsPerColumn(height));
+  }
+
+  private static int indexOf(int localX, int localZ) {
+    if (localX < 0 || localX >= WIDTH || localZ < 0 || localZ >= WIDTH) {
+      throw new IndexOutOfBoundsException(
+          "column (" + localX + ", " + localZ + ") is outside the chunk");
+    }
+    return localZ * WIDTH + localX;
+  }
+
+  private static void checkValue(WorldHeight height, int value) {
+    if (value < 0 || value > height.height()) {
+      throw new IllegalArgumentException(
+          "value " + value + " is outside [0, " + height.height() + "]");
+    }
   }
 }

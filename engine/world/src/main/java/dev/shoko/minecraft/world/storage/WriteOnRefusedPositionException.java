@@ -17,6 +17,5 @@ public final class WriteOnRefusedPositionException extends IllegalStateException
    */
   public WriteOnRefusedPositionException(String message) {
     super(message);
-    Skeleton.throwNotImplemented();
   }
 }

@@ -2,8 +2,17 @@ package dev.shoko.minecraft.world.heightmap;
 
 import dev.shoko.minecraft.core.coord.WorldHeight;
 import dev.shoko.minecraft.core.nbt.CompoundTag;
+import dev.shoko.minecraft.core.nbt.LongArrayTag;
+import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.world.WarningCode;
 import dev.shoko.minecraft.world.WarningSink;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.LinkedHashMap;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.SequencedMap;
 import java.util.Set;
 
 /**
@@ -20,6 +29,8 @@ import java.util.Set;
  */
 public final class Heightmaps {
 
+  private final EnumMap<HeightmapType, Heightmap> valid = new EnumMap<>(HeightmapType.class);
+
   private Heightmaps() {}
 
   /**
@@ -28,7 +39,7 @@ public final class Heightmaps {
    * @return the holder
    */
   public static Heightmaps empty() {
-    return Skeleton.throwNotImplemented();
+    return new Heightmaps();
   }
 
   /**
@@ -44,7 +55,29 @@ public final class Heightmaps {
    * @return the heightmaps that could be read
    */
   public static Heightmaps fromNbt(CompoundTag compound, WorldHeight height, WarningSink warnings) {
-    return Skeleton.throwNotImplemented();
+    Heightmaps result = new Heightmaps();
+    for (HeightmapType type : HeightmapType.values()) {
+      NbtTag tag = compound.entries().get(type.name());
+      if (tag == null) {
+        continue;
+      }
+      Optional<Heightmap> read =
+          tag instanceof LongArrayTag longs
+              ? Heightmap.fromLongs(longs.toArray(), height)
+              : Optional.empty();
+      if (read.isPresent()) {
+        result.valid.put(type, read.get());
+      } else {
+        warnings.warn(
+            WarningCode.HEIGHTMAP_INVALID,
+            "heightmap "
+                + type.name()
+                + " is not a valid Long_Array of "
+                + Heightmap.longCount(height)
+                + " longs, it will be recomputed");
+      }
+    }
+    return result;
   }
 
   /**
@@ -55,7 +88,7 @@ public final class Heightmaps {
    *     zeros and never an exception for that case
    */
   public Optional<Heightmap> get(HeightmapType type) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(valid.get(type));
   }
 
   /**
@@ -64,7 +97,8 @@ public final class Heightmaps {
    * @return an unmodifiable set, in the declaration order of {@link HeightmapType}
    */
   public Set<HeightmapType> unknownTypes() {
-    return Skeleton.throwNotImplemented();
+    EnumSet<HeightmapType> unknown = EnumSet.complementOf(validTypes());
+    return Collections.unmodifiableSet(unknown);
   }
 
   /**
@@ -74,7 +108,7 @@ public final class Heightmaps {
    * @param heightmap the heightmap
    */
   public void put(HeightmapType type, Heightmap heightmap) {
-    Skeleton.throwNotImplemented();
+    valid.put(type, Objects.requireNonNull(heightmap, "heightmap"));
   }
 
   /**
@@ -83,7 +117,7 @@ public final class Heightmaps {
    * @param type the type
    */
   public void remove(HeightmapType type) {
-    Skeleton.throwNotImplemented();
+    valid.remove(type);
   }
 
   /**
@@ -94,6 +128,13 @@ public final class Heightmaps {
    * @return the Compound, empty when no type is valid
    */
   public CompoundTag toNbt() {
-    return Skeleton.throwNotImplemented();
+    SequencedMap<String, NbtTag> entries = new LinkedHashMap<>();
+    valid.forEach(
+        (type, heightmap) -> entries.put(type.name(), LongArrayTag.of(heightmap.toLongs())));
+    return CompoundTag.of(entries);
+  }
+
+  private EnumSet<HeightmapType> validTypes() {
+    return valid.isEmpty() ? EnumSet.noneOf(HeightmapType.class) : EnumSet.copyOf(valid.keySet());
   }
 }

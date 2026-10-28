@@ -26,7 +26,14 @@ public record ContainerLayout(int entryCount, int minimumBits, int maxPaletteSiz
    * @throws IllegalArgumentException if the size is out of range
    */
   public int bitsFor(int paletteSize) {
-    return Skeleton.throwNotImplemented();
+    if (paletteSize < 1 || paletteSize > maxPaletteSize) {
+      throw new IllegalArgumentException("palette size out of range: " + paletteSize);
+    }
+    if (paletteSize == 1) {
+      return 0;
+    }
+    int needed = Integer.SIZE - Integer.numberOfLeadingZeros(paletteSize - 1);
+    return Math.max(minimumBits, needed);
   }
 
   /**
@@ -38,6 +45,7 @@ public record ContainerLayout(int entryCount, int minimumBits, int maxPaletteSiz
    * @throws IllegalArgumentException if the size is out of range
    */
   public int longCount(int paletteSize) {
-    return Skeleton.throwNotImplemented();
+    int bits = bitsFor(paletteSize);
+    return bits == 0 ? 0 : BitPacking.longCount(entryCount, bits);
   }
 }

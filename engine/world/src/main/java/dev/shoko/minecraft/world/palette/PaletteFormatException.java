@@ -15,6 +15,5 @@ public final class PaletteFormatException extends Exception {
    */
   public PaletteFormatException(String message) {
     super(message);
-    Skeleton.throwNotImplemented();
   }
 }

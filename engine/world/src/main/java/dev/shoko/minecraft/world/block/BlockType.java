@@ -34,7 +34,11 @@ public record BlockType(
    * @return the number of states
    */
   public int stateCount() {
-    return Skeleton.throwNotImplemented();
+    int count = 1;
+    for (BlockProperty property : properties) {
+      count *= property.size();
+    }
+    return count;
   }
 
   /**
@@ -44,7 +48,12 @@ public record BlockType(
    * @return the property, or empty when this block has none of that name
    */
   public Optional<BlockProperty> property(String name) {
-    return Skeleton.throwNotImplemented();
+    for (BlockProperty property : properties) {
+      if (property.name().equals(name)) {
+        return Optional.of(property);
+      }
+    }
+    return Optional.empty();
   }
 
   /**
@@ -57,7 +66,19 @@ public record BlockType(
    *     its list
    */
   public int stateId(Map<String, String> values) {
-    return Skeleton.throwNotImplemented();
+    if (values.size() != properties.size()) {
+      throw new IllegalArgumentException(
+          id + " has " + properties.size() + " properties, got " + values);
+    }
+    int offset = 0;
+    for (BlockProperty property : properties) {
+      String value = values.get(property.name());
+      if (value == null) {
+        throw new IllegalArgumentException(id + " lacks a value for " + property.name());
+      }
+      offset = offset * property.size() + property.rankOf(value);
+    }
+    return firstStateId + offset;
   }
 
   /**
@@ -70,7 +91,16 @@ public record BlockType(
    *     unknown
    */
   public String valueOf(int stateId, String propertyName) {
-    return Skeleton.throwNotImplemented();
+    int offset = offsetOf(stateId);
+    int stride = 1;
+    for (int k = properties.size() - 1; k >= 0; k--) {
+      BlockProperty property = properties.get(k);
+      if (property.name().equals(propertyName)) {
+        return property.values().get(offset / stride % property.size());
+      }
+      stride *= property.size();
+    }
+    throw new IllegalArgumentException(id + " has no property " + propertyName);
   }
 
   /**
@@ -84,6 +114,24 @@ public record BlockType(
    *     unknown, or the value is not in its list
    */
   public int withValue(int stateId, String propertyName, String value) {
-    return Skeleton.throwNotImplemented();
+    int offset = offsetOf(stateId);
+    int stride = 1;
+    for (int k = properties.size() - 1; k >= 0; k--) {
+      BlockProperty property = properties.get(k);
+      if (property.name().equals(propertyName)) {
+        int oldRank = offset / stride % property.size();
+        return stateId + (property.rankOf(value) - oldRank) * stride;
+      }
+      stride *= property.size();
+    }
+    throw new IllegalArgumentException(id + " has no property " + propertyName);
+  }
+
+  private int offsetOf(int stateId) {
+    int offset = stateId - firstStateId;
+    if (offset < 0 || offset >= stateCount()) {
+      throw new IllegalArgumentException("state " + stateId + " is not a state of " + id);
+    }
+    return offset;
   }
 }

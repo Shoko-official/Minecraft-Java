@@ -11,6 +11,9 @@ public final class BlockReportException extends Exception {
 
   private static final long serialVersionUID = 1L;
 
+  // Empty string stands for "no block": a serializable field cannot be an Optional.
+  private final String blockId;
+
   /**
    * Creates a fault that concerns the whole report, such as a wrong total of states.
    *
@@ -18,7 +21,7 @@ public final class BlockReportException extends Exception {
    */
   public BlockReportException(String message) {
     super(message);
-    Skeleton.throwNotImplemented();
+    this.blockId = "";
   }
 
   /**
@@ -29,7 +32,7 @@ public final class BlockReportException extends Exception {
    */
   public BlockReportException(String blockId, String message) {
     super(message);
-    Skeleton.throwNotImplemented();
+    this.blockId = blockId;
   }
 
   /**
@@ -38,6 +41,6 @@ public final class BlockReportException extends Exception {
    * @return the block identifier, or empty for a fault of the whole report
    */
   public Optional<String> blockId() {
-    return Skeleton.throwNotImplemented();
+    return blockId.isEmpty() ? Optional.empty() : Optional.of(blockId);
   }
 }

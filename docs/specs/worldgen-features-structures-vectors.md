@@ -42,25 +42,13 @@ step 4 features 4 edges 1 cycle False incomparable_pairs 5 pairs 6
 
 **FV3 (R39) : minerais.** Exemples de lignes de `ores` : `ore_andesite_lower ore_andesite size=64 air=0.0 count=2 in_square y=uniform[absolute0..absolute60] biome` ; `ore_diamond_buried ore_diamond_buried size=8 air=1.0 count=4 in_square y=trapezoid[above_bottom-80..above_bottom80] biome` ; `ore_granite_upper ore_granite size=64 air=0.0 rarity=1/6 in_square y=uniform[absolute64..absolute128] biome`. Contrôle de recoupement avec le rapport Overworld 6.1 : 30 lignes, mêmes essais, tailles, probabilités d'air et bornes (aucun écart relevé sur les lignes lues : diamant -144..16, fer haut 80..384, redstone profonde -96..-32, émeraude -16..480 après résolution d'ancres, SV1 de l'autre fichier).
 
-Valeurs de contrôle (C sur S, R36) pour le trapèze du diamant (a = -144, b = 16, d = 160, plateau 0) : u = 80, v = 80, Y = -144 + U{0..80} + U{0..80} ; minimum -144, maximum 16, mode -64, probabilité du mode 1/81 = 0.012346, Y = -64 + k de probabilité (81 - |k|)/6561.
+La loi du trapèze (R36, R38) n'a pas de vecteur calculé : sa forme est à mesurer par WF8.
 
 **FV4 (R49, R61) : ensembles.** Exemples de lignes de `sets` : `villages random_spread 34 8 10387312 - - - - - [5 membres de poids 1]` ; `ocean_monuments random_spread 32 5 10387313 triangular` ; `strongholds concentric_rings` ; `pillager_outposts random_spread 32 8 165745296 - 0.2 legacy_type_1 - ('villages', 10)` ; `mineshafts ... spacing 1 separation 0 frequency 0.004 legacy_type_3` ; `buried_treasures ... frequency 0.01 legacy_type_2 locate_offset [9, 0, 9]`. Les 21 ensembles : 18 avec des membres de l'Overworld, plus `nether_complexes` (poids 2 et 3), `nether_fossils`, `end_cities`.
 
-**FV5 (R51, R62) : candidats `random_spread`** (C sur S, calcul avec la formule de R51 ; LCG de 48 bits avec nextInt borné ; graine du monde 12345 ; ensemble `villages` espacement 34, séparation 8, salt 10387312, donc `nextInt(26)` deux fois).
+**FV5 (R51, R62) : candidats `random_spread`.** Retiré : les valeurs précédentes reposaient sur une formule de dérivation qui n'est pas retenue (R51) et sur un calcul d'entiers incorrect. Vecteur à produire par l'oracle (WT1) : pour chaque couple (graine, ensemble) de la sonde, la liste des chunks candidats par région, y compris les régions -2 à 1 en X et en Z. Emplacement réservé, sans valeur tant que WT1 n'a pas été exécutée.
 
-| Chunk testé | Région | Candidat (chunk X, Z) |
-|---|---|---|
-| (0, 0) | (0, 0) | (23, 5) |
-| (33, 33) | (0, 0) | (23, 5) |
-| (34, 0) | (1, 0) | (53, 18) |
-| (-1, -1) | (-1, -1) | (-22, -32) |
-| (-34, -34) | (-1, -1) | (-22, -32) |
-| (-35, 5) | (-2, 0) | (-57, 17) |
-| (100, -100) | (2, -3) | (73, -83) |
-
-Graine 0, mêmes paramètres : région (0, 0) -> (17, 4) ; région (-1, -1) -> (-32, -14). Monument (triangulaire, 32 / 5, salt 10387313, `nextInt(27)` quatre fois, moyennes entières), graine 12345 : région (0,0) -> (19, 19) ; région (-1,-1) -> (-25, -28). Manoir (80 / 20, salt 10387319, triangulaire), graine 12345, région (0,0) -> (32, 26). Ces valeurs sont des prédictions : WT1 les confirme ou les infirme.
-
-**FV6 (R57, R58) : anneaux des strongholds** (C sur S). Tailles des anneaux : 3, 6, 10, 15, 21, 28, 36, 9 (somme 128). Rayon central en chunks de l'anneau N : 128, 320, 512, 704, 896, 1088, 1280, 1472 (soit 2048, 5120, 8192, 11264, 14336, 17408, 20480, 23552 blocs) ; décalage aléatoire de ±40 chunks (±640 blocs) autour du rayon central avant déplacement de biome. Les plages publiques du wiki (anneau 1 : 1280 à 2816 blocs, anneau 8 : 22784 à 24320 blocs) sont les rayons centraux plus ou moins 48 chunks = 40 chunks de jitter + 8 chunks (112 blocs de recherche = 7 chunks, arrondis par l'écriture publique en blocs) ; hypothèse C sur S.
+**FV6 (R57, R58) : anneaux des strongholds** (C sur S). Tailles des anneaux : 3, 6, 10, 15, 21, 28, 36, 9 (somme 128). Plages publiques du wiki : anneau 1 de 1280 à 2816 blocs (centre 2048, demi-largeur 768), anneau 8 de 22784 à 24320 blocs (centre 23552, demi-largeur 768). Sous l'hypothèse d'une progression linéaire des centres (S, ajustée sur ces deux seules plages), le pas est (23552 - 2048) / 7 = 3072 blocs et les centres des anneaux 1 à 8 valent 2048, 5120, 8192, 11264, 14336, 17408, 20480, 23552 blocs. Aucun décalage aléatoire ni formule de rayon n'est retenu : WT6 mesure les plages des anneaux 2 à 7.
 
 **FV7 (R9, R10) : ordre de décoration.** Contrôle de cohérence sur un biome : la liste de l'étape 6 de `plains` (29 minerais et disques) respecte l'ordre partiel de l'union ; les 5 paires non comparables de l'étape 6 sont décrites par `order`. Procédure de test de l'implémentation : toute liste globale produite doit (a) contenir exactement les features distinctes de l'étape, (b) respecter chaque arête, (c) coïncider avec WF2.
 
@@ -80,7 +68,7 @@ Voir `worldgen-surface-carvers-vectors.md` (section Harnais commun) et `worldgen
 
 **WF2 (R10).** Test par paire : biomes synthétiques A (liste étape 6 : f1, f2) et B (f3, f2) où f1 et f3 sont incomparables ; deux ordres d'enregistrement des biomes (identifiants alphabétiquement croissants puis décroissants) ; zone à cheval sur la frontière. L'indice de f1 est 0 ou 1 selon la règle de départage : on compare la trace de f1 à ONEFEAT(f1, 6, 0) puis ONEFEAT(f1, 6, 1). Répéter avec trois biomes et chaînes plus longues pour distinguer T1, T2 et T3 (R10) et tout autre candidat ; conclusion attendue : une règle de départage qui reproduit les 5 paires de l'étape 6 puis les 2991 paires de l'étape 9 (comparaison de 16 chunks de végétation du monde normal à la graine 12345).
 
-**WF3 (R13).** Additivité de la graine : ONEFEAT(X, 0, 10000) (10 000 features `no_op` avant X) comparé à ONEFEAT(X, 1, 0) : si les traces sont identiques, la graine de feature est additive en `indice + 10000 x étape`. Comparer aussi ONEFEAT(X, 0, 1) à ONEFEAT(X, 0, 0) (traces différentes attendues) et deux chunks à coordonnées opposées (symétrie des coefficients de population).
+**WF3 (R13).** Identification de la combinaison (étape, indice) : pour une feature X simple, relever la trace de ONEFEAT(X, s, k) pour s dans 0 à 3 et k dans 0 à 40, puis chercher les coïncidences exactes entre traces de couples différents (par exemple ONEFEAT(X, 0, k') égale à ONEFEAT(X, 1, 0) pour un k' à trouver par balayage adaptatif de k' jusqu'à 100 000). Si une coïncidence existe, la combinaison est additive et la constante est le k' trouvé ; sinon, elle ne l'est pas. Comparer aussi ONEFEAT(X, 0, 1) à ONEFEAT(X, 0, 0) (traces différentes attendues) et deux chunks à coordonnées opposées (symétrie des coefficients de la position du chunk). Critère de succès : une relation d'équivalence entre couples (étape, indice) reproduite sur trois features X différentes ; l'absence de coïncidence jusqu'à 100 000 est un résultat négatif à consigner.
 
 **WF4 (R11).** Biome frontière : deux biomes A (avec X) et B (sans X), frontière en travers d'un chunk ; vérifier que X n'apparaît que sur les positions finales de A, y compris quand le décalage de `offset` ou `in_square` fait passer la position de B vers A.
 
@@ -90,13 +78,13 @@ Voir `worldgen-surface-carvers-vectors.md` (section Harnais commun) et `worldgen
 
 **WF7 (R15).** Feature large (`huge_red_mushroom`, géode) avec `offset` poussant le centre aux positions extrêmes du chunk ; relever les blocs écrits en dehors de la zone 3 x 3.
 
-**WF8 (R35).** `count` = `very_biased_to_bottom` de 0 à 14 sur 20 000 chunks ONEFEAT (feature = `simple_block` sur la dalle) : histogramme des comptes ; comparer à la loi de trois uniformes emboîtés ; mesurer le nombre de tirages consommés par la différence de trace d'un `count` constant suivant.
+**WF8 (R35, R36, R37, R38).** Lois des fournisseurs de hauteur et d'entiers : (a) `count` = `very_biased_to_bottom` de 0 à 14 sur 20 000 chunks ONEFEAT (feature = `simple_block` sur la dalle) : histogramme des comptes ; (b) placed feature d'essai dont `height_range` est un `trapezoid` à bornes internes au monde (0 et 100) et plateaux 0, 2 et supérieur à l'écart : histogramme des Y sur 20 000 essais ; (c) diamant isolé (ONEFEAT de `ore_diamond`) : histogramme des Y de la moitié observable. Mesure du nombre de tirages consommés par la différence de trace d'un `count` constant suivant. Critères de succès : support et mode relevés, test du chi-deux contre la loi retenue à la suite de la mesure au seuil de 1 pour cent.
 
-**WF9 (R44, R45).** Dalle de pierre ; ONEFEAT d'un `ore` de `size` 4, 8, 9, 12, 17, 33, 64 avec `discard_chance_on_air_exposure` 0 ; ensuite avec une poche d'air (air creusé à côté), probabilités 0, 0.5, 1 : relever le nombre de blocs conservés, la forme (ellipsoïdes le long d'un segment) et la présence de tirages pour 0 et 1 (comparaison de la trace d'une feature suivante).
+**WF9 (R44, R45).** Dalle de pierre ; ONEFEAT d'un `ore` de `size` 4, 8, 9, 12, 17, 33, 64 avec `discard_chance_on_air_exposure` 0 ; ensuite avec une poche d'air (air creusé à côté), probabilités 0, 0.5, 1 : relever le nombre de blocs conservés, la forme (ellipsoïdes le long d'un segment) et la présence de tirages pour 0 et 1 (comparaison de la trace d'une feature suivante). Critères de succès : voir R44 (égalité exacte à 0 et à 1, 0,5 à 2 pour cent près) et R45 (taille et boîte moyennes à 2 pour cent près sur 1 000 filons).
 
 ## Sondes de structures (WT)
 
-**WT1 (R51).** ONESTRUCT(`villages`) puis (`monuments`, `mansion`) : graines 0 et 12345 et deux négatives ; lecture de `structures.starts` dans les fichiers de région sur 80 x 80 chunks autour de l'origine. Attendu : un départ par région, au candidat de FV5.
+**WT1 (R51).** ONESTRUCT(`villages`) puis (`monuments`, `mansion`) : graines 0 et 12345 et deux négatives ; lecture de `structures.starts` dans les fichiers de région sur 80 x 80 chunks autour de l'origine. Attendu : au plus un départ par région et par ensemble, dans la plage de R51 ; les candidats relevés alimentent FV5 (vecteur doré). Critère de succès : une fonction de dérivation candidate reproduit 100 pour cent des candidats relevés (au moins 2 000 régions par ensemble, quatre graines).
 
 **WT2 (R53).** Mêmes ensembles avec la fréquence et la méthode d'origine : le sous-ensemble de candidats conservé, en fonction de la graine et de la position, identifie la fonction de filtre. Variante : forcer `frequency_reduction_method` à chacune des quatre valeurs sur un même ensemble (`buried_treasures`).
 

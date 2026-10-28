@@ -45,7 +45,7 @@ Convention de preuve : D, C, M, S comme dans les autres specs de ce jalon ; une 
 | R4 | Les données de génération viennent du préréglage du monde (`world_preset/normal.json` : trois dimensions ; l'Overworld utilise le générateur `noise`, la source de biomes `multi_noise` de préréglage `minecraft:overworld`, les réglages de bruit `minecraft:overworld`). | D |
 | R5 | La source de biomes Overworld couvre 56 biomes (`biome_parameters/overworld.json`) ; les 11 listes de features de chacun sont celles de `worldgen-features-structures.md` R6. | D |
 | R6 | Cinq dépendances de données précèdent toute génération : préréglage -> dimension -> générateur -> réglages de bruit (fonctions de densité, règle de matière, aquifères) -> biomes -> (carvers, features, structures). Une ressource manquante est une erreur de chargement, jamais un défaut. | C |
-| R7 | `legacy_random_source` vaut faux pour les réglages de l'Overworld. L'aléa de placement des structures (`random_spread`) emploie malgré cela un générateur de la famille Legacy (rapport Overworld 2.1, à confirmer par WT1). | D (valeur) / S (usage) |
+| R7 | `legacy_random_source` vaut faux pour les réglages de l'Overworld. La famille de générateur employée pour l'aléa de placement des structures (`random_spread`) est inconnue : WT1 (`worldgen-features-structures-vectors.md`) relève les candidats et identifie la dérivation. | D (valeur) / S (usage) |
 
 ### Ordre et voisinage
 

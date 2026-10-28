@@ -17,7 +17,7 @@ public interface RegistryAccess {
    * @return the empty access
    */
   static RegistryAccess empty() {
-    return Skeleton.throwNotImplemented();
+    return EmptyAccess.INSTANCE;
   }
 
   /**

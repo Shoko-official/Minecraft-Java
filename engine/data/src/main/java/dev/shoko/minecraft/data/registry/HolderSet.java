@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.data.registry;
 
+import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -11,7 +13,16 @@ import java.util.Optional;
  */
 public final class HolderSet<T> {
 
-  private HolderSet() {}
+  // Exactly one of tag and inline is set.
+  private final TagKey<T> tag;
+  private final RegistryAccess access;
+  private final List<Holder<T>> inline;
+
+  private HolderSet(TagKey<T> tag, RegistryAccess access, List<Holder<T>> inline) {
+    this.tag = tag;
+    this.access = access;
+    this.inline = inline;
+  }
 
   /**
    * Designates a tag.
@@ -22,7 +33,7 @@ public final class HolderSet<T> {
    * @return the set; nothing is looked up until {@link #holders()} is called
    */
   public static <T> HolderSet<T> tag(TagKey<T> tag, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return new HolderSet<>(tag, access, null);
   }
 
   /**
@@ -33,7 +44,7 @@ public final class HolderSet<T> {
    * @return the set; later changes to {@code holders} do not affect it
    */
   public static <T> HolderSet<T> list(List<Holder<T>> holders) {
-    return Skeleton.throwNotImplemented();
+    return new HolderSet<>(null, null, List.copyOf(holders));
   }
 
   /**
@@ -42,7 +53,7 @@ public final class HolderSet<T> {
    * @return the tag, or empty for an inline list
    */
   public Optional<TagKey<T>> tagKey() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(tag);
   }
 
   /**
@@ -52,6 +63,17 @@ public final class HolderSet<T> {
    * @throws IllegalStateException when the tag does not exist or failed to load (R36)
    */
   public List<Holder<T>> holders() {
-    return Skeleton.throwNotImplemented();
+    if (tag == null) {
+      return inline;
+    }
+    List<Identifier> members =
+        access
+            .tagMembers(tag)
+            .orElseThrow(() -> new IllegalStateException("no tag #" + tag.id() + " loaded"));
+    List<Holder<T>> holders = new ArrayList<>(members.size());
+    for (Identifier member : members) {
+      holders.add(Holder.reference(tag.registry(), member, access));
+    }
+    return List.copyOf(holders);
   }
 }

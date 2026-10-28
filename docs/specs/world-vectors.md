@@ -17,8 +17,9 @@ python -I world_ref.py dims       "$REF/resources/data/minecraft"               
 python -I world_ref.py coords                                                                                     # CO1
 python -I world_ref.py pack                                                                                       # PK1 à PK5, HM1, HM2
 python -I world_ref.py light                                                                                      # LI1
+python -I world_ref.py pp                                                                                         # PP1
 python -I world_ref.py lz4                                                                                        # LZ1 (et tests négatifs)
-python -I world_ref.py region     OUT_DIR VARIANTE     # RG1 à RG3 ; VARIANTE : une des 19 valeurs des tableaux RG2 et RG3, zlib par défaut
+python -I world_ref.py region     OUT_DIR VARIANTE     # RG1 à RG3 ; VARIANTE : une des 39 valeurs des tableaux RG2 à RG4, zlib par défaut
 python -I world_ref.py dump       FICHIER.mca          # résumé des chunks d'un fichier de région
 python -I world_ref.py check      FICHIER.mca [T_MIN T_MAX]   # contrôle des règles provisoires ; bornes Unix des horodatages (AR-R9)
 python -I world_ref.py debugcheck "$REF/generated/reports/blocks.json" DOSSIER_REGION   # PC2
@@ -151,9 +152,57 @@ Bits selon la taille de palette : blocs 1 -> 0 (pas de `data`), 2 -> 4, 16 -> 4,
 | HM2 | colonne `i` -> `min(384, i + 128)` | long 0 `0x2190a8441a090280`, long 36 `0x0000000bfdfafb7c` |
 | HM3 | 256 colonnes à 4 (monde plat, CF-R18 provisoire) | longs 0 à 35 `0x0100804020100804`, long 36 `0x0000000020100804` |
 
+### HM4 : états d'un heightmap (C sur CF-R34)
+
+Longueur attendue `ceil(256 / floor(64 / b))`, `b = ceil(log2(height + 1))` : hauteur 384 ou 256 -> 9 bits, 37 longs ; hauteur 128 -> 8 bits, 32 longs ; hauteur 16 -> 5 bits, 22 longs ; hauteur 1 -> 1 bit, 4 longs.
+
+| Cas (Overworld, hauteur 384) | État du type | Avertissement |
+|---|---|---|
+| 37 longs, valeurs de HM1 | VALIDE | non |
+| 37 longs, toutes les colonnes à 384 (long 0 `0x6030180c06030180`) | VALIDE | non |
+| 36 longs (variante `bad_heightmap_length` : les 36 premiers longs de HM1, ancien empaquetage continu) | INCONNU | oui |
+| 38 longs | INCONNU | oui |
+| 37 longs, colonne 0 à 400 (variante `heightmap_overflow` : long 0 `0x0040201008040390`, autres colonnes à 1) | INCONNU (400 > 384) | oui |
+| valeur du type = List au lieu de Long_Array | INCONNU | oui |
+| type absent de `Heightmaps` (ici `OCEAN_FLOOR_WG` dans un chunk complet), ou `Heightmaps` absent | INCONNU | non |
+| clé `FOO` dans `Heightmaps` | ignorée, non réécrite | non |
+
 ## LI1 : lumière (`light`, C sur CF-R14)
 
 Tableau de 2048 octets nuls, puis index 0 -> 15, index 1 -> 1, index 256 -> 7, index 4095 -> 9 : octet 0 = `0x1f`, octet 1 = `0x00`, octet 128 = `0x07`, octet 2047 = `0x90` (Byte NBT signé -112).
+
+## LI2 : SkyLight absent (C sur CF-R30)
+
+Chunk A de RG1 (aucune section n'a de `SkyLight` ni de `BlockLight`) : la lumière du ciel effective de chacune des 24 sections est 2048 octets `ff` (la section du haut n'a pas de section au-dessus : 15, et chaque section en dessous recopie la couche du bas de celle du dessus, donc 15 partout) ; la lumière de bloc effective est 2048 octets nuls. Relu puis réécrit sans modification : aucune section n'acquiert de `SkyLight` ni de `BlockLight` (R30).
+
+Variante `skylight_chain` : la section 19 porte un `SkyLight` dont la couche du bas (index 0 à 255) vaut `i & 15` (octets 0 à 7 : `10 32 54 76 98 ba dc fe`, puis `10 32 ...` jusqu'à l'octet 127 `fe`) et dont les 15 autres couches valent 3 (octets 128 à 2047 : `33`). Les sections -4 à 18 n'ont pas de `SkyLight`.
+
+| Section | `SkyLight` écrit | Lumière du ciel effective (CF-R30 provisoire) | Si le tableau entier était recopié (hypothèse écartée) |
+|---|---|---|---|
+| 19 | oui | le tableau écrit : octet 0 `10`, octet 127 `fe`, octet 128 `33`, octet 2047 `33` | idem |
+| 18 | non | couche du bas de 19 répétée 16 fois : octet 0 `10`, octet 127 `fe`, octet 128 `10`, octet 2047 `fe` | octet 128 `33` |
+| 17 à -4 | non | idem section 18 (récursion vers le haut) | `33` |
+
+L'octet 128 sépare les deux lectures. Relu puis réécrit sans modification : seule la section 19 garde son `SkyLight`.
+
+## PP1 : `PostProcessing` (`pp`, C sur CF-R24)
+
+Short = `x | (y << 4) | (z << 8)` pour une position locale `(x, y, z)`. Colonne "ancien" : l'ancienne valeur provisoire `x | (z << 4) | (y << 8)`, égale à l'index de bloc de CF-R4.
+
+| Position locale (x, y, z) | Short | Hexadécimal | Ancien = index de bloc |
+|---|---:|---|---:|
+| (0, 0, 0) | 0 | `0x0000` | 0 |
+| (1, 0, 0) | 1 | `0x0001` | 1 |
+| (0, 1, 0) | 16 | `0x0010` | 256 |
+| (0, 0, 1) | 256 | `0x0100` | 16 |
+| (15, 0, 15) | 3855 | `0x0f0f` | 255 |
+| (0, 15, 0) | 240 | `0x00f0` | 3840 |
+| (15, 15, 15) | 4095 | `0x0fff` | 4095 |
+| (3, 0, 9) | 2307 | `0x0903` | 147 |
+| (3, 5, 9) | 2387 | `0x0953` | 1427 |
+| (9, 5, 3) | 857 | `0x0359` | 1337 |
+
+Recoupement avec `core-math-vectors.md` V4 (colonne PostProcessing `0ZYX`) : les cinq lignes de ce tableau sont reproduites (bloc (0, 0, 0) -> 0 ; (-1, -64, -1) -> 3855 ; (15, 319, 15) -> 4095 ; (17, 63, -17) -> 4081 ; (-16, -1, 16) -> 240). Lecture : un Short de bits de poids fort non nuls (`0x1000`, ou -4096 en Short signé) est ignoré avec un avertissement ; les valeurs 0 à 4095 sont les seules écrites.
 
 ## ST1 : références de structures (C sur CF-R25)
 
@@ -219,6 +268,46 @@ Même fichier que RG1 (chunk A en zlib) avec une seule modification. `check` sig
 | `bad_offset` | emplacement de l'index 1023 = `00 00 01 01` (dans l'en-tête) | inchangé (RG1) | `invalid location (sector 1 ...)` | absent (AR-R20) |
 | `offset_beyond` | emplacement de l'index 1023 = `00 00 c8 01` (secteur 200, au-delà des 4 secteurs du fichier) | inchangé (RG1) | `invalid location (sector 200 ...)` | absent (AR-R20) |
 | `missing_mcc` | enregistrement externe `00 00 00 01 82` sans fichier `c.-1.-1.mcc` | inchangé (RG1) | `external chunk file c.-1.-1.mcc is missing` | refusé (AR-R18) |
+
+### RG4 : sections, champs et enregistrements endommagés (sondes PB3, PR6)
+
+Même fichier que RG1 (chunk A en zlib), une seule modification. Les octets compressés dépendent de la zlib locale : seuls les NBT décompressés sont normatifs. La colonne "check" donne la ligne `problems` de `world_ref.py check` (messages non normatifs).
+
+| Variante | Modification | NBT du chunk A (octets, SHA-256) | check | Issue provisoire de notre moteur |
+|---|---|---|---|---|
+| `missing_section` | section 0 absente de la liste (23 entrées) | 5898, `c3a6c437ff2a392947676c4aeeeab6d979d66e1571f0d76ae3d8b43e16dbe7bb` | `section list: missing [0]` | PRÉSENT ; section 0 synthétisée vide (air, plains), avertissement ; la réécriture a 24 sections (CF-R32 f) |
+| `light_sections` | deux sections de lumière ajoutées : Y -5 en tête, Y 20 en queue, chacune avec `BlockLight` (octet 0 = 7) et `SkyLight` à 15 | 14267, `07c331ec5eed13705202e1feaaff0f68b984bc7732f00e479d500f952b44d4b2` | rien | PRÉSENT ; 24 sections plus 2 sections de lumière ; la réécriture les conserve telles quelles (CF-R31) |
+| `far_sections` | mêmes sections, aux Y -6 et 21 | 14267, `7f6d8055f1495d37573a5d2fed80d55d7ab36ed7ac304bf4932ebc03dd43798c` | `sections outside -5..20: [-6, 21]` | PRÉSENT ; entrées ignorées, avertissement ; non réécrites (CF-R32 e) |
+| `duplicate_section` | seconde entrée de Y -4 (air seul) ajoutée en fin de liste | 6100, `a764612f494a0ee045b8c24569a6265ae26875b2a3e79b7386731a4aaf22be7f` | `duplicates [-4]` | REFUSÉ, INVALID_SECTION, Y -4 (CF-R32 c) |
+| `no_section_y` | l'entrée de rang 1 (Y -3) n'a pas de clé `Y` | 5994, `b3dd1d7ed821c2fd709ddca1ca16302915317feb208990401ba212915ce6377c` | `missing [-3]` et `sections outside -5..20: [None]` | REFUSÉ, INVALID_SECTION, rang 1 (CF-R32 b) |
+| `unsorted_sections` | liste inversée (Y 19 d'abord) | 5999, `ef022b7519f9cdbbec1cf33ef4889d12412fd4803bdd2a3576f4b376262d864d` | rien | PRÉSENT, mêmes états décodés que RG1 ; la réécriture est rangée de bas en haut (CF-R32 d) |
+| `ypos_wrong` | `yPos` = 0 | 5999, `43af2ad7b5c2e3f5e924fc7ff479d66fee5d4a51e6ede859a3e000e2fae34b1d` | `yPos 0, expected -4` | PRÉSENT, avertissement ; la réécriture écrit -4 (CF-R33) |
+| `ypos_absent` | pas de `yPos` | 5988, `268bfabb4b597be20e85704c675c8a6a04556336cfe17eeca0502b24f4783036` | `yPos None, expected -4` | PRÉSENT, sans avertissement ; la réécriture écrit -4 |
+| `no_sections_key` | pas de clé `sections` | 1475, `b69cc3270dbbf1890137ff7bc5a5af6b8bf2f7cabb3ff03a949798d720e2d29e` | `section list: missing [-4, ... 19]` | REFUSÉ, INVALID_FIELD (CF-R32 a) |
+| `skylight_chain` | `SkyLight` sur la section 19 seule (LI2) | 8062, `dbe651800fdd02e58448e42e74c80d64d0a1bb1ab0ab66df7d2d46e99f940d3d` | rien | PRÉSENT ; lumière effective de LI2 |
+| `bad_heightmap_length` | `MOTION_BLOCKING` de 36 longs | 5991, `f725fb2fe65f6c9373c3fb324af79f78acb2f551a32ba21ec4dd9c801fb2b2dd` | `heightmap MOTION_BLOCKING has 36 longs` | PRÉSENT ; `MOTION_BLOCKING` INCONNU, avertissement ; les trois autres VALIDES (CF-R34) |
+| `heightmap_overflow` | `WORLD_SURFACE` colonne 0 = 400 | 5999, `ffe8d7853549dbf04f8eaf0b084874d014ea2990dba8dbed272d22ab632b3240` | `heightmap WORLD_SURFACE has a value above 384` | PRÉSENT ; `WORLD_SURFACE` INCONNU, avertissement |
+| `postprocessing` | 24 listes ; liste 0 : Short 2307 ; liste 4 : 2387 ; liste 5 : 4096 | 6147, `97197f5413e36ceb14b7882d1b1c679e191ad6a65b354e21007616d48c96a36a` | rien | PRÉSENT ; positions décodées : section -4 (3, 0, 9) = `minecraft:bedrock`, section 0 (3, 5, 9) = `minecraft:air`, le Short 4096 ignoré avec un avertissement (CF-R24) |
+| `root_named` | racine nommée `chunk` | 6004, `ceace82a6d9b9133638f78e006c40fa470ebf7147e35bfb2255201ad769a2d7d` | rien | PRÉSENT, avertissement ; même chunk que RG1 (AR-R30 c) |
+| `trailing_bytes` | 5 octets après la racine | 6004, `12430e8edde9e2428f09d0a794c6bd2a28e59144c8090a75f65d0340d2519d82` | rien | PRÉSENT, avertissement (AR-R30 d) |
+| `root_not_compound` | racine = List vide de Byte (`09 00 00 01 00 00 00 00`) | 8, `73a18da71a19b1d7b390f27bdbb45b81bd79f15561a5828eed0651ea954167dd` | `root is not a compound` | ABSENT, UNREADABLE_RECORD (AR-R30 b) |
+| `invalid_nbt` | NBT tronqué à 3000 octets | 3000, `b55f525805f219091beef72ad011f051034b57fb978a7491506435968facc66a` | erreur de lecture | ABSENT, UNREADABLE_RECORD (AR-R30 a) |
+| `corrupt_zlib` | octet du milieu du flux zlib inversé (NBT d'origine = RG1, SHA-256 de RG1) | 5999 avant compression | erreur de décompression | ABSENT, UNREADABLE_RECORD (AR-R20, R30 a) |
+| `bomb` | NBT remplacé par 4 194 304 octets nuls, zlib (environ 4 Kio) | 4194304, `bb9f8df61474d25e71fa00722318cd387396ca1736605e1248821cc0de3d3af8` | `root is not a compound` | limite par défaut : ABSENT, UNREADABLE_RECORD ; limite 1 048 576 : REFUSÉ, TOO_LARGE, sans produire plus de 1 048 576 octets (AR-R29) |
+| `compression_127` | type 127, puis `00 08 78 3a 63 75 73 74 6f 6d` ("x:custom") et le flux zlib | 5999, SHA-256 de RG1 | `unknown compression 127` | REFUSÉ, UNSUPPORTED_COMPRESSION (AR-R14) |
+
+## LIM1 : limite de décompression (C sur AR-R29)
+
+Chunk A de RG1 : NBT de 5999 octets. Pour chaque variante `zlib`, `gzip`, `none`, `lz4`, `external` de RG2 (le NBT décompressé est le même) :
+
+| Limite (octets) | Issue |
+|---|---|
+| 134 217 728 (défaut) | PRÉSENT |
+| 5999 | PRÉSENT (total égal à la limite) |
+| 5998 | REFUSÉ, TOO_LARGE |
+| 0 | REFUSÉ, TOO_LARGE |
+
+Autres cas : variante `bomb` avec la limite 1 048 576 : REFUSÉ, TOO_LARGE, le décodeur n'a produit que 1 048 576 octets au plus (observable par un flux de sortie instrumenté). Flux LZ1 (72 octets décompressés, un bloc qui annonce 72) avec la limite 71 : REFUSÉ avant décodage du bloc, 0 octet produit ; avec la limite 72 : PRÉSENT. Chunk B de RG1 (type 3, `L - 1` = 3915) avec la limite 3914 : REFUSÉ avant toute lecture des données. La limite se règle séparément du quota NBT de `core-nbt.md` (R32) : les tests qui visent la limite de décompression donnent un quota NBT assez grand.
 
 ## LZ1 : trame LZ4Block (`lz4`, D pour le format, C pour les octets)
 
@@ -317,7 +406,7 @@ save-all flush
 
 Attendus pour `BlockLight` de la section 0 du chunk (0, 0) : index 136 (8, 0, 8) = 15, donc octet 68 = `0xef` (index 137 = 14 en demi-octet haut) et octet 67 = `0xed` (index 134 = 13, index 135 = 14). La valeur 15 et la décroissance d'un niveau par bloc sont S (spec lumière M5) ; la sonde vise l'ordre des demi-octets.
 
-### PC6 : statuts et champs d'un monde normal (CF-R19 à R21, R23 à R26, R28)
+### PC6 : statuts et champs d'un monde normal (CF-R19 à R21, R23 à R26, R28, R35)
 
 W-NORMAL, `generate-structures=true` :
 
@@ -330,8 +419,12 @@ save-all flush
 Puis `world_ref.py check` sur les quatre fichiers autour de l'origine (et, si aucun chunk n'a de `PostProcessing` ou de références, sur les fichiers d'une zone plus grande chargée de la même façon, par exemple `forceload add -256 -256 -1 -1`). Attendus :
 
 - toutes les valeurs de `Status` dans la liste de CF-R27 ; chunks `minecraft:full` et proto-chunks à divers statuts ; pour chaque statut, clés de la racine, des sections, des heightmaps (CF-R19), des structures, nombre de listes de `PostProcessing` (24) et clés des entrées de ticks et de block entities ;
-- `PostProcessing` (CF-R24) : la ligne `postprocessing as x|z<<4|y<<8` compte, pour chaque Short décodé avec le codage provisoire, le bloc désigné ; attendu : une majorité de blocs non air (fluides et blocs qui dépendent de leurs voisins, d'après le wiki), nettement plus que la ligne `postprocessing as y|z<<4|x<<8` (codage inversé) ; si c'est l'inverse, CF-R24 est fausse ;
+- `PostProcessing` (CF-R24) : pour chacun des six ordres possibles des trois quartets, une ligne `postprocessing as a|b<<4|c<<8` (`a` dans le quartet bas) compte les blocs désignés par les Short décodés, avec leur part de non air et de fluides (eau, lave). Attendu : `x|y<<4|z<<8` (0ZYX, provisoire) désigne la plus grande part de blocs non air et de fluides des six, au moins la moitié (fluides et blocs qui dépendent de leurs voisins, d'après le wiki) ; les cinq autres, dont `x|z<<4|y<<8` (ancienne valeur provisoire) et `y|z<<4|x<<8`, nettement moins. Si un autre ordre l'emporte, CF-R24 est fausse : elle est corrigée en même temps que `core-math.md` R32 (deuxième puce) et V4 (décision D1). Relever aussi `shorts with a high nibble set` (attendu 0) et le nombre de listes par statut (attendu 24) ;
 - références (CF-R25, ST1) : la ligne `references decoded as x low` doit montrer une distance maximale de quelques chunks (provisoire : 16 au plus) et, pour les cibles situées dans le même fichier, autant de départs correspondants (`starts` du chunk ciblé avec le même identifiant de structure) que de cibles ; la ligne `x high` sert de contre-épreuve et doit en trouver moins. Relever aussi le nom exact de la clé (`References` ou `references`).
+
+### PC7 : SkyLight absent et sections de lumière (CF-R30, R31)
+
+W-FLAT puis W-NORMAL, mêmes chargements que PC1 et PC6, puis `world_ref.py check` et `dump` (lignes `skylight_absent_sections`, `without SkyLight`, `with BlockLight`, `section Y in file order`). Relever : (1) les sections de lumière présentes (Y -5 et 20 ?) et leurs tableaux ; (2) pour chaque section sans `SkyLight`, si la section au-dessus (de lumière comprise) a un `SkyLight`, et si sa couche du bas est uniforme à 15 ; une section sans `SkyLight` sous une couche non uniforme est le cas qui sépare "couche du bas répétée" de "tableau recopié". Puis la variante `skylight_chain` de RG4, procédure de PB1, `save-all flush`, `dump` : relever le `SkyLight` que le serveur réécrit pour les sections 18 et 17 (octet 128 : `10` si la couche du bas est répétée, `33` si le tableau est recopié). Un serveur qui recalcule la lumière à partir des blocs (15 partout, ou 0 sous un plafond) ne départage pas les deux lectures : le consigner tel quel. Attendu provisoire : `10`.
 
 ### PB1 : entrées de palette altérées (BS-R19 à R21)
 
@@ -357,6 +450,18 @@ execute if biome -16 -64 -16 minecraft:plains
 ```
 
 Attendus provisoires (comportement de notre moteur) : `bad_length`, `empty_palette`, `index_overflow` -> chunk refusé, donc l'attente W expire ("jamais chargé") ; `unknown_biome` et `missing_biomes` -> bedrock à y = -64 et biome `plains` ; `missing_block_states` -> air à y = -64, pas de dirt à y = -63. Relever le comportement réel du serveur (chunk régénéré, section vidée, chunk non chargé, arrêt du serveur), son journal, puis, après `save-all flush`, ce qu'il a réécrit dans `r.-1.-1.mca`.
+
+### PB3 : sections, `yPos` et heightmaps altérés (CF-R22, R24, R30 à R35)
+
+Variantes `missing_section`, `light_sections`, `far_sections`, `duplicate_section`, `no_section_y`, `unsorted_sections`, `ypos_wrong`, `ypos_absent`, `no_sections_key`, `skylight_chain`, `bad_heightmap_length`, `heightmap_overflow`, `postprocessing` de RG4, même procédure que PB1, avec :
+
+```
+execute if block -16 -64 -16 minecraft:bedrock
+execute if block -16 -63 -16 minecraft:air
+execute if block -16 -63 -16 minecraft:dirt
+```
+
+Attendus provisoires (notre moteur) : bedrock et air pour toutes les variantes PRÉSENTES ; pour `duplicate_section`, `no_section_y` et `no_sections_key` (REFUSÉ) l'attente W expire. Un chunk régénéré par le serveur donnerait dirt à y = -63. Puis `save-all flush` et `dump` : relever, par variante, les Y des sections réécrites (sections -5 et 20 conservées ? entrées -6 et 21 supprimées ? section 0 recréée ?), `yPos` (attendu -4), les longueurs des heightmaps (recalculées ou non), et les listes de `PostProcessing` (conservées, vidées ou supprimées). Relever le journal du serveur pour chaque variante (avertissement, erreur, régénération).
 
 ### PR1 : arborescence et fichiers auxiliaires (AR-R1, R2, R9, R22, R23)
 
@@ -409,6 +514,10 @@ save-all flush
 
 Variantes `wrong_pos`, `bad_offset` et `offset_beyond` de RG3, même procédure que PB1. Attendus provisoires (notre moteur) : chunk absent, donc régénéré : `execute if block -16 -63 -16 minecraft:dirt` réussit. Relever le comportement réel et le journal du serveur.
 
+### PR6 : enregistrements endommagés (AR-R14, R26, R29, R30)
+
+Variantes `root_named`, `trailing_bytes`, `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb`, `compression_127` de RG4, même procédure que PB1. Attendus provisoires (notre moteur) : `root_named` et `trailing_bytes` PRÉSENTS (bedrock à y = -64) ; `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb` ABSENTS, donc régénérés (dirt à y = -63) ; `compression_127` REFUSÉ (l'attente W expire). Relever le comportement réel et le journal du serveur (chunk régénéré, chunk non chargé, arrêt, mémoire consommée pour `bomb`), puis, après `save-all flush`, si l'enregistrement d'origine de l'index 1023 de `r.-1.-1.mca` a été conservé ou écrasé : un écrasement par le serveur justifie AR-R30 a et b ; une conservation les fait passer à REFUSÉ.
+
 ## Annexe : `world_ref.py`
 
 ```python
@@ -424,6 +533,7 @@ Usage, with REF=.cache/reference/26.3:
   python -I world_ref.py pack
   python -I world_ref.py coords
   python -I world_ref.py light
+  python -I world_ref.py pp
   python -I world_ref.py lz4
   python -I world_ref.py region  OUT_DIR [VARIANT]
   python -I world_ref.py dump    FILE.mca
@@ -762,20 +872,60 @@ def cmd_light():
     print('L1 signed byte values', [(b - 256 if b > 127 else b) for b in (arr[0], arr[128], arr[2047])])
 
 
+def light_array(fill, layer0=None):
+    """2048 signed bytes of a light array (CF-R14): every nibble `fill`, then, if layer0 is given, nibble i of
+    the bottom layer (indices 0 to 255) set to layer0(i)."""
+    nib = [fill] * 4096
+    for i in range(256 if layer0 else 0):
+        nib[i] = layer0(i)
+    raw = [nib[2 * k] | (nib[2 * k + 1] << 4) for k in range(2048)]
+    return [b - 256 if b > 127 else b for b in raw]
+
+
+def pp_pack(x, y, z):
+    """PostProcessing short of CF-R24: x in the low nibble, then y, then z (packing order 0ZYX)."""
+    return x | (y << 4) | (z << 8)
+
+
+def pp_unpack(sh):
+    """Inverse of pp_pack as (x, y, z); None if the 4 high bits are not 0."""
+    sh &= 0xFFFF
+    return None if sh >> 12 else (sh & 15, (sh >> 4) & 15, (sh >> 8) & 15)
+
+
+def cmd_pp():
+    """Vectors PP1: PostProcessing shorts (CF-R24) against the block index of CF-R4 and the previous
+    provisional packing x|z<<4|y<<8 (which equals the block index)."""
+    for pos in [(0, 0, 0), (1, 0, 0), (0, 1, 0), (0, 0, 1), (15, 0, 15), (0, 15, 0), (15, 15, 15), (3, 0, 9), (3, 5, 9), (9, 5, 3)]:
+        x, y, z = pos
+        sh = pp_pack(*pos)
+        print(pos, 'short', sh, '0x%04x' % sh, 'previous', x | (z << 4) | (y << 8), 'block_index', (y * 16 + z) * 16 + x,
+              'roundtrip', pp_unpack(sh))
+    print('high nibble set: 0x1000 ->', pp_unpack(0x1000), '; Short -4096 ->', pp_unpack(-4096))
+
+
 # ---------- region ----------
 
-def section(y, palette_items, data=None, biome='minecraft:plains', with_blocks=True, with_biomes=True):
-    """Section compound; keys in the order Y, block_states, biomes (an observed order, not a rule)."""
+def section(y, palette_items, data=None, biome='minecraft:plains', with_blocks=True, with_biomes=True, light=()):
+    """Section compound; keys in the order Y, block_states, biomes, then `light` entries (an observed order, not
+    a rule). y None omits the Y key."""
     et = 0 if not palette_items else (10 if palette_items[0].t == 10 else 8)
     bs = [('palette', T(9, palette_items, et))]
     if data is not None:
         bs.append(('data', T(12, data)))
-    items = [('Y', T(1, y))]
+    items = [] if y is None else [('Y', T(1, y))]
     if with_blocks:
         items.append(('block_states', T(10, bs)))
     if with_biomes:
         items.append(('biomes', T(10, [('palette', T(9, [T(8, biome)], 8))])))
+    items.extend((k, T(7, v)) for k, v in light)
     return T(10, items)
+
+
+def light_only_section(y):
+    """Section outside the world height that only stores light (CF-R31)."""
+    return T(10, [('Y', T(1, y)), ('BlockLight', T(7, light_array(0, lambda i: 7 if i == 0 else 0))),
+                  ('SkyLight', T(7, light_array(15)))])
 
 
 BOTTOM_ENTRIES = {
@@ -788,9 +938,12 @@ BOTTOM_ENTRIES = {
 
 def chunk_nbt(cx, cz, with_bedrock, variant='bedrock'):
     """Full-status chunk, all air except, when with_bedrock, the bottom layer (y = -64) set to the
-    second palette entry of section -4 (bedrock, or the altered entry named by `variant`)."""
+    second palette entry of section -4 (bedrock, or the altered entry named by `variant`).
+
+    Variants of CF-R22, R24, R30 to R34 act on the section list, yPos, the heightmaps, the light arrays or
+    PostProcessing and keep the bedrock layer."""
     air = T(10, [('id', T(8, 'minecraft:air'))])
-    secs = []
+    secs = {}
     for sy in range(-4, 20):
         if sy == -4 and with_bedrock:
             data = pack([(2 if variant == 'index_overflow' else 1) if i < 256 else 0 for i in range(4096)], 4)
@@ -802,20 +955,55 @@ def chunk_nbt(cx, cz, with_bedrock, variant='bedrock'):
                 items, data = [], None
             else:
                 items = [air, BOTTOM_ENTRIES.get(variant, BOTTOM_ENTRIES['bedrock'])]
-            secs.append(section(sy, items, data,
-                                biome='probe:unknown_biome' if variant == 'unknown_biome' else 'minecraft:plains',
-                                with_blocks=variant != 'missing_block_states',
-                                with_biomes=variant != 'missing_biomes'))
+            secs[sy] = section(sy, items, data,
+                               biome='probe:unknown_biome' if variant == 'unknown_biome' else 'minecraft:plains',
+                               with_blocks=variant != 'missing_block_states',
+                               with_biomes=variant != 'missing_biomes')
         else:
-            secs.append(section(sy, [air]))
+            secs[sy] = section(sy, [air])
+    extra = []
+    if variant == 'skylight_chain':
+        # Section 19 stores SkyLight: bottom layer nibble = lx, other layers 3; sections 18 and below store none.
+        secs[19] = section(19, [air], light=[('SkyLight', light_array(3, lambda i: i & 15))])
+    if variant == 'light_sections':
+        extra = [light_only_section(-5), light_only_section(20)]
+    if variant == 'far_sections':
+        extra = [light_only_section(-6), light_only_section(21)]
+    if variant == 'missing_section':
+        del secs[0]
+    if variant == 'no_section_y':
+        secs[-3] = section(None, [air])
+    if variant == 'duplicate_section':
+        extra = [section(-4, [air])]
+    ordered = [secs[k] for k in sorted(secs)]
+    if variant in ('light_sections', 'far_sections'):
+        ordered = [extra[0]] + ordered + [extra[1]]
+    else:
+        ordered = ordered + extra
+    if variant == 'unsorted_sections':
+        ordered.reverse()
     hm = pack([1 if with_bedrock else 0] * 256, 9)
-    heightmaps = T(10, [(k, T(12, hm)) for k in ['MOTION_BLOCKING', 'MOTION_BLOCKING_NO_LEAVES', 'OCEAN_FLOOR', 'WORLD_SURFACE']])
-    return nbt_file([
-        ('DataVersion', T(3, 5023)), ('xPos', T(3, cx)), ('zPos', T(3, cz)), ('yPos', T(3, -4)),
-        ('Status', T(8, 'minecraft:full')), ('LastUpdate', T(4, 0)), ('InhabitedTime', T(4, 0)),
-        ('sections', T(9, secs, 10)), ('Heightmaps', heightmaps),
-        ('block_entities', T(9, [], 0)), ('block_ticks', T(9, [], 0)), ('fluid_ticks', T(9, [], 0)),
-    ])
+    hms = {k: hm for k in ['MOTION_BLOCKING', 'MOTION_BLOCKING_NO_LEAVES', 'OCEAN_FLOOR', 'WORLD_SURFACE']}
+    if variant == 'bad_heightmap_length':
+        hms['MOTION_BLOCKING'] = hm[:36]
+    if variant == 'heightmap_overflow':
+        hms['WORLD_SURFACE'] = pack([400] + [1] * 255, 9)
+    heightmaps = T(10, [(k, T(12, v)) for k, v in hms.items()])
+    root = [('DataVersion', T(3, 5023)), ('xPos', T(3, cx)), ('zPos', T(3, cz))]
+    if variant != 'ypos_absent':
+        root.append(('yPos', T(3, 0 if variant == 'ypos_wrong' else -4)))
+    root += [('Status', T(8, 'minecraft:full')), ('LastUpdate', T(4, 0)), ('InhabitedTime', T(4, 0))]
+    if variant != 'no_sections_key':
+        root.append(('sections', T(9, ordered, 10)))
+    root += [('Heightmaps', heightmaps),
+             ('block_entities', T(9, [], 0)), ('block_ticks', T(9, [], 0)), ('fluid_ticks', T(9, [], 0))]
+    if variant == 'postprocessing':
+        # List k belongs to section -4 + k: bedrock block (3, 0, 9) of section -4, (3, 5, 9) of section 0, and a
+        # short with a high nibble set in section 1.
+        lists = [[] for _ in range(24)]
+        lists[0], lists[4], lists[5] = [pp_pack(3, 0, 9)], [pp_pack(3, 5, 9)], [0x1000]
+        root.append(('PostProcessing', T(9, [T(9, [T(2, v) for v in lst], 2 if lst else 0) for lst in lists], 9)))
+    return nbt_file(root)
 
 
 def encode_chunk(nbt, kind):
@@ -837,15 +1025,21 @@ def encode_chunk(nbt, kind):
 
 COMPRESSIONS = ('zlib', 'gzip', 'none', 'lz4', 'external')
 NBT_VARIANTS = ('string_palette', 'partial_props', 'unknown_block', 'bad_value', 'bad_length', 'wrong_pos',
-                'unknown_biome', 'missing_block_states', 'missing_biomes', 'empty_palette', 'index_overflow')
+                'unknown_biome', 'missing_block_states', 'missing_biomes', 'empty_palette', 'index_overflow',
+                'missing_section', 'light_sections', 'far_sections', 'duplicate_section', 'no_section_y',
+                'unsorted_sections', 'ypos_wrong', 'ypos_absent', 'no_sections_key', 'skylight_chain',
+                'bad_heightmap_length', 'heightmap_overflow', 'postprocessing')
+RECORD_VARIANTS = ('root_named', 'root_not_compound', 'invalid_nbt', 'trailing_bytes', 'corrupt_zlib', 'bomb',
+                   'compression_127')
 
 
 def cmd_region(out_dir, kind='zlib'):
     """Synthetic r.-1.-1.mca: chunk (-1,-1) at index 1023, chunk (-32,-32) uncompressed at index 0.
 
     kind: a compression of chunk (-1,-1) (COMPRESSIONS), an altered chunk (-1,-1) stored with zlib
-    (NBT_VARIANTS), 'missing_mcc' (external record without its .mcc file), 'bad_offset' (location of
-    chunk (-1,-1) points into the header) or 'offset_beyond' (location points past the end of the file).
+    (NBT_VARIANTS), a damaged record of chunk (-1,-1) (RECORD_VARIANTS: AR-R29, AR-R30), 'missing_mcc'
+    (external record without its .mcc file), 'bad_offset' (location of chunk (-1,-1) points into the header)
+    or 'offset_beyond' (location points past the end of the file).
 
     Key order of the compounds is fixed by this builder (root: DataVersion, xPos, zPos, yPos, Status,
     LastUpdate, InhabitedTime, sections, Heightmaps, block_entities, block_ticks, fluid_ticks; section:
@@ -859,6 +1053,24 @@ def cmd_region(out_dir, kind='zlib'):
         if kind == 'external':
             open(os.path.join(out_dir, 'c.-1.-1.mcc'), 'wb').write(pa)
         ta, pa = ta + 128, b''
+    elif kind in RECORD_VARIANTS:
+        if kind == 'root_named':
+            a = b'\x0a' + _s('chunk') + a[3:]
+        elif kind == 'root_not_compound':
+            a = b'\x09' + _s('') + b'\x01' + struct.pack('>i', 0)
+        elif kind == 'invalid_nbt':
+            a = a[:3000]
+        elif kind == 'trailing_bytes':
+            a = a + b'\x00\x01\x02\x03\x04'
+        elif kind == 'bomb':
+            a = b'\x00' * (4 << 20)
+        ta, pa = encode_chunk(a, 'zlib')
+        if kind == 'corrupt_zlib':
+            pa = bytearray(pa)
+            pa[len(pa) // 2] ^= 0xFF
+            pa = bytes(pa)
+        if kind == 'compression_127':
+            ta, pa = 127, struct.pack('>H', 8) + b'x:custom' + pa
     else:
         ta, pa = encode_chunk(a, kind if kind in COMPRESSIONS else 'zlib')
     pb = b
@@ -1100,6 +1312,17 @@ def cmd_dump(path):
             continue
         print('index', i, 'local', (i & 31, i >> 5), 'sector', off, 'count', cnt, 'timestamp', ts, 'length', ln,
               'type', ct, 'xPos', v.get('xPos'), 'zPos', v.get('zPos'), 'keys', list(v))
+        secs = v.get('sections', ('L', 10, []))[2]
+        print('  yPos', v.get('yPos'), 'section Y in file order', [s.get('Y') for s in secs],
+              'without SkyLight', [s.get('Y') for s in secs if 'SkyLight' not in s],
+              'with BlockLight', [s.get('Y') for s in secs if 'BlockLight' in s])
+        print('  heightmap longs', {k: len(h[2]) for k, h in v.get('Heightmaps', {}).items()},
+              'max value', {k: max(unpack(h[2], 9, 256)) for k, h in v.get('Heightmaps', {}).items() if len(h[2]) == 37})
+        for k, lst in enumerate(v.get('PostProcessing', ('L', 0, []))[2]):
+            for sh in lst[2]:
+                pos = pp_unpack(sh)
+                name = None if pos is None else block_name_at(v, -4 + k, (pos[1] << 8) | (pos[2] << 4) | pos[0])
+                print('  postprocessing list', k, 'section', -4 + k, 'short', sh & 0xFFFF, 'as (x,y,z)', pos, 'block', name)
 
 
 def palette_name(e):
@@ -1124,23 +1347,35 @@ def block_name_at(v, sy, index):
 
 
 def postprocessing_report(chunks):
-    """Probe PC6 for CF-R24: decode every PostProcessing short with the provisional packing and with the
-    swapped one (y in the low bits), and count which blocks they designate."""
-    tally = {'x|z<<4|y<<8': {}, 'y|z<<4|x<<8': {}}
+    """Probe PC6 for CF-R24: decode every PostProcessing short with each of the six orders of the three
+    nibbles (label 'a|b<<4|c<<8' = coordinate a in the low nibble) and count which blocks they designate.
+    The provisional order is 'x|y<<4|z<<8' (0ZYX); a short with a high nibble set is counted apart."""
+    orders = list(itertools.permutations('xyz'))
+    tally = {'%s|%s<<4|%s<<8' % o: {} for o in orders}
+    high = lists = 0
     for _, _, _, _, _, _, v in chunks:
         if not isinstance(v, dict) or 'PostProcessing' not in v:
             continue
+        lists += len(v['PostProcessing'][2])
         for k, lst in enumerate(v['PostProcessing'][2]):
-            sy = v.get('yPos', -4) + k
+            sy = -4 + k
             for sh in lst[2]:
                 sh &= 0xFFFF
-                lx, lz, ly = sh & 15, (sh >> 4) & 15, (sh >> 8) & 15
-                for label, idx in (('x|z<<4|y<<8', (ly << 8) | (lz << 4) | lx),
-                                   ('y|z<<4|x<<8', (lx << 8) | (lz << 4) | ly)):
-                    name = block_name_at(v, sy, idx)
-                    tally[label][name] = tally[label].get(name, 0) + 1
+                if sh >> 12:
+                    high += 1
+                    continue
+                for o in orders:
+                    c = dict(zip(o, (sh & 15, (sh >> 4) & 15, (sh >> 8) & 15)))
+                    name = block_name_at(v, sy, (c['y'] << 8) | (c['z'] << 4) | c['x'])
+                    t = tally['%s|%s<<4|%s<<8' % o]
+                    t[name] = t.get(name, 0) + 1
+    print('postprocessing lists', lists, 'shorts with a high nibble set', high)
     for label, t in tally.items():
-        print('postprocessing as', label, sorted(t.items(), key=lambda kv: -kv[1])[:8])
+        total = sum(t.values())
+        nonair = sum(n for k, n in t.items() if k not in (None, 'minecraft:air', 'minecraft:cave_air', 'minecraft:void_air'))
+        fluid = sum(n for k, n in t.items() if k in ('minecraft:water', 'minecraft:lava'))
+        print('postprocessing as', label, 'shorts', total, 'non-air', nonair, 'fluid', fluid,
+              sorted(t.items(), key=lambda kv: -kv[1])[:6])
 
 
 def references_report(path, chunks):
@@ -1204,6 +1439,17 @@ def cmd_check(path, t_min=None, t_max=None):
         inv['structures'].add(tuple(sorted(v.get('structures', {}))))
         if 'PostProcessing' in v:
             inv['postprocessing_lists'].add(len(v['PostProcessing'][2]))
+        ys = [s.get('Y') for s in v.get('sections', ('L', 10, []))[2]]
+        want = list(range(-4, 20))
+        if sorted(y for y in ys if y in want) != want or len(ys) != len(set(ys)):
+            problems.append((i, 'section list: missing %s duplicates %s' % (
+                [y for y in want if y not in ys], sorted({y for y in ys if ys.count(y) > 1}, key=str))))
+        if [y for y in ys if y is None or not -5 <= y <= 20]:
+            problems.append((i, 'sections outside -5..20: %s' % [y for y in ys if y is None or not -5 <= y <= 20]))
+        if v.get('yPos') != -4:
+            problems.append((i, 'yPos %s, expected -4 for the Overworld' % v.get('yPos')))
+        inv.setdefault('skylight_absent_sections', set()).add(tuple(s.get('Y') for s in v.get('sections', ('L', 10, []))[2]
+                                                                       if 'SkyLight' not in s))
         for s in v.get('sections', ('L', 10, []))[2]:
             inv['section_keys'].add(tuple(sorted(s)))
             for key in ('block_states', 'biomes'):
@@ -1234,10 +1480,12 @@ def cmd_check(path, t_min=None, t_max=None):
         for name, hm in v.get('Heightmaps', {}).items():
             if len(hm[2]) != 37:
                 problems.append((i, 'heightmap %s has %d longs' % (name, len(hm[2]))))
+            elif max(unpack(hm[2], 9, 256)) > 384:
+                problems.append((i, 'heightmap %s has a value above 384' % name))
     for k, idx in keysets.items():
         print(len(idx), 'chunks with root keys', list(k))
     for st, inv in inventory.items():
-        print('status', st, {k: sorted(x) if isinstance(x, set) else x for k, x in inv.items()})
+        print('status', st, {k: sorted(x, key=str) if isinstance(x, set) else x for k, x in inv.items()})
     postprocessing_report(chunks)
     references_report(path, chunks)
     print('problems', len(problems), problems[:20])
@@ -1317,6 +1565,6 @@ def cmd_probe_cmds(blocks_path, x0, y0, z0):
 if __name__ == '__main__':
     cmd, args = sys.argv[1], sys.argv[2:]
     {'states': cmd_states, 'dims': cmd_dims, 'templates': cmd_templates, 'pack': cmd_pack, 'coords': cmd_coords,
-     'light': cmd_light, 'region': cmd_region, 'dump': cmd_dump, 'lz4': cmd_lz4, 'check': cmd_check,
+     'light': cmd_light, 'region': cmd_region, 'dump': cmd_dump, 'lz4': cmd_lz4, 'check': cmd_check, 'pp': cmd_pp,
      'probe-cmds': cmd_probe_cmds, 'debugcheck': cmd_debugcheck}[cmd](*args)
 ```

@@ -80,6 +80,40 @@ class ReferenceJarTest {
     assertThatCode(() -> ReferenceJar.inCache(cache).verify()).doesNotThrowAnyException();
   }
 
+  /**
+   * The state file as tools/bootstrap writes it (Gson, pretty printed, nested fingerprints). The
+   * oracle reads it as text and does not depend on the bootstrap module, so this layout is the
+   * contract between the two; StateStoreTest in tools/bootstrap pins the writer's side.
+   */
+  @Test
+  @Timeout(30)
+  void readsTheStateFileLayoutWrittenByBootstrap(@TempDir Path cache) throws Exception {
+    String digest = writeJarOfTheReferenceSize(cache);
+    Path state = cache.resolve("reference").resolve("26.3").resolve("state.json");
+    Files.createDirectories(state.getParent());
+    Files.writeString(
+        state,
+        """
+        {
+          "gameVersion": "26.3",
+          "serverSha256": "%s",
+          "innerServerSha256": "%s",
+          "resources": {
+            "files": 3,
+            "listing": "list",
+            "content": "content"
+          },
+          "generated": {
+            "files": 3,
+            "listing": "list",
+            "content": "content"
+          }
+        }"""
+            .formatted(digest, "b".repeat(64)));
+
+    assertThatCode(() -> ReferenceJar.inCache(cache).verify()).doesNotThrowAnyException();
+  }
+
   @Test
   void noneChecksNothing() {
     assertThatCode(ReferenceJar.NONE::verify).doesNotThrowAnyException();

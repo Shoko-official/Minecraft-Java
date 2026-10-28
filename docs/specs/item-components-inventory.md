@@ -164,7 +164,7 @@ Métrique commune des règles R40 à R47 : chaque sous-règle est testée par de
 
 ### Propriétaires de modules (décision de conception)
 
-Décisions prises pour cette spec dans le cadre des ADR 0004 et 0005, sans niveau de preuve (elles ne décrivent pas le jeu de référence). Une proposition d'ajustement de l'ADR 0004 est remise à l'orchestrateur avec le livrable.
+Décisions prises pour cette spec dans le cadre des ADR 0004 et 0005, sans niveau de preuve (elles ne décrivent pas le jeu de référence). L'ajustement de l'ADR 0004 qui les consigne est l'amendement 1 de `docs/adr/0004-module-loot-et-ports-de-contexte.md`.
 
 | Sujet | Module propriétaire | Raison |
 |---|---|---|

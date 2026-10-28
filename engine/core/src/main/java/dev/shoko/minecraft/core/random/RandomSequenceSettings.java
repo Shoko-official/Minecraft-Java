@@ -35,6 +35,11 @@ public record RandomSequenceSettings(
    * @return the initial generator state
    */
   public Seed128 initialState(long worldSeed, String sequenceId) {
-    return Skeleton.throwNotImplemented();
+    // The int salt widens to long with sign extension (R31 step 1, counter-hypothesis N3z unused).
+    long value = (includeWorldSeed ? worldSeed : 0L) ^ salt;
+    Seed128 words = SeedExpansion.expandUnmixed(value);
+    return includeSequenceId
+        ? SeedExpansion.xorFingerprintThenMix(words, sequenceId)
+        : SeedExpansion.mixWords(words);
   }
 }

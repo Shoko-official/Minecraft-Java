@@ -13,7 +13,25 @@ package dev.shoko.minecraft.core.random;
  */
 public final class Lcg48Random implements RandomSource {
 
-  private Lcg48Random() {}
+  /** Multiplier of the step, 25214903917 (R1). */
+  private static final long MULTIPLIER = 0x5DEECE66DL;
+
+  /** Increment of the step, 11 (R1). */
+  private static final long INCREMENT = 0xBL;
+
+  private static final long MASK_48 = (1L << 48) - 1;
+
+  private final PolarGaussian gaussian = new PolarGaussian();
+  private long state;
+  private long steps;
+
+  private Lcg48Random(long seed) {
+    this.state = scramble(seed);
+  }
+
+  private static long scramble(long seed) {
+    return (seed ^ MULTIPLIER) & MASK_48;
+  }
 
   /**
    * Returns a generator initialized with this seed (R2): state {@code (seed XOR 0x5DEECE66D) mod
@@ -23,7 +41,7 @@ public final class Lcg48Random implements RandomSource {
    * @return the generator
    */
   public static Lcg48Random ofSeed(long seed) {
-    return Skeleton.throwNotImplemented();
+    return new Lcg48Random(seed);
   }
 
   /**
@@ -32,7 +50,7 @@ public final class Lcg48Random implements RandomSource {
    * @return the state, {@code 0 <= x < 2^48}
    */
   public long state() {
-    return Skeleton.throwNotImplemented();
+    return state;
   }
 
   /**
@@ -44,13 +62,18 @@ public final class Lcg48Random implements RandomSource {
    * @throws IllegalArgumentException when {@code bits} is outside 1 to 32; no step is consumed
    */
   public int next(int bits) {
-    return Skeleton.throwNotImplemented();
+    if (bits < 1 || bits > 32) {
+      throw new IllegalArgumentException("bits must be between 1 and 32: " + bits);
+    }
+    state = (state * MULTIPLIER + INCREMENT) & MASK_48;
+    steps++;
+    return (int) (state >>> (48 - bits));
   }
 
   /** {@inheritDoc} G48: {@code next(32)}, one step (R4). */
   @Override
   public int nextInt() {
-    return Skeleton.throwNotImplemented();
+    return next(32);
   }
 
   /**
@@ -60,7 +83,19 @@ public final class Lcg48Random implements RandomSource {
    */
   @Override
   public int nextInt(int bound) {
-    return Skeleton.throwNotImplemented();
+    if (bound <= 0) {
+      throw new IllegalArgumentException("bound must be positive: " + bound);
+    }
+    if ((bound & -bound) == bound) {
+      return (int) ((bound * (long) next(31)) >> 31);
+    }
+    int r;
+    int v;
+    do {
+      r = next(31);
+      v = r % bound;
+    } while ((long) r - v + (bound - 1) >= 1L << 31);
+    return v;
   }
 
   /**
@@ -69,42 +104,46 @@ public final class Lcg48Random implements RandomSource {
    */
   @Override
   public long nextLong() {
-    return Skeleton.throwNotImplemented();
+    long high = next(32);
+    return (high << 32) + next(32);
   }
 
   /** {@inheritDoc} G48: {@code next(1) != 0}, one step (R4). */
   @Override
   public boolean nextBoolean() {
-    return Skeleton.throwNotImplemented();
+    return next(1) != 0;
   }
 
   /** {@inheritDoc} G48: {@code next(24) * 2^-24}, one step (R6). */
   @Override
   public float nextFloat() {
-    return Skeleton.throwNotImplemented();
+    return next(24) * 0x1.0p-24f;
   }
 
   /** {@inheritDoc} G48: {@code (next(26) * 2^27 + next(27)) * 2^-53}, two steps (R6). */
   @Override
   public double nextDouble() {
-    return Skeleton.throwNotImplemented();
+    long high = next(26);
+    return ((high << 27) + next(27)) * 0x1.0p-53;
   }
 
   /** {@inheritDoc} G48: four steps per attempt (two {@link #nextDouble()}), R7, R9. */
   @Override
   public double nextGaussian() {
-    return Skeleton.throwNotImplemented();
+    return gaussian.next(this);
   }
 
   /** {@inheritDoc} G48: state {@code (seed XOR 0x5DEECE66D) mod 2^48} (R2). */
   @Override
   public void setSeed(long seed) {
-    Skeleton.throwNotImplemented();
+    state = scramble(seed);
+    gaussian.clear();
+    steps = 0;
   }
 
   @Override
   public long steps() {
-    return Skeleton.throwNotImplemented();
+    return steps;
   }
 
   /**
@@ -114,7 +153,24 @@ public final class Lcg48Random implements RandomSource {
    */
   @Override
   public void skip(long n) {
-    Skeleton.throwNotImplemented();
+    if (n < 0) {
+      throw new IllegalArgumentException("step count must not be negative: " + n);
+    }
+    // (a, c) accumulates the applied steps, (powA, powC) is the step raised to 2^bit.
+    long a = 1;
+    long c = 0;
+    long powA = MULTIPLIER;
+    long powC = INCREMENT;
+    for (long rest = n; rest != 0; rest >>>= 1) {
+      if ((rest & 1) != 0) {
+        a = (powA * a) & MASK_48;
+        c = (powA * c + powC) & MASK_48;
+      }
+      powC = (powA * powC + powC) & MASK_48;
+      powA = (powA * powA) & MASK_48;
+    }
+    state = (a * state + c) & MASK_48;
+    steps += n;
   }
 
   /**
@@ -123,6 +179,6 @@ public final class Lcg48Random implements RandomSource {
    */
   @Override
   public Lcg48Random fork() {
-    return Skeleton.throwNotImplemented();
+    return ofSeed(nextLong());
   }
 }

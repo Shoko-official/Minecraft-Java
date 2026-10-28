@@ -23,9 +23,11 @@ public final class DerivedSources {
    * @param derivation the two words of the derivation seed
    * @param identifier the identifier, hashed as in {@link IdentifierFingerprint#of(String)}
    * @return a new generator with a step count of 0
+   * @throws IllegalArgumentException when {@code derivation} equals the fingerprint, the only input
+   *     that gives the all-zero state
    */
   public static XoroshiroRandom byName(Seed128 derivation, String identifier) {
-    return Skeleton.throwNotImplemented();
+    return XoroshiroRandom.ofState(SeedExpansion.xorFingerprintThenMix(derivation, identifier));
   }
 
   /**
@@ -39,7 +41,8 @@ public final class DerivedSources {
    * @return the hash; 0 for {@code (0, 0, 0)}
    */
   public static long positionHash(int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    // Each int widens to long with sign extension before the XOR.
+    return SeedExpansion.mix(SeedExpansion.mix(SeedExpansion.mix(x) ^ y) ^ z);
   }
 
   /**
@@ -54,6 +57,6 @@ public final class DerivedSources {
    * @return a new generator with a step count of 0
    */
   public static XoroshiroRandom atPosition(long derivationSeed, int x, int y, int z) {
-    return Skeleton.throwNotImplemented();
+    return XoroshiroRandom.ofSeed(derivationSeed ^ positionHash(x, y, z));
   }
 }

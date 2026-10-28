@@ -27,11 +27,11 @@ Ne couvre pas :
 
 - **Données extraites** (`.cache/reference/26.3/`) : `version.json` (`world_version` 5023) ; `resources/data/minecraft/dimension_type/*.json` (noms des dimensions).
 - **Calculs** : `world_ref.py` (annexe de `world-vectors.md`), sous-commandes `coords`, `region`, `dump`, `check`, `lz4`.
-- **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki "Region file format" (en-tête, secteurs, types de compression 1 à 4 et 127, chunks externes) ; Minecraft Wiki "Java Edition level format" et "Java Edition 26.1 Snapshot 6" (dossier `dimensions/`, data version 4774 de ce snapshot) ; Minecraft Wiki "Server.properties" (`region-file-compression`) ; Minecraft Wiki "Java Edition 24w04a" ; Minecraft Wiki "Entity format" (fichiers `entities/`) ; ancienne page wiki.vg "Map Format" (miroir `wikivg.booky.dev`, modifiée le 2024-05-30 : trame LZ4) ; code source public de la bibliothèque lz4-java, `LZ4BlockOutputStream` (format de trame "LZ4Block") ; spécification publique du format de bloc LZ4 et de XXH32 (projets lz4 et xxHash) ; RFC 1950 et RFC 1952.
+- **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki "Region file format" (en-tête, secteurs, types de compression 1 à 4 et 127, chunks externes) ; Minecraft Wiki "Java Edition level format" et "Java Edition 26.1 Snapshot 6" (dossier `dimensions/`, data version 4774 de ce snapshot) ; Minecraft Wiki "Server.properties" (`region-file-compression`) ; Minecraft Wiki "Java Edition 24w04a" ; Minecraft Wiki "Entity format" (fichiers `entities/`) ; ancienne page wiki.vg "Map Format" (miroir `wikivg.booky.dev`, modifiée le 2024-05-30 : trame LZ4) ; code source public de la bibliothèque lz4-java (dépôt `lz4/lz4-java`), `LZ4BlockOutputStream` et `StreamingXXHash32` (format de trame "LZ4Block", masque 28 bits de la somme) ; Maven Central, artefact `at.yawk.lz4:lz4-java` (branche maintenue) ; spécification publique du format de bloc LZ4 et de XXH32 (projets lz4 et xxHash) ; RFC 1950 et RFC 1952.
 - **Rapports locaux** (indices) : rapport 1.21.1 (nom `r.<x>.<z>.mca`), rapport Overworld section 1.2 (division vers le bas pour les coordonnées négatives). Aucune règle n'en vient seule.
 - **Sondes de l'oracle** : aucune exécutée. Sondes PR1 à PR5 décrites dans `world-vectors.md`.
 
-Niveaux : **D** donnée extraite, ou source publique normative qui fixe un algorithme (RFC, format LZ4 et XXH32, format de trame de lz4-java) ; **C** calcul reproductible ; **M** non utilisé ; **S** documentation publique non normative seule, rapport local ou hypothèse, avec comportement **provisoire**.
+Niveaux : **D** donnée extraite, ou source publique normative qui fixe un algorithme (RFC, format LZ4 et XXH32, format de trame de lz4-java) ; **C** calcul reproductible ; **M** non utilisé ; **S** documentation publique non normative seule, rapport local ou hypothèse ; une règle S énonce elle-même le comportement **provisoire** que le moteur applique en attendant la sonde.
 
 ## Règles
 
@@ -57,7 +57,7 @@ Niveaux : **D** donnée extraite, ou source publique normative qui fixe un algor
 |---|---|---|
 | R7 | Un secteur fait 4096 octets. Les secteurs 0 et 1 forment l'en-tête de 8192 octets : table des emplacements (1024 entiers 32 bits gros-boutistes) puis table des horodatages (1024 entiers 32 bits gros-boutistes). La taille du fichier est un multiple de 4096. | S |
 | R8 | Emplacement = `(offset << 8) | count` : `offset` sur 3 octets (numéro du premier secteur du chunk depuis le début du fichier), `count` sur 1 octet (nombre de secteurs réservés). Emplacement nul : chunk absent. | S |
-| R9 | Horodatage : **provisoire** secondes depuis l'époque Unix de la dernière écriture du chunk, entier 32 bits non signé. Le moteur l'écrit mais ne s'en sert pas. | S |
+| R9 | Horodatage : **provisoire** secondes depuis l'époque Unix de la dernière écriture du chunk, entier 32 bits non signé. Le moteur l'écrit (heure de l'écriture) mais ne s'en sert pas à la lecture. | S |
 | R10 | Enregistrement d'un chunk au secteur `offset` : longueur `L` (Int gros-boutiste signé, nombre d'octets qui suivent ce champ, octet de compression compris), octet de compression `t`, puis `L - 1` octets de données compressées. Le reste du dernier secteur est un bourrage (zéros à l'écriture, provisoire ; ignoré à la lecture). | S |
 | R11 | Taille maximale dans le fichier : `count <= 255`, donc enregistrement de 1 044 480 octets au plus, `L <= 1 044 476`, données compressées de 1 044 475 octets au plus. Au-delà : chunk externe (R17). Taille maximale adressable d'un fichier : 2^24 secteurs (64 Gio). | C sur S |
 | R12 | Allocation : un chunk occupe `ceil((L + 4) / 4096)` secteurs consécutifs, après l'en-tête, sans chevaucher un autre chunk. Le choix des secteurs (premier trou libre ou fin du fichier) n'est pas observable par le jeu : le moteur choisit librement, et les comparaisons portent sur les chunks décodés, pas sur les octets du fichier. | S |
@@ -67,24 +67,24 @@ Niveaux : **D** donnée extraite, ou source publique normative qui fixe un algor
 | Réf | Règle | Preuve |
 |---|---|---|
 | R13 | Valeurs de `t` : 1 gzip (RFC 1952) ; 2 zlib (RFC 1950) ; 3 aucune (NBT brut) ; 4 LZ4 (depuis 24w04a) ; 127 personnalisée (depuis 24w05a, réservée aux serveurs tiers : une chaîne avec espace de noms, précédée de sa longueur sur 16 bits non signés, nomme l'algorithme, suivie des données). | S |
-| R14 | Choix à l'écriture par `region-file-compression` de `server.properties` : `deflate` (défaut) -> 2, `lz4` -> 4, `none` -> 3. Un changement de réglage ne recompresse pas les chunks existants : un même fichier peut mélanger les types. Le lecteur accepte donc 1, 2, 3 et 4 dans tout fichier. Type 127 ou inconnu : **provisoire**, chunk refusé à la lecture (erreur), fichier non modifié. | S |
-| R15 | Trame LZ4Block de lz4-java : suite de blocs, chacun avec un en-tête de 21 octets : `LZ4Block` (8 octets ASCII), jeton (1 octet : méthode `0x10` brute ou `0x20` LZ4, OU niveau = `max(0, ceil(log2(taille de bloc)) - 10)`), longueur compressée, longueur décompressée, somme de contrôle (trois entiers 32 bits **petit-boutistes**), puis les données. Somme : XXH32 des données décompressées du bloc, graine `0x9747b28c`. Fin de flux : un en-tête de méthode brute dont les trois entiers valent 0. Un bloc est écrit brut si la compression ne le réduit pas. Taille de bloc par défaut 65 536 octets (niveau 6, jetons `0x16` et `0x26`). Ce format n'est pas la trame standard LZ4 Frame. | D |
-| R16 | Le type 4 utilise la trame de R15. **Provisoire** : taille de bloc 65 536 octets ; somme de contrôle comparée et écrite sur ses 28 bits de poids faible (`& 0x0FFFFFFF`, d'après wiki.vg) ; le lecteur accepte toute taille de bloc et les deux méthodes. | S |
+| R14 | Choix à l'écriture par `region-file-compression` de `server.properties` : `deflate` (défaut) -> 2, `lz4` -> 4, `none` -> 3. Un changement de réglage ne recompresse pas les chunks existants : un même fichier peut mélanger les types. Le lecteur accepte donc 1, 2, 3 et 4 dans tout fichier. Type 127 ou inconnu : **provisoire**, chunk refusé (voir Entrées / sorties). | S |
+| R15 | Trame LZ4Block de lz4-java (`LZ4BlockOutputStream` avec son constructeur par défaut) : suite de blocs, chacun avec un en-tête de 21 octets : `LZ4Block` (8 octets ASCII), jeton (1 octet : méthode `0x10` brute ou `0x20` LZ4, OU niveau = `max(0, ceil(log2(taille de bloc)) - 10)`), longueur compressée, longueur décompressée, somme de contrôle (trois entiers 32 bits **petit-boutistes**), puis les données. Somme : `XXH32(données décompressées du bloc, graine 0x9747b28c) & 0x0FFFFFFF` (la somme par défaut est un XXH32 en flux dont la valeur est masquée sur ses 28 bits de poids faible). Fin de flux : un en-tête de méthode brute dont les trois entiers valent 0. Un bloc est écrit brut si la compression ne le réduit pas. Taille de bloc par défaut 65 536 octets (niveau 6, jetons `0x16` et `0x26`). Ce format n'est pas la trame standard LZ4 Frame. | D |
+| R16 | Le type 4 utilise la trame de R15. Bibliothèque embarquée par le jeu : `at.yawk.lz4:lz4-java` 1.10.1, branche maintenue de lz4-java (relevé fait par la relecture dans le journal du générateur de données, non relu ici) ; que cette branche garde exactement la trame de R15 est S. **Provisoire** : le jeu écrit avec le constructeur par défaut (blocs de 65 536 octets, somme masquée de R15) ; le lecteur accepte toute taille de bloc permise par le jeton et les deux méthodes, et vérifie la somme masquée. | S |
 
 ### Chunks externes
 
 | Réf | Règle | Preuve |
 |---|---|---|
 | R17 | Si les données compressées dépassent R11, l'enregistrement dans le fichier de région ne contient que `L = 1` et `t + 128` (par exemple `00 00 00 01 82` pour zlib), et les données sont dans `c.<cx>.<cz>.mcc` (coordonnées absolues du chunk), dans le même dossier. **Provisoire** : le fichier `.mcc` contient seulement le flux compressé, sans longueur ni octet de type. | S |
-| R18 | Fichier `.mcc` absent alors que l'enregistrement le demande : **provisoire**, chunk refusé à la lecture (erreur). À la réécriture d'un chunk redevenu assez petit, le `.mcc` est supprimé (provisoire). | S |
+| R18 | Fichier `.mcc` absent alors que l'enregistrement le demande : **provisoire**, chunk refusé (voir Entrées / sorties). À la réécriture d'un chunk redevenu assez petit, le `.mcc` est supprimé (provisoire). | S |
 
 ### Chunks absents ou invalides
 
 | Réf | Règle | Preuve |
 |---|---|---|
 | R19 | Chunk absent (emplacement nul, ou fichier de région inexistant) : le chunk n'existe pas et sera généré. Ce n'est pas une erreur. | S |
-| R20 | Emplacement invalide : `offset < 2` (dans l'en-tête), `count = 0` avec `offset` non nul, secteurs au-delà de la fin du fichier, `L <= 0`, `L + 4 > count * 4096`, flux qui ne se décompresse pas. **Provisoire** : chunk traité comme absent avec un avertissement, fichier non modifié avant la première réécriture du chunk. | S |
-| R21 | `xPos` et `zPos` du NBT différents du chunk attendu à cet index : **provisoire**, chunk traité comme absent avec un avertissement. | S |
+| R20 | Emplacement invalide : `offset < 2` (dans l'en-tête), `count = 0` avec `offset` non nul, secteurs au-delà de la fin du fichier, `L <= 0`, `L + 4 > count * 4096`, flux qui ne se décompresse pas. **Provisoire** : chunk absent (voir Entrées / sorties) avec un avertissement. | S |
+| R21 | `xPos` et `zPos` du NBT différents du chunk attendu à cet index : **provisoire**, chunk absent (voir Entrées / sorties) avec un avertissement. | S |
 
 ### Autres fichiers de région
 
@@ -102,7 +102,9 @@ Niveaux : **D** donnée extraite, ou source publique normative qui fixe un algor
 
 ## Entrées / sorties
 
-- **Lecture** : entrée = dossier de dimension et coordonnées de chunk `(cx, cz)` (Int signés) ; sortie = octets NBT décompressés, ou "absent" (R19, R20, R21), ou erreur (R14, R18). Le lecteur n'écrit jamais pendant une lecture.
+- **Lecture** : entrée = dossier de dimension et coordonnées de chunk `(cx, cz)` (Int signés) ; sortie = octets NBT décompressés, ou "absent" (R19, R20, R21), ou "refusé" (R14, R18, et `world-chunk-format.md` R10 et R29). Le lecteur n'écrit jamais pendant une lecture.
+- **Absent** (provisoire, S) : la position est traitée comme si aucun chunk n'y avait été enregistré. Le moteur génère le chunk ; la sauvegarde suivante écrit le nouveau chunk à cet index (l'ancien enregistrement, illisible ou mal placé, est perdu ; le fichier `.mcc` éventuel est supprimé).
+- **Refusé** (provisoire, S) : la lecture échoue avec une erreur qui nomme le fichier, l'index, et le champ ou la section fautifs. Le chunk n'est ni généré ni chargé, et aucune sauvegarde ne touche son enregistrement ni son `.mcc` (les octets restent intacts pour une réparation). Toute demande de chargement de cette position renvoie la même erreur : les commandes qui la visent échouent comme sur une position non chargée, la simulation la traite comme un chunk non chargé. Le monde continue de se charger et de tourner ; un chunk refusé n'arrête ni le serveur ni le chargement du monde. Les sondes PB2, PR4 et PR5 relèvent ce que fait réellement le serveur dans ces cas.
 - **Écriture** : entrée = coordonnées et octets NBT ; type de compression configurable (2 par défaut, 3 et 4 disponibles) ; le fichier reste un multiple de 4096 octets, l'emplacement et l'horodatage sont mis à jour après l'écriture des données (ordre provisoire, protège d'une coupure).
 - **Coordonnées de région** : `rx`, `rz` Int signés ; plage utile `[-58 594, 58 593]` pour un monde de 30 millions de blocs de rayon (`30 000 000 >> 9`, C).
 
@@ -122,8 +124,10 @@ Voir `world-vectors.md` : index de région (CO1), fichier synthétique de 2 chun
 ## Questions ouvertes
 
 - R1 à R3 : arborescence produite par le serveur 26.3. Sonde PR1 (lister le monde après `save-all flush`). Le brief initial cite `DIM-1`, `DIM1` et `region/` à la racine : c'est l'ancienne disposition (R3), à confirmer.
-- R4 à R12, R24 : PR1 (fichiers réels) et PR3 (relecture de nos fichiers par le serveur).
-- R13, R14, R16 : PR2 (`region-file-compression` = `lz4` puis `none`).
-- R17, R18 : PR4 (chunk de plus de 1 Mio en mode `none`).
-- R19 à R21 : PR5 (fichiers altérés relus par le serveur).
+- R4 à R8, R10 à R12, R24 : PC1 et PR1 (fichiers réels) et PR3 (relecture de nos fichiers par le serveur).
+- R9 : PC1 et PR1 (`check` avec les bornes `T0` et `T1` relevées autour de `save-all flush`).
+- R13, R14, R16 : PR2 (`region-file-compression` = `lz4` puis `none`) ; R15 est D et sert de référence au décodage.
+- R17, R18 : PR4 (chunk de plus de 1 Mio en mode `none`, puis `.mcc` supprimé) et variante `missing_mcc` de RG3.
+- R19 à R21 : PR5 (variantes `wrong_pos`, `bad_offset`, `offset_beyond` relues par le serveur).
+- Définitions "absent" et "refusé" (Entrées / sorties) : PB2, PR4, PR5.
 - R22, R23 : PR1 (décodage de `entities/` et `poi/`).

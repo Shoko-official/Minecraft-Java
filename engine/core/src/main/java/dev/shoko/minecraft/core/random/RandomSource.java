@@ -45,7 +45,11 @@ public interface RandomSource {
    * @throws IllegalArgumentException when {@code max - min + 1} overflows the int range
    */
   default int nextIntBetweenInclusive(int min, int max) {
-    return Skeleton.throwNotImplemented();
+    if (min >= max) {
+      return min;
+    }
+    // An overflowing size wraps to a non-positive bound, which nextInt rejects before any step.
+    return min + nextInt(max - min + 1);
   }
 
   /**

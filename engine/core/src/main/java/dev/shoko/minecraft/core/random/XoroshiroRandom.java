@@ -12,7 +12,17 @@ package dev.shoko.minecraft.core.random;
  */
 public final class XoroshiroRandom implements RandomSource {
 
-  private XoroshiroRandom() {}
+  private static final long MASK_32 = 0xFFFFFFFFL;
+
+  private final PolarGaussian gaussian = new PolarGaussian();
+  private long s0;
+  private long s1;
+  private long steps;
+
+  private XoroshiroRandom(Seed128 state) {
+    this.s0 = state.lo();
+    this.s1 = state.hi();
+  }
 
   /**
    * Returns a generator with this raw state and a step count of 0 (R13). The all-zero state is
@@ -23,7 +33,10 @@ public final class XoroshiroRandom implements RandomSource {
    * @throws IllegalArgumentException when both words are zero
    */
   public static XoroshiroRandom ofState(Seed128 state) {
-    return Skeleton.throwNotImplemented();
+    if (state.lo() == 0 && state.hi() == 0) {
+      throw new IllegalArgumentException("xoroshiro128++ state must not be all zero");
+    }
+    return new XoroshiroRandom(state);
   }
 
   /**
@@ -34,7 +47,7 @@ public final class XoroshiroRandom implements RandomSource {
    * @return the generator
    */
   public static XoroshiroRandom ofSeed(long seed) {
-    return Skeleton.throwNotImplemented();
+    return new XoroshiroRandom(SeedExpansion.init64(seed));
   }
 
   /**
@@ -43,13 +56,23 @@ public final class XoroshiroRandom implements RandomSource {
    * @return the state, never all-zero
    */
   public Seed128 state() {
-    return Skeleton.throwNotImplemented();
+    return new Seed128(s0, s1);
+  }
+
+  /** One step: the output on the current state, then the transition (R13). */
+  private long nextOutput() {
+    long r = Long.rotateLeft(s0 + s1, 17) + s0;
+    long t = s1 ^ s0;
+    s0 = Long.rotateLeft(s0, 49) ^ t ^ (t << 21);
+    s1 = Long.rotateLeft(t, 28);
+    steps++;
+    return r;
   }
 
   /** {@inheritDoc} X128: the 32 low bits of the output read as a signed int, one step (R17). */
   @Override
   public int nextInt() {
-    return Skeleton.throwNotImplemented();
+    return (int) nextOutput();
   }
 
   /**
@@ -58,48 +81,63 @@ public final class XoroshiroRandom implements RandomSource {
    */
   @Override
   public int nextInt(int bound) {
-    return Skeleton.throwNotImplemented();
+    if (bound <= 0) {
+      throw new IllegalArgumentException("bound must be positive: " + bound);
+    }
+    // An unsigned 32-bit draw times a bound below 2^31 fits in a non-negative long.
+    long product = (nextOutput() & MASK_32) * bound;
+    if ((product & MASK_32) < bound) {
+      long threshold = ((1L << 32) - bound) % bound;
+      while ((product & MASK_32) < threshold) {
+        product = (nextOutput() & MASK_32) * bound;
+      }
+    }
+    return (int) (product >>> 32);
   }
 
   /** {@inheritDoc} X128: the output read as a signed long, one step (R16). */
   @Override
   public long nextLong() {
-    return Skeleton.throwNotImplemented();
+    return nextOutput();
   }
 
   /** {@inheritDoc} X128: the lowest bit of the output, one step (R19, hypothesis H-X5). */
   @Override
   public boolean nextBoolean() {
-    return Skeleton.throwNotImplemented();
+    return (nextOutput() & 1) != 0;
   }
 
   /** {@inheritDoc} X128: {@code (r >>> 40) * 2^-24}, one step (R19, hypothesis H-X3). */
   @Override
   public float nextFloat() {
-    return Skeleton.throwNotImplemented();
+    return (nextOutput() >>> 40) * 0x1.0p-24f;
   }
 
   /** {@inheritDoc} X128: {@code (r >>> 11) * 2^-53}, one step (R19, hypothesis H-X4). */
   @Override
   public double nextDouble() {
-    return Skeleton.throwNotImplemented();
+    return (nextOutput() >>> 11) * 0x1.0p-53;
   }
 
   /** {@inheritDoc} X128: two steps per attempt (two {@link #nextDouble()}), R20. */
   @Override
   public double nextGaussian() {
-    return Skeleton.throwNotImplemented();
+    return gaussian.next(this);
   }
 
   /** {@inheritDoc} X128: state {@link SeedExpansion#init64(long)} of the seed (R25). */
   @Override
   public void setSeed(long seed) {
-    Skeleton.throwNotImplemented();
+    Seed128 state = SeedExpansion.init64(seed);
+    s0 = state.lo();
+    s1 = state.hi();
+    gaussian.clear();
+    steps = 0;
   }
 
   @Override
   public long steps() {
-    return Skeleton.throwNotImplemented();
+    return steps;
   }
 
   /**
@@ -108,7 +146,12 @@ public final class XoroshiroRandom implements RandomSource {
    */
   @Override
   public void skip(long n) {
-    Skeleton.throwNotImplemented();
+    if (n < 0) {
+      throw new IllegalArgumentException("step count must not be negative: " + n);
+    }
+    for (long i = 0; i < n; i++) {
+      nextOutput();
+    }
   }
 
   /**
@@ -117,6 +160,6 @@ public final class XoroshiroRandom implements RandomSource {
    */
   @Override
   public XoroshiroRandom fork() {
-    return Skeleton.throwNotImplemented();
+    return ofSeed(nextLong());
   }
 }

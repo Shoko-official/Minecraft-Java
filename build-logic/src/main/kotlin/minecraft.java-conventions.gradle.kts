@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     `java-library`
     checkstyle
@@ -30,6 +32,12 @@ dependencies {
 tasks.withType<JavaCompile>().configureEach {
     options.encoding = "UTF-8"
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
+}
+
+// A looping test must kill the forked test JVM instead of hanging the build: JUnit @Timeout runs
+// the test in a separate thread that it cannot stop.
+tasks.withType<Test>().configureEach {
+    timeout = Duration.ofMinutes(5)
 }
 
 // Tests against the reference game need a local oracle (ADR 0002): they run in oracleTest only.

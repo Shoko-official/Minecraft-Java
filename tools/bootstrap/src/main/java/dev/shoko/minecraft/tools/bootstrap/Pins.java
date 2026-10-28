@@ -17,13 +17,17 @@ record Pins(
     Server server,
     String innerServerSha256,
     int worldVersion,
-    int protocolVersion) {
+    int protocolVersion,
+    PackVersion packVersion) {
 
   /** Location and SHA-1 of the official version metadata. */
   record VersionJson(String url, String sha1) {}
 
   /** Size and digests of the official server bundle. */
   record Server(String sha1, String sha256, long size) {}
+
+  /** Data and resource pack versions, as {@code major.minor}. */
+  record PackVersion(String data, String resource) {}
 
   static Pins load() throws IOException {
     try (InputStream in = Pins.class.getResourceAsStream("/pins.json")) {

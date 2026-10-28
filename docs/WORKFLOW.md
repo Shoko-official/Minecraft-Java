@@ -89,7 +89,7 @@ Protection de `main` : checks requis `hygiene` et `check-title`, branche à jour
 bash scripts/install-hooks.sh
 ```
 
-Installe `core.hooksPath=.githooks`. Le hook `commit-msg` contrôle le format et l'absence d'attribution automatique ; le hook `pre-commit` lance `scripts/check-hygiene.sh --staged` sur le contenu indexé. Les hooks se contournent avec `--no-verify` : la CI refait les mêmes contrôles.
+Les scripts demandent bash 4.4 ou plus (Git Bash et Linux conviennent ; sur macOS : `brew install bash`) et un `git` avec `grep -P`. Installe `core.hooksPath=.githooks`. Le hook `commit-msg` contrôle le format et l'absence d'attribution automatique ; le hook `pre-commit` lance `scripts/check-hygiene.sh --staged` sur le contenu indexé. Les hooks se contournent avec `--no-verify` : la CI refait les mêmes contrôles.
 
 ## CI
 

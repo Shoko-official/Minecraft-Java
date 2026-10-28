@@ -5,8 +5,11 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  * Writes the {@code server.properties} of an oracle run, in a fixed order with no timestamp, and
@@ -17,7 +20,35 @@ final class ServerProperties {
   static final String FILE_NAME = "server.properties";
   static final String PASSWORD_KEY = "rcon.password";
 
+  private static final Set<PosixFilePermission> OWNER_ONLY =
+      PosixFilePermissions.fromString("rw-------");
+
   private ServerProperties() {}
+
+  /**
+   * Writes the file, readable by its owner only where the file system has POSIX permissions: it
+   * holds the RCON password while the server runs. Permissions are best effort, never an error.
+   */
+  static void write(Path runDir, String content) throws IOException {
+    Path file = runDir.resolve(FILE_NAME);
+    restrictToOwner(file);
+    Files.writeString(file, content, StandardCharsets.UTF_8);
+  }
+
+  private static void restrictToOwner(Path file) {
+    if (!file.getFileSystem().supportedFileAttributeViews().contains("posix")) {
+      return;
+    }
+    try {
+      if (Files.exists(file)) {
+        Files.setPosixFilePermissions(file, OWNER_ONLY);
+      } else {
+        Files.createFile(file, PosixFilePermissions.asFileAttribute(OWNER_ONLY));
+      }
+    } catch (IOException | UnsupportedOperationException e) {
+      // Best effort: the password is emptied when the server exits anyway.
+    }
+  }
 
   /**
    * Renders the file. The server only listens on the loopback interface since online mode is off.

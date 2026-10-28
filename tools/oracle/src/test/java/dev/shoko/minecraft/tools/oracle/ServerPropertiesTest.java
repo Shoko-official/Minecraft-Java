@@ -2,10 +2,14 @@ package dev.shoko.minecraft.tools.oracle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -57,5 +61,30 @@ class ServerPropertiesTest {
         .isInstanceOf(IllegalArgumentException.class);
     assertThatThrownBy(() -> new ServerSettings(1, "world", "easy", "survival", 2, 4))
         .isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void writesTheContentAndReplacesAnEarlierFile(@TempDir Path dir) throws IOException {
+    ServerProperties.write(dir, "level-seed=1\nrcon.password=old\n");
+    ServerProperties.write(dir, "level-seed=2\n");
+
+    assertThat(dir.resolve("server.properties")).content().isEqualTo("level-seed=2\n");
+  }
+
+  @Test
+  void writesTheFileReadableByItsOwnerOnlyWhereTheFileSystemHasPosixPermissions(@TempDir Path dir)
+      throws IOException {
+    assumeTrue(dir.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Set<PosixFilePermission> ownerOnly = PosixFilePermissions.fromString("rw-------");
+
+    ServerProperties.write(dir, "a=b\n");
+    assertThat(Files.getPosixFilePermissions(dir.resolve("server.properties")))
+        .isEqualTo(ownerOnly);
+
+    Files.setPosixFilePermissions(
+        dir.resolve("server.properties"), PosixFilePermissions.fromString("rw-r--r--"));
+    ServerProperties.write(dir, "a=c\n");
+    assertThat(Files.getPosixFilePermissions(dir.resolve("server.properties")))
+        .isEqualTo(ownerOnly);
   }
 }

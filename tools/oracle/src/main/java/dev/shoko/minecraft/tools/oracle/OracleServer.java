@@ -26,11 +26,13 @@ import java.util.function.Consumer;
  * log, RCON responses and region files out.
  *
  * <p>The RCON password is random for each run, never logged nor passed on the command line. It is
- * written to {@code server.properties} for the server to read, and emptied there once the process
- * has exited, whatever the outcome. The run directory keeps {@code eula.txt}, {@code
+ * written to {@code server.properties} (owner-only permissions where the file system has them) for
+ * the server to read, and emptied there once the process has exited, whatever the outcome,
+ * including through the shutdown hook. The run directory keeps {@code eula.txt}, {@code
  * server.properties} (seed included, so that a world can be reused with the same seed), the console
- * log and the world. If the JVM ends without {@link #stop()}, a shutdown hook destroys the server;
- * a JVM killed outright runs no hook and leaves the server and its password behind.
+ * log and the world. If the JVM ends without {@link #stop()}, a shutdown hook destroys the server
+ * and empties the password; a JVM killed outright runs no hook and leaves the server and its
+ * password behind.
  */
 public final class OracleServer implements AutoCloseable {
 
@@ -84,10 +86,8 @@ public final class OracleServer implements AutoCloseable {
     int[] ports = freePorts();
     String password = randomPassword();
     Files.createDirectories(runDir);
-    Files.writeString(
-        runDir.resolve(ServerProperties.FILE_NAME),
-        ServerProperties.render(options.settings(), ports[0], ports[1], password),
-        StandardCharsets.UTF_8);
+    ServerProperties.write(
+        runDir, ServerProperties.render(options.settings(), ports[0], ports[1], password));
     Files.writeString(
         runDir.resolve(EULA_FILE),
         "# Accepted by the repository owner ("
@@ -101,7 +101,7 @@ public final class OracleServer implements AutoCloseable {
             .directory(runDir.toFile())
             .redirectErrorStream(true)
             .start();
-    Thread hook = new Thread(() -> kill(process), "oracle-shutdown");
+    Thread hook = new Thread(() -> killAndRedact(process, runDir), "oracle-shutdown");
     Runtime.getRuntime().addShutdownHook(hook);
     CompletableFuture<Void> ready = new CompletableFuture<>();
     Path consoleLog = runDir.resolve(CONSOLE_LOG);
@@ -173,23 +173,28 @@ public final class OracleServer implements AutoCloseable {
     try {
       stop();
     } catch (InterruptedException e) {
-      kill(run.process());
+      killAndRedact(run.process(), run.runDir());
+      removeHook(run);
       Thread.currentThread().interrupt();
     }
   }
 
   /** Once the process has exited: drop the hook, wait for the console, empty the password. */
   private static void finish(Run run, Duration timeout) throws InterruptedException {
-    try {
-      Runtime.getRuntime().removeShutdownHook(run.hook());
-    } catch (IllegalStateException e) {
-      // The JVM is already shutting down: the hook runs anyway.
-    }
+    removeHook(run);
     run.pump().join(timeout.toMillis());
     try {
       ServerProperties.redactPassword(run.runDir());
     } catch (IOException e) {
       run.log().accept("oracle: could not empty the RCON password: " + e.getMessage());
+    }
+  }
+
+  private static void removeHook(Run run) {
+    try {
+      Runtime.getRuntime().removeShutdownHook(run.hook());
+    } catch (IllegalStateException e) {
+      // The JVM is already shutting down: the hook runs anyway.
     }
   }
 
@@ -272,6 +277,24 @@ public final class OracleServer implements AutoCloseable {
     byte[] bytes = new byte[PASSWORD_BYTES];
     new SecureRandom().nextBytes(bytes);
     return HexFormat.of().formatHex(bytes);
+  }
+
+  /**
+   * Kills the server, waits briefly for it to exit, then empties the RCON password. Runs in the
+   * shutdown hook and on an interrupted close, where no other code will do it.
+   */
+  private static void killAndRedact(Process process, Path runDir) {
+    kill(process);
+    try {
+      process.waitFor(EXIT_GRACE.toMillis(), TimeUnit.MILLISECONDS);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    try {
+      ServerProperties.redactPassword(runDir);
+    } catch (IOException e) {
+      // Nothing can be reported from a shutdown hook; the file keeps the password of a dead run.
+    }
   }
 
   private static void kill(Process process) {

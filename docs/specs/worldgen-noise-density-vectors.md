@@ -14,11 +14,11 @@ Ce fichier contient les calculs de la spec `worldgen-noise-density`, les scripts
 |---|---|---|
 | V-W1 (comptes du graphe), V-W9 (recouvrements de la table), V-W10 (typage des constantes) | C sur D | Lecture des fichiers extraits ; aucune hypothèse sur le jeu |
 | V-W2 (rampe de profondeur, plateaux de bord, grilles) | C sur D | Arithmétique sur les constantes des fichiers ; l'hypothèse « float32 par nœud » ne change pas les signes |
-| V-W3 (relief des splines) | C **sous H-Sp1, H-Sp2 et H-Bl** | Hermite cubique, extrapolation par la dérivée, `blend_alpha` = 1 (R27, R29) ; tolérance 1e-6 ; **S** tant que PW12 et PW6 n'ont pas répondu |
+| V-W3 (relief des splines) | C **sous H-Sp1, H-Sp2 et H-Bl** | Hermite cubique, extrapolation par la dérivée, `blend_alpha` = 1 (R27, R29) ; tolérance 1e-6 ; **S** tant que WN12 et WN6 n'ont pas répondu |
 | V-W4 (weirdness repliée), V-W7 (discriminants float32) | C | Émulation float32 par nœud (R11) ; **S** pour l'égalité avec le jeu |
-| V-W5 (quantification) | C | Trois définitions concurrentes H-Q1, H-Q2, H-Q3 (R41) ; laquelle est celle du jeu est **S** (PW15) |
-| V-W6 (recherche de biome) | C **sous H-Q1 et la distance de R43** | Sans égalité sauf C12 : indépendant de R44 ; **S** (PW16) |
-| O-1 à O-8 (oracle) | M une fois remplis | Réservés, à remplir par l'`oracle-differ` |
+| V-W5 (quantification) | C | Trois définitions concurrentes H-Q1, H-Q2, H-Q3 (R41) ; laquelle est celle du jeu est **S** (WN15) |
+| V-W6 (recherche de biome) | C **sous H-Q1 et la distance de R43** | Sans égalité sauf C12 : indépendant de R44 ; **S** (WN16) |
+| ON-1 à ON-8 (oracle) | M une fois remplis | Réservés, à remplir par l'`oracle-differ` |
 
 Les identifiants de biomes ne sont pas recopiés : on désigne une entrée de la table par son **indice** (R9) dans `generated/reports/biome_parameters/minecraft/overworld.json` (SHA-256 `ca63573e405dba0ef1010d6b324feeaa7d6b5c4dc895ffb6daf0988f1e44ef79`).
 
@@ -151,7 +151,7 @@ value    H-Q1(float32 product)  H-Q2(double)  H-Q3(float32 value, double product
 distinct endpoints: 39 Q1!=Q2: 2 Q1!=Q3: 10
 ```
 
-Le produit de deux float32 est exact en double ; `f32()` arrondit ensuite au float32 le plus proche, ce qui émule le produit float32 sans fusion. Discriminants à lire par PW15 : -0,7666 et 0,7666 (H-Q1 contre H-Q2) ; 0,7, 0,9, 0,45, -0,35, -1,05 (H-Q1 contre H-Q3).
+Le produit de deux float32 est exact en double ; `f32()` arrondit ensuite au float32 le plus proche, ce qui émule le produit float32 sans fusion. Discriminants à lire par WN15 : -0,7666 et 0,7666 (H-Q1 contre H-Q2) ; 0,7, 0,9, 0,45, -0,35, -1,05 (H-Q1 contre H-Q3).
 
 ## V-W6 Recherche de biome (R43, R44)
 
@@ -176,9 +176,9 @@ C12 (0.0, 0.9, 0.9, 0.0, 0.0, 0.5) | 7590 | 0 | 2 [7590, 7591] | 25000000
 C13 (0.0, 0.0, 0.5, 0.0, 0.3, 0.5) | 7590 | 9000000 | 1  | 25000000
 ```
 
-Pour PW17 (R44), le choix de 200 égalités se fait avec le même script en prenant des vecteurs dont une coordonnée vaut exactement une extrémité commune de deux boîtes (par exemple les valeurs de la ligne « distinct endpoints » de V-W5), puis en filtrant les cas où le nombre d'entrées à égalité dépasse 1 et où les biomes diffèrent.
+Pour WN17 (R44), le choix de 200 égalités se fait avec le même script en prenant des vecteurs dont une coordonnée vaut exactement une extrémité commune de deux boîtes (par exemple les valeurs de la ligne « distinct endpoints » de V-W5), puis en filtrant les cas où le nombre d'entrées à égalité dépasse 1 et où les biomes diffèrent.
 
-## V-W7 Discriminants float32 contre double (R11, R15, PW4)
+## V-W7 Discriminants float32 contre double (R11, R15, WN4)
 
 Script S8. Les cas A et B sont **solides** en double et **non solides** en float32 par nœud (le signe de la sortie lit la précision). Le cas C montre que les deux ordres d'évaluation de `lerp` donnent des résultats différents pour 23 valeurs de `alpha` sur 99 avec `first` = `second` : une fonction constante `v` ne reste donc pas exactement `v` sous la forme `first * (1 - alpha) + second * alpha` en float32 (elle le reste sous la forme `first + alpha * (second - first)`). Résultat :
 
@@ -220,14 +220,14 @@ numeric fields with at least one double-only value: ['xz_scale', 'y_scale']
 
 | Réf. | Contenu à remplir | Sonde |
 |---|---|---|
-| O-1 | Masque de PW1 (constantes) et de PW2 (rampes) | PW1, PW2 |
-| O-2 | Sorties de PW3 (une ligne par type, dont les cas exacts sur seuil) | PW3 |
-| O-3 | Résultats de PW4 (discriminants) : cas A, B, C, motif de précision | PW4 |
-| O-4 | Tentes d'interpolation de PW5 (coins, négatifs, 16 x 1) | PW5 |
-| O-5 | Courbes de PW12 (spline) et valeur de `find_top_surface` de PW13 | PW12, PW13 |
-| O-6 | Mesures de bruit de PW8 à PW11 (écarts types, zéros, décalages, corrélations) | PW8 à PW11 |
-| O-7 | Biome par extrémité (PW15) et par égalité (PW17), positions de frontière (PW18) | PW15 à PW18 |
-| O-8 | Résumé de PW20 : nombre de chunks, blocs comparés, écarts, étape fautive | PW20 |
+| ON-1 | Masque de WN1 (constantes) et de WN2 (rampes) | WN1, WN2 |
+| ON-2 | Sorties de WN3 (une ligne par type, dont les cas exacts sur seuil) | WN3 |
+| ON-3 | Résultats de WN4 (discriminants) : cas A, B, C, motif de précision | WN4 |
+| ON-4 | Tentes d'interpolation de WN5 (coins, négatifs, 16 x 1) | WN5 |
+| ON-5 | Courbes de WN12 (spline) et valeur de `find_top_surface` de WN13 | WN12, WN13 |
+| ON-6 | Mesures de bruit de WN8 à WN11 (écarts types, zéros, décalages, corrélations) | WN8 à WN11 |
+| ON-7 | Biome par extrémité (WN15) et par égalité (WN17), positions de frontière (WN18) | WN15 à WN18 |
+| ON-8 | Résumé de WN20 : nombre de chunks, blocs comparés, écarts, étape fautive | WN20 |
 
 ## Scripts
 
@@ -580,7 +580,7 @@ for w in (0.0, 1/3, -1/3, 2/3, -2/3, 1.0, -1.0, 0.5, -0.1, 0.9):
     t = f32(t * f32(-3.0))
     print(f"{w:+.7f} | {ideal:+.9f} | {dbl:+.9f} | {t:+.9f}")
 
-# --- float32 discriminators for probe PW4 (sign of the result decides solid when used as final_density)
+# --- float32 discriminators for probe WN4 (sign of the result decides solid when used as final_density)
 print()
 print("case | double | float32 per node | solid(double) | solid(float32)")
 r = f32(f32(1000000.0) + f32(0.01)) - 1000000.0

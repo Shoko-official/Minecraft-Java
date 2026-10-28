@@ -114,13 +114,13 @@ Les sondes W** supposent la sonde WP0 (`worldgen-pipeline.md`) acquise : le remp
 
 **WS9 (R34, R84).** MR(`biome` `minecraft:plains`) à la limite d'un biome de grotte (monde normal) : l'or doit suivre la grille de biomes en cellules de 4 x 4 x 4 (position (x,y,z) -> cellule (x>>2, y>>2, z>>2)). Vérifier en Y que le biome de la position est utilisé, pas celui de la surface.
 
-**WS11 (R36).** MR(`bandlands`) sur une colonne `badlands`, 10 colonnes à Y -64..319 : relever la suite de blocs par Y, sa période et sa dépendance à (x, z). Aucune hypothèse de palette n'est présupposée.
+**WS10 (R36).** MR(`bandlands`) sur une colonne `badlands`, 10 colonnes à Y -64..319 : relever la suite de blocs par Y, sa période et sa dépendance à (x, z). Aucune hypothèse de palette n'est présupposée.
 
-**WS12 (R32).** MR(`above_preliminary_surface`), océan, plaine, montagne : relever la hauteur de transition par colonne et la comparer à notre `overworld/preliminary_surface_level`. Vérifier l'inclusivité à la transition.
+**WS11 (R32).** MR(`above_preliminary_surface`), océan, plaine, montagne : relever la hauteur de transition par colonne et la comparer à notre `overworld/preliminary_surface_level`. Vérifier l'inclusivité à la transition.
 
-**WS13 (R21).** MR sur séquences contrôlées : `sequence[condition(C1)->block(or), condition(C2)->block(diamant)]` pour C1 et C2 se recouvrant. Attendu : un bloc par position, premier résultat prioritaire ; position où C1 est vrai et `then_run` ne produit rien (condition imbriquée fausse) doit passer à l'élément suivant.
+**WS12 (R21).** MR sur séquences contrôlées : `sequence[condition(C1)->block(or), condition(C2)->block(diamant)]` pour C1 et C2 se recouvrant. Attendu : un bloc par position, premier résultat prioritaire ; position où C1 est vrai et `then_run` ne produit rien (condition imbriquée fausse) doit passer à l'élément suivant.
 
-**WS14 (R18, R37).** Règle réelle de `overworld` sans bedrock puis sans veines : isoler l'effet de chaque élément sur Y -64..-59 et sur les bandes de veines.
+**WS13 (R18, R37).** Règle réelle de `overworld` sans bedrock puis sans veines : isoler l'effet de chaque élément sur Y -64..-59 et sur les bandes de veines.
 
 ## Sondes de veines (WO)
 
@@ -174,10 +174,10 @@ Montage commun FLAT + CLEAN sauf carvers (donc pas de grotte de bruit ; FLAT pos
 
 ## Correspondance règle -> sonde
 
-R18 WS14 ; R19 WO1 à WO4 ; R20 WO5 ; R21 WS13 ; R22 et R23 WS1 ; R24 WS2 et WK6 ; R25 WS7 ; R26 WS2 et WS4 ; R27 WS3 ; R28 et R29 WS5 ; R30 et R31 WS6 ; R32 WS12 ; R33 WS8 ; R34 et R84 WS9 ; R36 WS11 ; R42 WA0 ; R43 WA1 ; R44 WA0 et WA3 ; R45 WA1 et WA2 ; R46 et R47 WA2 ; R48 WA2 et WA3 ; R41 WA4 ; R49 WA5 ; R51 WA6 ; R52 WK6 ; R60 WK2 et WK7 ; R61 WK2 ; R62 WK4 ; R63 WK3 ; R64 WK5 ; R65 WK1 ; R66 WK8 ; R67 `worldgen-pipeline.md` WP2 ; R68 WP5 ; R71 WP4.
+R18 WS13 ; R19 WO1 à WO4 ; R20 WO5 ; R21 WS12 ; R22 et R23 WS1 ; R24 WS2 et WK6 ; R25 WS7 ; R26 WS2 et WS4 ; R27 WS3 ; R28 et R29 WS5 ; R30 et R31 WS6 ; R32 WS11 ; R33 WS8 ; R34 et R84 WS9 ; R36 WS10 ; R42 WA0 ; R43 WA1 ; R44 WA0 et WA3 ; R45 WA1 et WA2 ; R46 et R47 WA2 ; R48 WA2 et WA3 ; R41 WA4 ; R49 WA5 ; R51 WA6 ; R52 WK6 ; R60 WK2 et WK7 ; R61 WK2 ; R62 WK4 ; R63 WK3 ; R64 WK5 ; R65 WK1 ; R66 WK8 ; R67 `worldgen-pipeline.md` WP2 ; R68 WP5 ; R71 WP4.
 
 ## Récapitulatif
 
-- Sondes : WS 13 (WS1 à WS9, WS11 à WS14), WO 5, WA 7 (WA0 à WA6), WK 8. Total 33.
+- Sondes : WS 13 (WS1 à WS13), WO 5, WA 7 (WA0 à WA6), WK 8. Total 33.
 - Prérequis : WP0 (`worldgen-pipeline.md`), EULA acceptée par le propriétaire, lecteur `.mca` indépendant.
 - Résultats à écrire dans `reports/probes/` ; vecteurs dorés issus des sondes à ajouter ensuite à ce fichier.

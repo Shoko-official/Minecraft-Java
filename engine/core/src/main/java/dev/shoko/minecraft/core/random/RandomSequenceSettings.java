@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.core.random;
 
+import java.util.Objects;
+
 /**
  * World settings of the named random sequences (R30), and the initial state of a sequence they give
  * (R31). Immutable.
@@ -31,10 +33,13 @@ public record RandomSequenceSettings(
    * a reset (R32).
    *
    * @param worldSeed the world seed
-   * @param sequenceId the sequence identifier; only hashed when {@code includeSequenceId}
+   * @param sequenceId the sequence identifier, normalized as in {@link
+   *     IdentifierFingerprint#of(String)}; only hashed when {@code includeSequenceId}
    * @return the initial generator state
+   * @throws NullPointerException when {@code sequenceId} is {@code null}, whatever the flags
    */
   public Seed128 initialState(long worldSeed, String sequenceId) {
+    Objects.requireNonNull(sequenceId, "sequenceId");
     // The int salt widens to long with sign extension (R31 step 1, counter-hypothesis N3z unused).
     long value = (includeWorldSeed ? worldSeed : 0L) ^ salt;
     Seed128 words = SeedExpansion.expandUnmixed(value);

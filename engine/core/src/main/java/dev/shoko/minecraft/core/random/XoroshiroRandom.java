@@ -65,7 +65,7 @@ public final class XoroshiroRandom implements RandomSource {
     long t = s1 ^ s0;
     s0 = Long.rotateLeft(s0, 49) ^ t ^ (t << 21);
     s1 = Long.rotateLeft(t, 28);
-    steps++;
+    steps = StepCount.add(steps, 1);
     return r;
   }
 
@@ -141,8 +141,10 @@ public final class XoroshiroRandom implements RandomSource {
   }
 
   /**
-   * {@inheritDoc} X128: executed step by step, in O(n); no closed form exists for an arbitrary
-   * {@code n} (R21).
+   * {@inheritDoc} X128: executed step by step, in O(n) (R21). No jump in O(log n) is required in
+   * M1; one is possible by raising the 128 x 128 transition matrix over GF(2) to the power {@code
+   * n}. Known limit: for very large {@code n} (beyond a few billion) this call does not finish in
+   * practice.
    */
   @Override
   public void skip(long n) {

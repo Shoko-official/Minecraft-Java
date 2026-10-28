@@ -5,10 +5,10 @@ package dev.shoko.minecraft.core.random;
  * functions.
  *
  * <p>The game's construction of these sources is unknown (spec Q1). This class only fulfils the
- * verifiable contract (determinism, distinct streams for distinct inputs) with a provisional
- * construction that keeps the rest of the engine testable. No golden vector can be derived from it;
- * the faithful construction will come from the worldgen spec. The position source is excluded from
- * M1 fidelity (R29).
+ * verifiable contract (determinism; distinct streams for distinct identifiers and for neighbouring
+ * positions) with a provisional construction that keeps the rest of the engine testable. No golden
+ * vector can be derived from it; the faithful construction will come from the worldgen spec. The
+ * position source is excluded from M1 fidelity (R29).
  */
 public final class DerivedSources {
 
@@ -21,8 +21,11 @@ public final class DerivedSources {
    * and 4).
    *
    * @param derivation the two words of the derivation seed
-   * @param identifier the identifier, hashed as in {@link IdentifierFingerprint#of(String)}
+   * @param identifier the identifier, normalized and hashed as in {@link
+   *     IdentifierFingerprint#of(String)} (so {@code test}, {@code :test} and {@code
+   *     minecraft:test} give the same generator)
    * @return a new generator with a step count of 0
+   * @throws NullPointerException when {@code identifier} is {@code null}
    * @throws IllegalArgumentException when {@code derivation} equals the fingerprint, the only input
    *     that gives the all-zero state
    */
@@ -34,6 +37,10 @@ public final class DerivedSources {
    * Provisional, not faithful (R29): position hash {@code hp(x, y, z) = mix(mix(mix(x) XOR y) XOR
    * z)}, each coordinate sign-extended to 64 bits, {@code mix} being {@link
    * SeedExpansion#mix(long)}. Defined for every int, without division (vectors V-X6, not golden).
+   *
+   * <p>Known limit of this provisional hash: distinct, distant positions can share a hash, hence a
+   * stream. Proven example (V-X6): {@code (23901, 0, z)} and {@code (52826, 683136096, z)} for
+   * every {@code z}. The contract only asks neighbouring positions to differ (R29).
    *
    * @param x the x coordinate
    * @param y the y coordinate
@@ -48,7 +55,8 @@ public final class DerivedSources {
   /**
    * Provisional, not faithful (R29): the generator derived from a derivation seed {@code d} and a
    * position, {@link XoroshiroRandom#ofSeed(long)} of {@code d XOR }{@link #positionHash(int, int,
-   * int)} (vectors V-X6, not golden).
+   * int)} (vectors V-X6, not golden). It inherits the known collisions of that hash: two distant
+   * positions with the same hash give the same generator.
    *
    * @param derivationSeed the derivation seed {@code d}
    * @param x the x coordinate

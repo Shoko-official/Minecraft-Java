@@ -66,7 +66,7 @@ public final class Lcg48Random implements RandomSource {
       throw new IllegalArgumentException("bits must be between 1 and 32: " + bits);
     }
     state = (state * MULTIPLIER + INCREMENT) & MASK_48;
-    steps++;
+    steps = StepCount.add(steps, 1);
     return (int) (state >>> (48 - bits));
   }
 
@@ -170,7 +170,7 @@ public final class Lcg48Random implements RandomSource {
       powA = (powA * powA) & MASK_48;
     }
     state = (a * state + c) & MASK_48;
-    steps += n;
+    steps = StepCount.add(steps, n);
   }
 
   /**

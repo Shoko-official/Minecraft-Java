@@ -1,7 +1,15 @@
 package dev.shoko.minecraft.data.json;
 
+import dev.shoko.minecraft.data.diag.Diagnostic;
+import dev.shoko.minecraft.data.diag.DiagnosticCode;
 import dev.shoko.minecraft.data.diag.FileOrigin;
+import dev.shoko.minecraft.data.diag.JsonPath;
 import dev.shoko.minecraft.data.diag.Outcome;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 /**
  * Reads one JSON document into a {@link JsonNode} tree, strictly (R49 to R54, R57 to R61).
@@ -17,7 +25,7 @@ import dev.shoko.minecraft.data.diag.Outcome;
  *       after the root value ({@code JSON_TRAILING}) and bytes that are not UTF-8, surrogates and
  *       overlong forms included ({@code JSON_UTF8}), make the file invalid (R53, R60 e).
  *   <li>Any value is a valid root: object, array, string, number, boolean or {@code null} (R29).
- *   <li>Strings accept the escapes {@code \" \\ \/ \b \f \n \r \t} and {@code \}{@code uXXXX}; any
+ *   <li>Strings accept the escapes {@code \" \ \/ \b \f \n \r \t} and {@code \}{@code uXXXX}; any
  *       other escape, a unicode escape with fewer than four hexadecimal digits, and a raw control
  *       character are {@code JSON_SYNTAX}. An escaped unpaired surrogate is accepted and kept
  *       (R60); keys follow the same rules.
@@ -47,6 +55,8 @@ public final class JsonReader {
    */
   public static final int MAX_DEPTH = 255;
 
+  private static final int BOM = 0xFEFF;
+
   private JsonReader() {}
 
   /**
@@ -57,7 +67,25 @@ public final class JsonReader {
    * @return the root, or empty when the file is invalid, with the diagnostics found
    */
   public static Outcome<JsonNode> read(byte[] utf8, FileOrigin origin) {
-    return Skeleton.throwNotImplemented();
+    if (utf8.length >= 3
+        && utf8[0] == (byte) 0xEF
+        && utf8[1] == (byte) 0xBB
+        && utf8[2] == (byte) 0xBF) {
+      return invalid(DiagnosticCode.JSON_BOM, origin);
+    }
+    String text;
+    try {
+      text =
+          StandardCharsets.UTF_8
+              .newDecoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .onUnmappableCharacter(CodingErrorAction.REPORT)
+              .decode(ByteBuffer.wrap(utf8))
+              .toString();
+    } catch (CharacterCodingException e) {
+      return invalid(DiagnosticCode.JSON_UTF8, origin);
+    }
+    return readDecoded(text, origin);
   }
 
   /**
@@ -70,6 +98,49 @@ public final class JsonReader {
    * @return the root, or empty when the text is invalid, with the diagnostics found
    */
   public static Outcome<JsonNode> read(String text, FileOrigin origin) {
-    return Skeleton.throwNotImplemented();
+    if (!text.isEmpty() && text.charAt(0) == BOM) {
+      return invalid(DiagnosticCode.JSON_BOM, origin);
+    }
+    if (hasUnpairedSurrogate(text)) {
+      return invalid(DiagnosticCode.JSON_UTF8, origin);
+    }
+    return readDecoded(text, origin);
+  }
+
+  private static Outcome<JsonNode> readDecoded(String text, FileOrigin origin) {
+    if (isBlank(text)) {
+      return invalid(DiagnosticCode.JSON_EMPTY, origin);
+    }
+    return TreeParser.parse(text, origin);
+  }
+
+  private static boolean isBlank(String text) {
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (c != ' ' && c != '\t' && c != '\n' && c != '\r') {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean hasUnpairedSurrogate(String text) {
+    for (int i = 0; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (Character.isHighSurrogate(c)) {
+        if (i + 1 >= text.length() || !Character.isLowSurrogate(text.charAt(i + 1))) {
+          return true;
+        }
+        i++;
+      } else if (Character.isLowSurrogate(c)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Outcome<JsonNode> invalid(DiagnosticCode code, FileOrigin origin) {
+    Diagnostic diagnostic = new Diagnostic(code, origin, JsonPath.root(), code.name());
+    return Outcome.failure(List.of(diagnostic));
   }
 }

@@ -25,7 +25,7 @@ public record JsonObject(FileOrigin origin, JsonPath path, SequencedMap<String, 
    * @return the value, or empty when the key is absent
    */
   public Optional<JsonNode> get(String key) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(members.get(key));
   }
 
   /**
@@ -35,7 +35,7 @@ public record JsonObject(FileOrigin origin, JsonPath path, SequencedMap<String, 
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.OBJECT;
   }
 
   /**
@@ -46,6 +46,15 @@ public record JsonObject(FileOrigin origin, JsonPath path, SequencedMap<String, 
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    if (!(other instanceof JsonObject that) || members.size() != that.members.size()) {
+      return false;
+    }
+    for (var member : members.entrySet()) {
+      JsonNode counterpart = that.members.get(member.getKey());
+      if (counterpart == null || !member.getValue().sameValueAs(counterpart)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

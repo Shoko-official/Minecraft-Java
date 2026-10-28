@@ -18,7 +18,7 @@ public record JsonNull(FileOrigin origin, JsonPath path) implements JsonNode {
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.NULL;
   }
 
   /**
@@ -29,6 +29,6 @@ public record JsonNull(FileOrigin origin, JsonPath path) implements JsonNode {
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof JsonNull;
   }
 }

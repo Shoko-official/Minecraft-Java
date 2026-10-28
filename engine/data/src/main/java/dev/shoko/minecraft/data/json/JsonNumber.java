@@ -32,7 +32,7 @@ public record JsonNumber(FileOrigin origin, JsonPath path, String literal) imple
    *     and {@code -0.0}
    */
   public boolean isInteger() {
-    return Skeleton.throwNotImplemented();
+    return literal.indexOf('.') < 0 && literal.indexOf('e') < 0 && literal.indexOf('E') < 0;
   }
 
   /**
@@ -42,7 +42,10 @@ public record JsonNumber(FileOrigin origin, JsonPath path, String literal) imple
    * @throws IllegalStateException when the literal is a decimal
    */
   public long longValue() {
-    return Skeleton.throwNotImplemented();
+    if (!isInteger()) {
+      throw new IllegalStateException("not an integer: " + literal);
+    }
+    return Long.parseLong(literal);
   }
 
   /**
@@ -54,7 +57,12 @@ public record JsonNumber(FileOrigin origin, JsonPath path, String literal) imple
    * @return the value
    */
   public double doubleValue() {
-    return Skeleton.throwNotImplemented();
+    if (isInteger()) {
+      // The integer -0 is 0: only a decimal zero keeps its sign.
+      double value = Double.parseDouble(literal);
+      return value == 0 ? 0.0 : value;
+    }
+    return Double.parseDouble(literal);
   }
 
   /**
@@ -64,7 +72,7 @@ public record JsonNumber(FileOrigin origin, JsonPath path, String literal) imple
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.NUMBER;
   }
 
   /**
@@ -78,6 +86,13 @@ public record JsonNumber(FileOrigin origin, JsonPath path, String literal) imple
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    if (!(other instanceof JsonNumber that) || isInteger() != that.isInteger()) {
+      return false;
+    }
+    if (isInteger()) {
+      return longValue() == that.longValue();
+    }
+    return Double.doubleToRawLongBits(doubleValue())
+        == Double.doubleToRawLongBits(that.doubleValue());
   }
 }

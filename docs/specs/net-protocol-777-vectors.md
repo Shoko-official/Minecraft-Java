@@ -19,13 +19,13 @@ python -I net_ref.py position    # P01 à P06, S01 à S03, B01 (R12, R74)
 python -I net_ref.py palette     # K01 à K12 (R24, R69, R70)
 python -I net_ref.py hash        # H01 à H04 (R52)
 python -I net_ref.py uuid        # U01 à U05 (R58)
-python net_ref.py cfb8           # E01 à E06 (R31, R50, R51) ; sans -I : le paquet cryptography est hors de l'isolement
-python -I net_ref.py commands    # C01 (R25, R26)
+python net_ref.py cfb8           # CH01 à CH06 (R31, R50, R51) ; sans -I : le paquet cryptography est hors de l'isolement
+python -I net_ref.py commands    # CT01 (R25, R26)
 python -I net_ref.py dims        # D01 (R67, R68)
 REF=.cache/reference/26.3 python -I net_ref.py ids   # R61
 ```
 
-Statut des valeurs attendues : les octets de N01 à N21, F01 à F08, F15, F16, L01 à L05, P01 à P06, S01 à S03, B01, K01 à K12, C01 sont **C** par rapport à des règles qui restent **S** (R6 à R8, R12, R18, R24, R25, R27, R29, R69, R70, R74) : ils sont cohérents avec la documentation publique (les quatre exemples d'octets de LpVec3 et l'exemple de Position `18357644, 831, -20882616` de la documentation sont retrouvés) mais aucun n'a encore été observé sur le jeu. H01 à H03, U01 à U05, E01 à E06 sont **C** sur des algorithmes normatifs (SHA-1, MD5, AES-CFB8, RSA PKCS#1 v1.5) ; leur *usage* par le jeu est S (R31, R52, R58). F09 à F14 : le flux zlib de sortie dépend du compresseur (ici le compresseur zlib de Python, niveau par défaut) ; seuls les octets de l'en-tête (longueur, longueur des données) sont attendus à l'identique d'une implémentation à l'autre, et tout flux zlib valide doit se décoder. Les résultats attendus de I01 à I12 sont **provisoires**.
+Statut des valeurs attendues : les octets de N01 à N21, F01 à F08, F15, F16, L01 à L05, P01 à P06, S01 à S03, B01, K01 à K12, CT01 sont **C** par rapport à des règles qui restent **S** (R6 à R8, R12, R18, R24, R25, R27, R29, R69, R70, R74) : ils sont cohérents avec la documentation publique (les quatre exemples d'octets de LpVec3 et l'exemple de Position `18357644, 831, -20882616` de la documentation sont retrouvés) mais aucun n'a encore été observé sur le jeu. H01 à H03, U01 à U05, CH01 à CH06 sont **C** sur des algorithmes normatifs (SHA-1, MD5, AES-CFB8, RSA PKCS#1 v1.5) ; leur *usage* par le jeu est S (R31, R52, R58). F09 à F14 : le flux zlib de sortie dépend du compresseur (ici le compresseur zlib de Python, niveau par défaut) ; seuls les octets de l'en-tête (longueur, longueur des données) sont attendus à l'identique d'une implémentation à l'autre, et tout flux zlib valide doit se décoder. Les résultats attendus de I01 à I12 sont **provisoires**.
 
 
 ## N : VarInt et VarLong (R6, R7, R8)
@@ -204,37 +204,37 @@ H03 : `simon` donne 39 chiffres hexadécimaux parce que le zéro de tête du ré
 ## E : chiffrement (R31, R50, R51)
 
 ```
-E01 plaintext frame: 17 00 05 4e 6f 74 63 68 b5 0a d3 85 82 9d 31 41 a2 16 7e 7d 75 39 ba 7f
-E01 ciphertext     : 1d 16 6a dd 3a ef 9a bb 54 7c 35 d3 d2 49 fa d3 5a a2 be 70 f7 52 0f da
-E01 split at byte 5 identical (stream not restarted): True ; manual CFB8 identical: True
-E02 cipher restarted after byte 5 gives other bytes: True
-E03 decrypt round trip: True
-E04 RSA-1024 SubjectPublicKeyInfo DER length: 162 prefix 30 81 9f 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 81 8d 00
-E05 PKCS#1 v1.5 ciphertext of a 16-byte secret under RSA-1024: 128 bytes
-E06 verify token 4 bytes -> 128 bytes
+CH01 plaintext frame: 17 00 05 4e 6f 74 63 68 b5 0a d3 85 82 9d 31 41 a2 16 7e 7d 75 39 ba 7f
+CH01 ciphertext     : 1d 16 6a dd 3a ef 9a bb 54 7c 35 d3 d2 49 fa d3 5a a2 be 70 f7 52 0f da
+CH01 split at byte 5 identical (stream not restarted): True ; manual CFB8 identical: True
+CH02 cipher restarted after byte 5 gives other bytes: True
+CH03 decrypt round trip: True
+CH04 RSA-1024 SubjectPublicKeyInfo DER length: 162 prefix 30 81 9f 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 81 8d 00
+CH05 PKCS#1 v1.5 ciphertext of a 16-byte secret under RSA-1024: 128 bytes
+CH06 verify token 4 bytes -> 128 bytes
 ```
 
-E01 : clé = vecteur initial = `00 01 ... 0f`. E02 montre l'erreur classique : redémarrer le chiffreur à chaque paquet. E04 : préfixe DER `30 81 9f 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 81 8d 00` d'une clé RSA-1024, 162 octets au total ; la clé du serveur change à chaque démarrage, seul le préfixe et la longueur sont attendus.
+CH01 : clé = vecteur initial = `00 01 ... 0f`. CH02 montre l'erreur classique : redémarrer le chiffreur à chaque paquet. CH04 : préfixe DER `30 81 9f 30 0d 06 09 2a 86 48 86 f7 0d 01 01 01 05 00 03 81 8d 00` d'une clé RSA-1024, 162 octets au total ; la clé du serveur change à chaque démarrage, seul le préfixe et la longueur sont attendus.
 
 
 ## C : arbre de commandes miniature (R25, R26)
 
 ```
-C01 node 0: 00 01 01
-C01 node 1: 21 03 02 03 04 04 74 69 63 6b
-C01 node 2: 25 00 06 66 72 65 65 7a 65
-C01 node 3: 25 00 05 71 75 65 72 79
-C01 node 4: 21 01 05 04 72 61 74 65
-C01 node 5: 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00
-C01 commands payload (57 bytes): 06 00 01 01 21 03 02 03 04 04 74 69 63 6b 25 00 06 66 72 65 65 7a 65 25 00 05 71 75 65 72 79 21 01 05 04 72 61 74 65 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00 00
-C01 frame id 0x10: 3a 10 06 00 01 01 21 03 02 03 04 04 74 69 63 6b 25 00 06 66 72 65 65 7a 65 25 00 05 71 75 65 72 79 21 01 05 04 72 61 74 65 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00 00
+CT01 node 0: 00 01 01
+CT01 node 1: 21 03 02 03 04 04 74 69 63 6b
+CT01 node 2: 25 00 06 66 72 65 65 7a 65
+CT01 node 3: 25 00 05 71 75 65 72 79
+CT01 node 4: 21 01 05 04 72 61 74 65
+CT01 node 5: 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00
+CT01 commands payload (57 bytes): 06 00 01 01 21 03 02 03 04 04 74 69 63 6b 25 00 06 66 72 65 65 7a 65 25 00 05 71 75 65 72 79 21 01 05 04 72 61 74 65 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00 00
+CT01 frame id 0x10: 3a 10 06 00 01 01 21 03 02 03 04 04 74 69 63 6b 25 00 06 66 72 65 65 7a 65 25 00 05 71 75 65 72 79 21 01 05 04 72 61 74 65 26 00 04 72 61 74 65 01 03 3f 80 00 00 46 1c 40 00 00
 time parser props min 1: 00 00 00 01
 string greedy props: 02
 entity single player flags: 0x03
 redirect node example: 09 00 00 03 72 75 6e
 ```
 
-C01 encode `tick` (restreint) avec trois enfants `freeze`, `query` (exécutables, restreints) et `rate` (restreint) puis l'argument `<rate>` de type flottant borné 1,0 à 10000,0 (`3f 80 00 00` et `46 1c 40 00`), tiré de `commands.json` (D). Le choix des drapeaux "restreint" est une illustration de l'encodage, pas une affirmation sur ce que le jeu envoie : la sonde PC1 de `server-commands.md` donne les vrais. L'ordre des nœuds dans le tableau n'a pas de sens imposé (indice de la racine en dernier champ).
+CT01 encode `tick` (restreint) avec trois enfants `freeze`, `query` (exécutables, restreints) et `rate` (restreint) puis l'argument `<rate>` de type flottant borné 1,0 à 10000,0 (`3f 80 00 00` et `46 1c 40 00`), tiré de `commands.json` (D). Le choix des drapeaux "restreint" est une illustration de l'encodage, pas une affirmation sur ce que le jeu envoie : la sonde PX1 de `server-commands.md` donne les vrais. L'ordre des nœuds dans le tableau n'a pas de sens imposé (indice de la racine en dernier champ).
 
 
 ## D : dimensions et sections (R67, R68)
@@ -337,6 +337,8 @@ La valeur des champs variables (graine hachée, identifiants d'entité, Long des
 
 ### PN1 : NBT réseau (R17 ; `core-nbt.md` R20, R32)
 
+PN1 est la même sonde que PN1 de `core-nbt.md` (trames NBT échangées avec un client vanilla, jalon M8) : l'identifiant est partagé volontairement, une seule capture sert aux deux specs. Les autres identifiants de sonde de ce fichier (PN2 à PN13, PA1 à PA4) et de `server-game-loop.md` (PG, PD) et `server-commands-vectors.md` (PX) ne figurent dans aucune autre spec.
+
 Capturer PN4 et PN5 ; extraire tous les NBT : entrées de `registry_data`, `disconnect`, `system_chat`, `tag_query`. Vérifier : premier octet = type, pas de nom de racine (donc pas de `00 00` après `0a`) ; les composants de texte simples sont des String (octet `08`), les autres des Compound (`0a`) ; une valeur absente est `00`. Mesurer la profondeur et la taille du plus gros NBT du flux (quota côté client non mesurable : on note seulement le maximum observé). Lève R17, R20 de `core-nbt.md` (partiellement R32).
 
 ### PN2 : statut (R34, R37, R38)
@@ -376,7 +378,7 @@ En configuration et en jeu, ne jamais répondre aux keep-alive ; noter l'interva
 
 ### PN9 : mode en ligne, demande de chiffrement (R50, R51)
 
-`online-mode=true` : envoyer F04 puis `hello` ; enregistrer `hello` clientbound : longueur de la clé, préfixe DER (E04), longueur du jeton, `should_authenticate`, `server_id`. Ne pas répondre. Le reste du flux (R52 à R55) n'est vérifiable que par le scénario L4 en ligne avec le compte du propriétaire sur un serveur local, car l'API de sessions de Mojang ne peut pas être simulée sans configurer le serveur de référence autrement que par défaut. Lève R50 (partiellement).
+`online-mode=true` : envoyer F04 puis `hello` ; enregistrer `hello` clientbound : longueur de la clé, préfixe DER (CH04), longueur du jeton, `should_authenticate`, `server_id`. Ne pas répondre. Le reste du flux (R52 à R55) n'est vérifiable que par le scénario L4 en ligne avec le compte du propriétaire sur un serveur local, car l'API de sessions de Mojang ne peut pas être simulée sans configurer le serveur de référence autrement que par défaut. Lève R50 (partiellement).
 
 ### PN10 : ping hérité (R35)
 
@@ -707,23 +709,23 @@ def cmd_cfb8():
     enc2 = Cipher(algorithms.AES(key), CFB8(key)).encryptor()
     split = enc2.update(plain[:5]) + enc2.update(plain[5:]) + enc2.finalize()
     man = cfb8_manual(key, key, plain)
-    print("E01 plaintext frame:", hx(plain))
-    print("E01 ciphertext     :", hx(whole))
-    print("E01 split at byte 5 identical (stream not restarted):", whole == split, "; manual CFB8 identical:", whole == man)
+    print("CH01 plaintext frame:", hx(plain))
+    print("CH01 ciphertext     :", hx(whole))
+    print("CH01 split at byte 5 identical (stream not restarted):", whole == split, "; manual CFB8 identical:", whole == man)
     restarted = Cipher(algorithms.AES(key), CFB8(key)).encryptor()
     wrong = restarted.update(plain[:5]) + Cipher(algorithms.AES(key), CFB8(key)).encryptor().update(plain[5:])
-    print("E02 cipher restarted after byte 5 gives other bytes:", wrong != whole)
+    print("CH02 cipher restarted after byte 5 gives other bytes:", wrong != whole)
     dec = Cipher(algorithms.AES(key), CFB8(key)).decryptor()
-    print("E03 decrypt round trip:", dec.update(whole) == plain)
+    print("CH03 decrypt round trip:", dec.update(whole) == plain)
     k = rsa.generate_private_key(public_exponent=65537, key_size=1024)
     der = k.public_key().public_bytes(serialization.Encoding.DER, serialization.PublicFormat.SubjectPublicKeyInfo)
-    print("E04 RSA-1024 SubjectPublicKeyInfo DER length:", len(der), "prefix", hx(der[:22]))
+    print("CH04 RSA-1024 SubjectPublicKeyInfo DER length:", len(der), "prefix", hx(der[:22]))
     from cryptography.hazmat.primitives.asymmetric import padding
 
     ct = k.public_key().encrypt(key, padding.PKCS1v15())
-    print("E05 PKCS#1 v1.5 ciphertext of a 16-byte secret under RSA-1024:", len(ct), "bytes")
+    print("CH05 PKCS#1 v1.5 ciphertext of a 16-byte secret under RSA-1024:", len(ct), "bytes")
     token = bytes([1, 2, 3, 4])
-    print("E06 verify token 4 bytes ->", len(k.public_key().encrypt(token, padding.PKCS1v15())), "bytes")
+    print("CH06 verify token 4 bytes ->", len(k.public_key().encrypt(token, padding.PKCS1v15())), "bytes")
 
 
 def node(flags, children, redirect=None, name=None, parser=None, props=b""):
@@ -750,9 +752,9 @@ def cmd_commands():
     ]
     payload = venc(len(nodes)) + b"".join(nodes) + venc(0)
     for i, n in enumerate(nodes):
-        print("C01 node %d: %s" % (i, hx(n)))
-    print("C01 commands payload (%d bytes): %s" % (len(payload), hx(payload)))
-    print("C01 frame id 0x10:", hx(frame(0x10, payload)))
+        print("CT01 node %d: %s" % (i, hx(n)))
+    print("CT01 commands payload (%d bytes): %s" % (len(payload), hx(payload)))
+    print("CT01 frame id 0x10:", hx(frame(0x10, payload)))
     # time argument: Int minimum in ticks
     print("time parser props min 1:", hx(struct.pack(">i", 1)))
     # string parser: greedy

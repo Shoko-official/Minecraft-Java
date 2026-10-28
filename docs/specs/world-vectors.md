@@ -275,7 +275,7 @@ W pour chaque chunk de (0, 0) à (31, 31)
 save-all flush
 ```
 
-Puis `world_ref.py debugcheck "$REF/generated/reports/blocks.json" <dossier region>`. Attendus : un niveau Y de grille (Y 70 selon le wiki, S) ; 35 722 états distincts sur la grille (tous sauf `air`) ; identifiants croissants le long des rangées lues par z puis x. Si le compte est inférieur, la grille dépasse la zone chargée : étendre `forceload` (y compris en coordonnées négatives, au plus 256 chunks par commande, message `commands.forceload.toobig`) et relancer. Relever la forme des palettes (sortie `check`, ligne `block_states_palette_forms`).
+Puis `world_ref.py debugcheck "$REF/generated/reports/blocks.json" <dossier region>`. Attendus : un niveau Y de grille (Y 70 selon la page « Debug mode » du Minecraft Wiki, S) ; 35 722 états distincts sur la grille (tous sauf `air`) ; identifiants croissants le long des rangées lues par z puis x. Si le compte est inférieur, la grille dépasse la zone chargée : étendre `forceload` (y compris en coordonnées négatives, au plus 256 chunks par commande, message `commands.forceload.toobig`) et relancer. Relever la forme des palettes (sortie `check`, ligne `block_states_palette_forms`).
 
 ### PC3 : grandes palettes (CF-R7 à R9)
 
@@ -330,7 +330,7 @@ save-all flush
 Puis `world_ref.py check` sur les quatre fichiers autour de l'origine (et, si aucun chunk n'a de `PostProcessing` ou de références, sur les fichiers d'une zone plus grande chargée de la même façon, par exemple `forceload add -256 -256 -1 -1`). Attendus :
 
 - toutes les valeurs de `Status` dans la liste de CF-R27 ; chunks `minecraft:full` et proto-chunks à divers statuts ; pour chaque statut, clés de la racine, des sections, des heightmaps (CF-R19), des structures, nombre de listes de `PostProcessing` (24) et clés des entrées de ticks et de block entities ;
-- `PostProcessing` (CF-R24) : la ligne `postprocessing as x|z<<4|y<<8` compte, pour chaque Short décodé avec le codage provisoire, le bloc désigné ; attendu : une majorité de blocs non air (fluides et blocs qui dépendent de leurs voisins, d'après le wiki), nettement plus que la ligne `postprocessing as y|z<<4|x<<8` (codage inversé) ; si c'est l'inverse, CF-R24 est fausse ;
+- `PostProcessing` (CF-R24) : la ligne `postprocessing as x|z<<4|y<<8` compte, pour chaque Short décodé avec le codage provisoire, le bloc désigné ; attendu : une majorité de blocs non air (fluides, d'après la page « Chunk format » du Minecraft Wiki, qui cite l'exemple des sources de fluide des grottes ; les blocs qui dépendent de leurs voisins sont une hypothèse de l'analyste), nettement plus que la ligne `postprocessing as y|z<<4|x<<8` (codage inversé) ; si c'est l'inverse, CF-R24 est fausse ;
 - références (CF-R25, ST1) : la ligne `references decoded as x low` doit montrer une distance maximale de quelques chunks (provisoire : 16 au plus) et, pour les cibles situées dans le même fichier, autant de départs correspondants (`starts` du chunk ciblé avec le même identifiant de structure) que de cibles ; la ligne `x high` sert de contre-épreuve et doit en trouver moins. Relever aussi le nom exact de la clé (`References` ou `references`).
 
 ### PB1 : entrées de palette altérées (BS-R19 à R21)

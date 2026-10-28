@@ -17,11 +17,11 @@ Cible : Minecraft Java 26.3 (data version 5023 et protocole 777, confirmés par 
 | `engine/core` | RNG (legacy, xoroshiro, positionnel), `Mth` et tables, identifiants, NBT (binaire et SNBT), géométrie, utilitaires | rien |
 | `engine/data` | Infrastructure de chargement des datapacks : sources et priorités, arbres JSON, registres et références, combinateurs de codecs, tags (ADR 0005) | core |
 | `engine/world` | Blocs et états, sections et palettes, chunks, heightmaps, lumière, fluides, ticks planifiés et aléatoires, stockage Anvil | data |
-| `engine/item` | Objets et composants, inventaires, recettes | data |
-| `engine/loot` | Tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, ports de contexte (ADR 0004) | world, item |
+| `engine/item` | Objets et composants, inventaires, recettes, algorithmes purs de clic de menu et de reconnaissance de recettes, références aux fournisseurs et prédicats (leur évaluation est dans `loot`, ADR 0004) | data |
+| `engine/loot` | Tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, sélection et coûts de la table d'enchantement, de l'enclume et de la meule, ports de contexte `EntityView` et `ActionSink` (ADR 0004) | world, item |
 | `engine/worldgen` | Densité et bruit, sélection de biomes, surfaces, grottes, aquifères, features, structures, étapes de génération | world |
 | `engine/entity` | Entités, attributs, effets de statut, physique, collisions, IA (goals et brain), spawn, dégâts | world, item, loot |
-| `engine/game` | Boucle de tick, niveaux, joueurs, commandes, gamerules, avancements, persistance, actions d'enchantement | worldgen, entity, loot |
+| `engine/game` | Boucle de tick, niveaux, joueurs, menus, block entities à inventaire, commandes, gamerules, avancements, persistance, actions d'enchantement | worldgen, entity, loot |
 | `net` | Protocole 777, paquets, codecs, états de connexion | game |
 | `server` | Point d'entrée du serveur dédié | net |
 | `client` | Rendu LWJGL, audio, interface, entrées, resource packs, modèles | net |
@@ -64,7 +64,7 @@ flowchart TD
     bootstrap["tools/bootstrap"]
 ```
 
-`world` et `item` ne se connaissent pas. Une interaction objet/bloc passe par `entity` ou `game`. Les butins et valeurs d'enchantements sont évalués par `loot` via des ports (ADR 0004).
+`world` et `item` ne se connaissent pas. Une interaction objet/bloc passe par `entity` ou `game`. Les butins, les fournisseurs de nombres, les valeurs d'enchantements et les calculs de la table d'enchantement, de l'enclume et de la meule sont évalués par `loot`, qui n'expose que les ports `EntityView` et `ActionSink` ; `game` et `entity` les appellent (ADR 0004, amendement 1).
 
 ## Layout d'un module
 

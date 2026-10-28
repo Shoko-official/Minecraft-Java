@@ -18,4 +18,6 @@ Pour les rendre disponibles aux agents, les copier ici :
 cp ../Rapport_*.md ../rapport*.md ../nether_clone_specification.md docs/reference/
 ```
 
+Ces fichiers sont très gros (le rapport Overworld dépasse 1 million de lignes) : ne jamais les lire en entier. Chercher par titre ou mot-clé (`grep -n '^#'`, puis lecture ciblée d'une plage de lignes).
+
 Les valeurs des rapports sont des points de départ. Chaque règle reprise dans une spec garde son niveau de preuve (D, M, C, S) et les règles S sont levées par l'oracle avant d'être figées.

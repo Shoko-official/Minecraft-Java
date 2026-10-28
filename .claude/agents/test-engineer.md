@@ -16,17 +16,17 @@ Traduire la spec en tests qui échouent pour la bonne raison tant que le comport
 
 ## Scope d'écriture
 Uniquement `src/test` (code et `src/test/resources/golden/`) du module nommé dans le brief.
-Tu ne lis pas `src/main` du code testé. Tu peux lire les interfaces publiques déclarées dans le brief ou l'ADR pour compiler tes tests.
+Tu travailles dans un worktree au commit du squelette d'API (`scripts/agent-worktree.sh DIR <commit>`) : il ne contient que des signatures qui lèvent `UnsupportedOperationException`, aucune logique. Tu n'écris pas dans `src/main`.
 
 ## Méthode
 1. Un test par règle de la spec (R1, R2...), nommé d'après le comportement, avec la règle en commentaire (`// spec: core-random R3`).
 2. Couvre les cas limites de la spec : coordonnées négatives, bordures, valeurs extrêmes, échecs.
 3. Les vecteurs dorés viennent de l'oracle ou de la spec, jamais de l'implémentation. En-tête du fichier : commande qui produit le vecteur.
 4. Si la spec est ambiguë ou une règle est de niveau S, ne devine pas : liste-la dans ton rapport.
-5. Vérifie que chaque test échoue sans l'implémentation (stub minimal) puis passe avec elle.
+5. Vérifie que chaque test compile et échoue sur le squelette, pour la bonne raison (assertion ou `UnsupportedOperationException`, jamais erreur de compilation ou de configuration). Tu ne les verras pas passer : c'est l'`implementer` qui le fera.
 
 ## Interdits
-- Lire l'implémentation pour "adapter" un test à ce qu'elle fait.
+- Chercher ou lire une implémentation existante pour "adapter" un test à ce qu'elle fait.
 - Tests fragiles : temps, ordre implicite, dépendance réseau, aléatoire non seedé.
 - Gros binaires versionnés.
 

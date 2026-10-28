@@ -1,15 +1,21 @@
 #!/usr/bin/env bash
-# Enforces the "[KEYWORD] : description" subject format and rejects automatic attribution.
+# Enforces the "[KEYWORD] : Description" subject format and rejects automatic attribution.
 set -euo pipefail
 
 msg_file="${1:-}"
 [ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
 
 root="$(git rev-parse --show-toplevel)"
-subject="$(tr -d '\r' < "$msg_file" | grep -v '^#' | head -n 1)"
+comment_char="$(git config --get core.commentChar 2>/dev/null || true)"
+case "$comment_char" in "" | auto) comment_char='#' ;; esac
+
+subject="$(tr -d '\r' < "$msg_file" | awk -v c="$comment_char" 'index($0, c) != 1' | head -n 1)"
+
+# Empty messages are rejected by git itself.
+[ -n "$subject" ] || exit 0
 
 case "$subject" in
-  "Merge "*|"fixup! "*|"squash! "*) ;;
+  "Merge branch "*|"Merge remote-tracking branch "*|"Revert \""*|"fixup! "*|"squash! "*) ;;
   *) bash "$root/scripts/check-subject.sh" "$subject" ;;
 esac
 

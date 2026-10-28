@@ -1,6 +1,6 @@
 # Équipe de sous-agents
 
-Les définitions exécutables des rôles sont versionnées dans le dossier d'agents du dépôt (un fichier par rôle). Ce document donne le principe, la répartition et la boucle de travail. Les agents ont un scope étroit, un contexte minimal et des sorties typées pour éviter les biais.
+Les définitions exécutables des rôles sont versionnées dans le dossier d'agents du dépôt (`.claude/agents/`, un fichier par rôle). Ce document donne le principe, la répartition et la boucle de travail. Les agents ont un scope étroit, un contexte minimal et des sorties typées pour éviter les biais.
 
 ## Principes
 
@@ -11,20 +11,33 @@ Les définitions exécutables des rôles sont versionnées dans le dossier d'age
 5. **Preuve ou rien.** Toute affirmation est accompagnée d'une commande, d'un fichier ou d'une image reproductibles.
 6. **Pas de travail inutile.** Le niveau de risque de la tâche (voir `docs/WORKFLOW.md`) détermine quels rôles interviennent.
 
+## Ce qui est contraint techniquement, et ce qui ne l'est pas
+
+Le champ `tools` d'un agent limite ses outils, mais `Bash` peut écrire et `Read` lit tout le dépôt. Les consignes de scope sont donc déclaratives. Pour les rôles où l'isolation compte, on la rend structurelle avec `scripts/agent-worktree.sh` :
+
+| Rôle | Isolation |
+|---|---|
+| `spec-analyst` | worktree `--docs-only` : il ne voit que `docs/` et `AGENTS.md`, jamais le code source |
+| `test-engineer` | worktree sur le commit qui ne contient que le squelette d'API (signatures levant `UnsupportedOperationException`), avant toute implémentation |
+| `reviewer`, `bug-hunter` | worktree jetable sur la branche à relire, supprimé ensuite ; le reviewer lit `git log --format=%s`, jamais les corps de commit |
+
+Risques résiduels connus, assumés : le `spec-analyst` garde l'accès web pour la documentation publique et doit s'en tenir aux sources autorisées par l'ADR 0002 ; le `reviewer` vérifie que les specs ne contiennent pas de détails internes. Un contrôle plus dur (hooks sur les outils, restriction de domaines) pourra être ajouté dans les réglages des agents si ces règles sont violées en pratique.
+
 ## Rôles
 
 | Rôle | Peut écrire | Mission | Ne fait jamais |
 |---|---|---|---|
-| `architect` | `docs/`, `*.gradle.kts`, `gradle/` | ADR, frontières de modules, contrats d'API, revue de structure | écrire du code métier |
-| `spec-analyst` | `docs/specs/`, `docs/features/` | Distiller rapports, données et oracle en spec testable avec niveaux de preuve | lire ou citer l'implémentation |
-| `implementer` | un module nommé dans le brief (`src/main`) | Implémenter une tâche à partir de la spec | modifier les tests, élargir son scope |
-| `test-engineer` | `src/test` du module nommé | Écrire tests et vecteurs dorés depuis la spec, en aveugle | lire `src/main` du code testé |
-| `oracle-differ` | `.cache/`, `reports/diff/`, `tools/diff` | Lancer l'oracle, comparer, localiser le premier écart, exécuter les scénarios | corriger le code, formuler de cause supposée comme un fait |
+| `architect` | `docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, `docs/CONVENTIONS.md`, `docs/adr/`, `*.gradle.kts`, `gradle/` | ADR, frontières de modules, contrats d'API, revue de structure | écrire du code métier |
+| `spec-analyst` | `docs/specs/` | Distiller rapports, données et oracle en spec testable avec niveaux de preuve | lire ou citer l'implémentation |
+| `implementer` | `src/main` du module nommé dans le brief | Poser le squelette d'API, puis implémenter une tâche à partir de la spec | modifier les tests, élargir son scope |
+| `test-engineer` | `src/test` du module nommé | Écrire tests et vecteurs dorés depuis la spec, en aveugle | lire l'implémentation |
+| `tooling-engineer` | `tools/`, `scripts/`, `.github/`, `.githooks/` | Construire et tester l'outillage : bootstrap, pilotage de l'oracle, comparateurs, scénarios, CI | modifier le moteur, exécuter une comparaison pour en juger le résultat |
+| `oracle-differ` | `.cache/oracle/`, `reports/diff/` | Lancer l'oracle, comparer avec les outils existants, localiser le premier écart | corriger le code, modifier un comparateur ou `samples.json`, formuler une cause supposée comme un fait |
 | `visual-analyst` | `reports/visual/` | Produire et lire des planches d'images, décrire les écarts | juger sans l'entrée écrite dans la légende |
 | `reviewer` | rien (verdict en sortie) | Relecture non biaisée : justesse, propreté, taille, conventions, sécurité | recevoir le résumé de l'auteur, corriger lui-même |
-| `bug-hunter` | `src/test` (tests de reproduction) | Attaque adverse : coordonnées négatives, bordures, overflow, déterminisme, concurrence | corriger le code |
+| `bug-hunter` | tests de reproduction dans `src/test` | Attaque adverse : coordonnées négatives, bordures, overflow, déterminisme, concurrence | corriger le code |
 
-L'orchestrateur (la session principale) crée les branches, rédige les briefs, route les livrables, ouvre et fusionne les PR. Il ne s'auto-valide pas : le verdict du `reviewer` est requis.
+L'orchestrateur (la session principale) crée les branches, rédige les briefs, route les livrables, ouvre et fusionne les PR, et met à jour `docs/features/matrix.md` sur la base de rapports de vérification favorables. Il ne s'auto-valide pas : le verdict du `reviewer` est requis. `.claude/agents/` est modifié par PR `[DOCS]` ou `[CHORE]` relue comme le reste.
 
 ## Format d'un brief
 
@@ -47,7 +60,8 @@ Interdit dans un brief : hypothèses sur la cause, jugement sur la qualité du c
 
 ```mermaid
 flowchart TD
-    S[spec-analyst : spec] --> T[test-engineer : tests aveugles, rouges]
+    S[spec-analyst : spec] --> K[implementer : squelette d'API, commit séparé]
+    K --> T[test-engineer : tests aveugles sur le squelette, rouges]
     T --> I[implementer : code jusqu'au vert]
     I --> O[oracle-differ : diff L2]
     O -->|écarts| I
@@ -62,8 +76,10 @@ flowchart TD
 Parcours selon le risque :
 
 - **A** : tout le diagramme.
-- **B** : `test-engineer` (peut être l'`implementer` si la logique est triviale), `implementer`, `reviewer`, oracle si observable.
-- **C** : `implementer` (ou `architect` pour docs et build) puis `reviewer`.
+- **B** : squelette, `test-engineer` (non nécessairement en aveugle), `implementer`, `reviewer`, oracle si le comportement est observable.
+- **C** : `implementer`, `tooling-engineer` ou `architect` selon le chemin, puis `reviewer`.
+
+L'`implementer` n'écrit jamais les tests qu'il doit satisfaire, y compris en niveau B : l'auteur ne se vérifie pas.
 
 Plafond de boucle : au bout de trois allers-retours implementer / vérificateur sans convergence, l'orchestrateur s'arrête, relit la spec et le diagnostic bruts, et reformule la tâche ou la spec au lieu de relancer.
 

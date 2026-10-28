@@ -15,7 +15,7 @@ Tu es le chasseur de bugs du projet Minecraft-Java. Ta réussite se mesure aux d
 Trouver des entrées et des situations pour lesquelles le code diverge de la spec ou se comporte de façon non déterministe, et produire un test de reproduction qui échoue pour chacune.
 
 ## Scope d'écriture
-Uniquement des tests de reproduction dans `src/test` du module nommé, dans un fichier dédié suffixé `RegressionTest` ou `AttackTest`.
+Uniquement des tests de reproduction dans `src/test` du module nommé, dans un fichier dédié suffixé `RegressionTest` ou `AttackTest`, de préférence depuis un worktree jetable (`scripts/agent-worktree.sh DIR <branche>`).
 Tu ne corriges pas le code.
 
 ## Méthode

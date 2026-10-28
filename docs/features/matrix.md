@@ -36,10 +36,11 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Inventaires et menus | M6 | B | spécifié | `docs/specs/item-components-inventory.md` (brouillon, règles S) |
 | Cuisson et carburants | M6 | B | spécifié | `docs/specs/item-recipes.md` (brouillon, règles S) |
 | Prédicats et modificateurs d'objet | M6 | A | spécifié | `docs/specs/loot-tables.md` (brouillon, règles S) |
-| Physique et collisions d'entités | M7 | A | non-spécifié | |
-| IA des mobs | M7 | A | non-spécifié | |
-| Spawn naturel | M7 | A | non-spécifié | |
-| Dégâts, effets, combat | M7 | A | non-spécifié | |
+| Physique et collisions d'entités | M7 | A | spécifié | `docs/specs/entity-model-physics.md` (brouillon, règles S ; R23, R24, R62 à R66 bloquent l'implémentation avant mesure ; R83 et R84 S-arch) |
+| IA des mobs | M7 | A | spécifié | `docs/specs/entity-ai-spawning.md` (contrat par scénarios R50, R74 à R76 S-arch, inventaire par famille ; R53, R55, R66 bloquent l'implémentation avant mesure ; brouillon) |
+| Spawn naturel | M7 | A | spécifié | `docs/specs/entity-ai-spawning.md` (brouillon, règles S ; R44, R48, R49 bloquent l'implémentation avant mesure ; R38 S-arch) |
+| Dégâts, effets, combat | M7 | A | spécifié | `docs/specs/entity-damage-effects.md` (brouillon, règles S ; R5, R49, R54, R60, R61, R70, R76 bloquent l'implémentation avant mesure) |
+| Joueur, déplacement, faim, expérience, véhicules | M7 | A | spécifié | `docs/specs/entity-player.md` (brouillon, règles S ; R13, R17, R35, R36, R61 bloquent l'implémentation avant mesure ; R72 à R74 S-arch) |
 | Commandes | M8 | B | spécifié | `docs/specs/server-commands.md` (brouillon, règles S) |
 | Protocole 777 | M8 | B | spécifié | `docs/specs/net-protocol-777.md` (brouillon, règles S ; IDs de paquets D) |
 | Boucle de tick, `/tick`, gamerules, temps, persistance serveur | M8 | B | spécifié | `docs/specs/server-game-loop.md` (brouillon, règles S) |

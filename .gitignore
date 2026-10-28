@@ -1,0 +1,33 @@
+# Donnees de reference et assets : jamais versionnes (ADR 0003)
+.cache/
+run/
+reports/
+docs/reference/*
+!docs/reference/README.md
+
+# Build
+build/
+.gradle/
+out/
+*.class
+*.log
+hs_err_pid*
+
+# Local agent settings
+.claude/settings.local.json
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Secrets
+.env
+.env.*
+
+# OS
+Thumbs.db
+.DS_Store

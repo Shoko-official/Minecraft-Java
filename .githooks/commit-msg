@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Enforces the "[KEYWORD] : Description" subject format and rejects automatic attribution.
+set -euo pipefail
+
+msg_file="${1:-}"
+[ -n "$msg_file" ] && [ -f "$msg_file" ] || exit 0
+
+root="$(git rev-parse --show-toplevel)"
+
+# awk reads the file directly (no pipeline, hence no SIGPIPE on huge messages such as the diff
+# that "git commit -v" appends). The subject is the first non-blank line; comment lines are not
+# skipped, so a subject starting with '#' fails the format check instead of vanishing.
+subject="$(awk '{ sub(/\r$/, "") } NF { print; exit }' "$msg_file")"
+second="$(awk '{ sub(/\r$/, "") } found { print; exit } NF { found = 1 }' "$msg_file")"
+
+if [ -n "$subject" ]; then
+  case "$subject" in
+    "Merge branch "*|"Merge branches "*|"Merge remote-tracking branch "*|"Merge commit '"*|"Merge tag '"*|"Revert \""*|"Reapply \""*|"fixup! "*|"squash! "*|"amend! "*) ;;
+    *)
+      bash "$root/scripts/check-subject.sh" "$subject"
+      # A subject runs into the next line unless a blank (or comment) line follows.
+      if [ -n "$second" ] && [[ "$second" != "#"* ]]; then
+        echo "invalid message: a blank line must follow the subject" >&2
+        exit 1
+      fi
+      ;;
+  esac
+fi
+
+bash "$root/scripts/check-hygiene.sh" --message "$msg_file"

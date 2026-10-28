@@ -1,0 +1,45 @@
+name: pr-title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  check-title:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate PR title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: bash scripts/check-subject.sh "$PR_TITLE"
+      - name: Scan PR title and body
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s\n\n%s\n' "$PR_TITLE" "$PR_BODY" > "$RUNNER_TEMP/pr.txt"
+          bash scripts/check-hygiene.sh --text "$RUNNER_TEMP/pr.txt"
+      - name: Validate commit subjects
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git log --no-merges --format=%s "$BASE_SHA..$HEAD_SHA" | while IFS= read -r subject; do
+            case "$subject" in "Revert \""*|"Reapply \""*|"fixup! "*|"squash! "*|"amend! "*) continue ;; esac
+            bash scripts/check-subject.sh "$subject"
+          done
+      - name: Scan commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          git log --format=%B "$BASE_SHA..$HEAD_SHA" > "$RUNNER_TEMP/commits.txt"
+          bash scripts/check-hygiene.sh --text "$RUNNER_TEMP/commits.txt"

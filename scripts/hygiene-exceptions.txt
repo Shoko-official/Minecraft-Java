@@ -1,0 +1,2 @@
+# One "check:path" per line, followed by "# reason". check is "size" or "path".
+# Every entry needs a reason and is reviewed like code.

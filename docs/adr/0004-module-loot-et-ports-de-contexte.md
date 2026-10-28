@@ -1,6 +1,6 @@
 # ADR 0004 : Module `loot` et ports de contexte
 
-Statut : accepté, à raffiner par le `spec-analyst` au jalon M6
+Statut : accepté, amendé par les specs du jalon M6 (voir « Amendement 1 »)
 
 ## Contexte
 
@@ -24,3 +24,27 @@ Graphe résultant : `loot -> world, item` ; `entity -> world, item, loot` ; `gam
 
 - Un module de plus, mais des responsabilités nettes et des tests de butin sans entités réelles (ports factices).
 - Le découpage fin des ports est tranché avec la spec de M6, pas avant.
+
+## Amendement 1 : propriété précisée par les specs du jalon M6
+
+Les specs `item-components-inventory.md` (« Propriétaires de modules »), `item-recipes.md` (DC1), `loot-tables.md` (R16, R17, R50) et `item-enchantments.md` (« Propriétaires de modules ») ont tranché le découpage fin annoncé plus haut. Cet amendement consigne ces décisions de conception ; elles ne décrivent pas le jeu de référence et n'ont pas de niveau de preuve. Il ne change ni le tableau des modules ni leurs dépendances directes (`docs/ARCHITECTURE.md`).
+
+### Décisions
+
+1. **Calculs d'enchantement dans `loot`.** `loot` porte, en plus des valeurs d'enchantements, la sélection des offres de la table d'enchantement, les calculs de coût et de fusion de l'enclume (pénalité de travail comprise) et ceux de la meule. Ces calculs dépendent des définitions d'enchantement et de l'aléa de tirage, qui vivent dans `loot`. Le calcul est une fonction de `loot` ; l'échange avec les slots ne l'est pas (point 3).
+2. **Fournisseurs et prédicats évalués par `loot`.** `item` ne porte que la référence au fournisseur ou au prédicat (identifiant lu dans un prototype, par exemple `cooking_fuel`, `compostable`, `brewing_fuel`) et les données de recette. `loot` les évalue, avec un contexte de bloc réduit à l'état du bloc de la machine, pour le compte de `item` et de `game`. `item` ne dépend pas de `loot` : l'évaluation est demandée par `game`, qui possède la machine et son tick (ADR 0005), et dont le résultat (durée, vitesse, couches) est transmis à la logique de cuisson, d'alchimie ou de compostage.
+3. **Algorithmes purs dans `item`, menus dans `game`.** `item` porte les algorithmes purs de clic de menu sur une liste abstraite de slots et un curseur, et la reconnaissance de recettes (fonctions sur des piles, testables sans monde). `game` possède les menus liés à un bloc ou à un joueur, les ticks et les block entities (ADR 0005) ; il appelle `item` pour les clics et la reconnaissance, et `loot` pour les coûts, les offres et les fournisseurs.
+4. **Un seul port de lecture.** Le seul port de contexte de butin est `EntityView` (lecture), accompagné de `ActionSink` (intentions d'effet de bord, non utilisé par le tirage pur). `BlockView` et `ItemView` ne sont pas créés : `loot` dépend directement de `world` et de `item` et lit l'état de bloc, les étiquettes, l'entité de bloc, le biome et les piles par ces modules. `entity` et `game` implémentent les ports ; `loot` ne dépend pas de `entity`.
+
+### Alternatives écartées
+
+- Calculs de la table d'enchantement, de l'enclume et de la meule dans `game` : ils dupliqueraient l'accès aux définitions d'enchantement et à l'aléa de `loot`, et ne seraient testables qu'avec des menus.
+- Évaluation des fournisseurs de nombres dans `item` : `item` devrait dépendre de `loot` (dépendance montante) ou recopier l'interpréteur de fournisseurs.
+- Ports `BlockView` et `ItemView` : abstractions sans second usage, puisque `loot` voit déjà `world` et `item`.
+
+### Conséquences
+
+- `item` : objets, composants, inventaires, recettes, algorithmes de clic et reconnaissance de recettes ; références aux fournisseurs, sans leur évaluation.
+- `loot` : tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, calculs de la table d'enchantement, de l'enclume et de la meule, ports `EntityView` et `ActionSink`.
+- `game` : menus, ticks, block entities à inventaire, assemblage des appels vers `item` et `loot`. Les budgets de taille de `game` restent surveillés (ADR 0005).
+- Aucune dépendance montante : `item -> data` ; `loot -> world, item` ; `game -> worldgen, entity, loot` (et `item` par transitivité via `entity` et `loot`). Le tableau des modules de `docs/ARCHITECTURE.md` reprend ces responsabilités. Si l'implémentation exige que `game` importe directement des types de `item`, l'ajout de cette dépendance directe (descendante) se fait avec le code, en même temps que la règle ArchUnit et le tableau.

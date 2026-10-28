@@ -33,8 +33,8 @@ public final class ElementRegistryData {
   }
 
   /**
-   * Returns the elements in code point order of their identifiers (R30, provisional). The map is
-   * empty for a registry that no pack fills (R28).
+   * Returns the elements in code point order of the full text of their identifiers (R30,
+   * provisional). The map is empty for a registry that no pack fills (R28).
    *
    * @return an unmodifiable map; a file that was invalid is absent (R54)
    */

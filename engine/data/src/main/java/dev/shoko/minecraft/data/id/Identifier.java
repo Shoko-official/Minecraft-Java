@@ -17,10 +17,12 @@ public final class Identifier implements Comparable<Identifier> {
 
   private final String namespace;
   private final String path;
+  private final String full;
 
   private Identifier(String namespace, String path) {
     this.namespace = namespace;
     this.path = path;
+    this.full = namespace + ":" + path;
   }
 
   /**
@@ -127,7 +129,9 @@ public final class Identifier implements Comparable<Identifier> {
   }
 
   /**
-   * Orders by namespace then by path, comparing Unicode code points (R30). Independent of locale.
+   * Orders by the full text {@code namespace:path}, comparing Unicode code points (R30).
+   * Independent of locale. This is not the order by namespace then by path: {@code a-b:c} sorts
+   * before {@code a:b}, because {@code -} (45) is less than {@code :} (58).
    *
    * @param other the identifier to compare with
    * @return a negative, zero or positive number
@@ -135,8 +139,7 @@ public final class Identifier implements Comparable<Identifier> {
   @Override
   public int compareTo(Identifier other) {
     // Valid characters are ASCII, so UTF-16 order and code point order agree.
-    int byNamespace = namespace.compareTo(other.namespace);
-    return byNamespace != 0 ? byNamespace : path.compareTo(other.path);
+    return full.compareTo(other.full);
   }
 
   /**
@@ -147,7 +150,7 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public boolean equals(Object other) {
-    return other instanceof Identifier id && namespace.equals(id.namespace) && path.equals(id.path);
+    return other instanceof Identifier id && full.equals(id.full);
   }
 
   /**
@@ -157,7 +160,7 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public int hashCode() {
-    return 31 * namespace.hashCode() + path.hashCode();
+    return full.hashCode();
   }
 
   /**
@@ -167,7 +170,7 @@ public final class Identifier implements Comparable<Identifier> {
    */
   @Override
   public String toString() {
-    return namespace + ":" + path;
+    return full;
   }
 
   private static boolean onlyAllowed(String text, boolean allowSlash) {

@@ -9,8 +9,6 @@ import java.io.InputStream;
 import java.io.Serial;
 import java.util.zip.CRC32;
 import java.util.zip.Deflater;
-import java.util.zip.GZIPInputStream;
-import java.util.zip.InflaterInputStream;
 
 /**
  * Opens and produces the gzip (RFC 1952) and zlib (RFC 1950) containers (R16 to R19), and tells a
@@ -26,8 +24,8 @@ final class ContainerCodec {
   private ContainerCodec() {}
 
   /**
-   * Returns a stream of the decompressed bytes. Closing it releases the inflater and leaves {@code
-   * source} open.
+   * Returns a stream of the decompressed bytes, whose end checks the container trailer (R61).
+   * Closing it releases the inflater and leaves {@code source} open.
    *
    * @throws IOException when the gzip header is invalid or {@code source} fails
    */
@@ -35,8 +33,8 @@ final class ContainerCodec {
     InputStream guarded = new GuardedSource(source);
     return switch (compression) {
       case NONE -> guarded;
-      case GZIP -> new GZIPInputStream(guarded, CHUNK);
-      case ZLIB -> new InflaterInputStream(guarded);
+      case GZIP -> InflatingInputStream.gzip(guarded);
+      case ZLIB -> InflatingInputStream.zlib(guarded);
     };
   }
 

@@ -10,9 +10,12 @@ import dev.shoko.minecraft.core.nbt.IntTag;
 import dev.shoko.minecraft.core.nbt.ListTag;
 import dev.shoko.minecraft.core.nbt.LongArrayTag;
 import dev.shoko.minecraft.core.nbt.LongTag;
+import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtException.Reason;
 import dev.shoko.minecraft.core.nbt.NbtTag;
 import dev.shoko.minecraft.core.nbt.ShortTag;
 import dev.shoko.minecraft.core.nbt.StringTag;
+import java.util.Collection;
 import java.util.Map;
 import java.util.function.IntFunction;
 
@@ -31,11 +34,16 @@ import java.util.function.IntFunction;
  *       character is written as is (R54).
  *   <li>Keys unquoted when made only of {@code 0-9 A-Z a-z _ - . +}, else quoted as strings (R55).
  *   <li>Separators {@code {a: 1b, b: "x"}}, {@code [1, 2]}, {@code [I; 1, 2]}; empty forms {@code
- *       {}}, {@code []}, {@code [B;]}, {@code [I;]}, {@code [L;]}; keys in storage order;
- *       heterogeneous lists without wrapper, {@code [1, "a"]} (R56).
+ *       {}}, {@code []}, {@code [B;]}, {@code [I;]}, {@code [L;]}; keys in storage order; a
+ *       heterogeneous list in memory without wrapper, {@code [1, "a"]}; one read back from the
+ *       binary form with its wrappers, {@code [{"": 1}, {"": "a"}]} (R56, R63).
+ *   <li>At most 512 nested compounds, lists and typed arrays (R59).
  * </ul>
  */
 public final class SnbtWriter {
+
+  /** Most nested compounds, lists and typed arrays, counted as the parser does (R58, R59). */
+  private static final int MAX_DEPTH = 512;
 
   private SnbtWriter() {}
 
@@ -43,12 +51,37 @@ public final class SnbtWriter {
    * Returns the SNBT text of a value (R52 to R56).
    *
    * @param tag the value
-   * @return the text, on a single line
+   * @return the text, on a single line, always readable by {@link SnbtParser}
+   * @throws NbtException TOO_DEEP, without offset and without text, when the value nests more than
+   *     512 compounds, lists and typed arrays, the outermost included (R59)
    */
-  public static String write(NbtTag tag) {
+  public static String write(NbtTag tag) throws NbtException {
+    if (exceedsDepth(tag, 1)) {
+      throw new NbtException(Reason.TOO_DEEP, "deeper than " + MAX_DEPTH + " SNBT levels");
+    }
     var out = new StringBuilder();
     append(out, tag);
     return out.toString();
+  }
+
+  // Returns as soon as a level passes the limit: the recursion stays within 513 levels.
+  private static boolean exceedsDepth(NbtTag tag, int level) {
+    return switch (tag) {
+      case CompoundTag compound ->
+          level > MAX_DEPTH || anyExceeds(compound.entries().values(), level);
+      case ListTag list -> level > MAX_DEPTH || anyExceeds(list.elements(), level);
+      case ByteArrayTag _, IntArrayTag _, LongArrayTag _ -> level > MAX_DEPTH;
+      default -> false;
+    };
+  }
+
+  private static boolean anyExceeds(Collection<NbtTag> children, int parentLevel) {
+    for (NbtTag child : children) {
+      if (exceedsDepth(child, parentLevel + 1)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private static void append(StringBuilder out, NbtTag tag) {

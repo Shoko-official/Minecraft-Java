@@ -7,11 +7,16 @@ import java.io.InputStream;
 import java.util.Arrays;
 
 /**
- * Big-endian reads (R3) over decompressed bytes, counting the bytes consumed. A read past the data
- * fails with UNEXPECTED_END at the number of bytes available (R33); a read past {@code maxBytes}
- * fails with TOO_LARGE at the limit (R32). The source may be read ahead of the consumed position.
+ * Big-endian reads (R3) over decompressed bytes, with the memory quota of R60: units are the bytes
+ * consumed plus {@link #TAG_UNITS} per tag object, and the running total may not exceed the quota.
+ * A read past the data fails with UNEXPECTED_END at the number of bytes available (R33); the quota
+ * is charged after the bytes are taken, so a premature end is reported as such. The source may be
+ * read ahead of the consumed position.
  */
 final class BinaryInput {
+
+  /** Units of one tag object: the root, a compound value or a list element (R60). */
+  static final long TAG_UNITS = 24;
 
   private static final int BUFFER_SIZE = 8192;
 
@@ -19,16 +24,17 @@ final class BinaryInput {
   private static final int INITIAL_CAPACITY = 1 << 16;
 
   private final InputStream in;
-  private final long maxBytes;
+  private final long quota;
   private final byte[] buffer = new byte[BUFFER_SIZE];
   private int start;
   private int end;
   private long position;
+  private long tags;
   private boolean exhausted;
 
-  BinaryInput(InputStream in, long maxBytes) {
+  BinaryInput(InputStream in, long quota) {
     this.in = in;
-    this.maxBytes = maxBytes;
+    this.quota = quota;
   }
 
   /** Returns the number of bytes consumed so far, the offset of the next byte. */
@@ -36,10 +42,29 @@ final class BinaryInput {
     return position;
   }
 
+  /** Counts one more tag object (R60). */
+  void countTag() throws NbtException {
+    tags++;
+    reserve(0);
+  }
+
+  /**
+   * Fails with TOO_LARGE when the running total plus {@code cost} exceeds the quota: the early
+   * check of R60 at an array or list header, before anything is read or allocated.
+   */
+  void reserve(long cost) throws NbtException {
+    long total = position + TAG_UNITS * tags + cost;
+    if (total > quota) {
+      throw new NbtException(
+          Reason.TOO_LARGE, position, total + " units of estimated memory, quota " + quota);
+    }
+  }
+
   int readUnsignedByte() throws NbtException {
     require(1);
-    position++;
-    return buffer[start++] & 0xFF;
+    int value = buffer[start] & 0xFF;
+    consumed(1);
+    return value;
   }
 
   byte readByte() throws NbtException {
@@ -48,9 +73,8 @@ final class BinaryInput {
 
   int readUnsignedShort() throws NbtException {
     require(2);
-    position += 2;
     int value = ((buffer[start] & 0xFF) << 8) | (buffer[start + 1] & 0xFF);
-    start += 2;
+    consumed(2);
     return value;
   }
 
@@ -60,17 +84,22 @@ final class BinaryInput {
 
   int readInt() throws NbtException {
     require(4);
-    position += 4;
     int value = 0;
     for (int k = 0; k < 4; k++) {
-      value = (value << 8) | (buffer[start++] & 0xFF);
+      value = (value << 8) | (buffer[start + k] & 0xFF);
     }
+    consumed(4);
     return value;
   }
 
   long readLong() throws NbtException {
-    long high = readInt() & 0xFFFFFFFFL;
-    return (high << 32) | (readInt() & 0xFFFFFFFFL);
+    require(8);
+    long value = 0;
+    for (int k = 0; k < 8; k++) {
+      value = (value << 8) | (buffer[start + k] & 0xFF);
+    }
+    consumed(8);
+    return value;
   }
 
   /** Reads {@code count} bytes, allocating only as the data actually arrives. */
@@ -79,35 +108,46 @@ final class BinaryInput {
     int done = 0;
     while (done < count) {
       if (start == end && !fill()) {
-        throw unexpectedEnd(position);
+        throw unexpectedEnd(position + done);
       }
-      if (position >= maxBytes) {
-        throw tooLarge();
-      }
-      int chunk = (int) Math.min(Math.min(count - done, end - start), maxBytes - position);
+      int chunk = Math.min(count - done, end - start);
       if (done + chunk > out.length) {
         out = Arrays.copyOf(out, (int) Math.min(count, Math.max(2L * out.length, done + chunk)));
       }
       System.arraycopy(buffer, start, out, done, chunk);
       start += chunk;
-      position += chunk;
       done += chunk;
     }
+    position += count;
+    reserve(0);
     return out;
   }
 
-  /** Makes {@code count} bytes (at most 8) available, or fails as the class describes. */
+  /**
+   * Reads the source to its end, discarding the bytes: a container is then checked to its trailer
+   * (R61). The discarded bytes follow the root and are not counted (R34, R60).
+   */
+  void drain() throws NbtException {
+    start = end;
+    while (fill()) {
+      start = end;
+    }
+  }
+
+  private void consumed(int count) throws NbtException {
+    start += count;
+    position += count;
+    reserve(0);
+  }
+
+  /** Makes {@code count} bytes (at most 8) available, or fails with UNEXPECTED_END. */
   private void require(int count) throws NbtException {
     boolean more = true;
     while (end - start < count && more) {
       more = fill();
     }
-    int available = end - start;
-    if (position + count > maxBytes) {
-      throw position + available >= maxBytes ? tooLarge() : unexpectedEnd(position + available);
-    }
-    if (available < count) {
-      throw unexpectedEnd(position + available);
+    if (end - start < count) {
+      throw unexpectedEnd(position + end - start);
     }
   }
 
@@ -137,10 +177,5 @@ final class BinaryInput {
 
   private static NbtException unexpectedEnd(long available) {
     return new NbtException(Reason.UNEXPECTED_END, available, "data ends after " + available);
-  }
-
-  private NbtException tooLarge() {
-    return new NbtException(
-        Reason.TOO_LARGE, maxBytes, "read needs more than " + maxBytes + " bytes");
   }
 }

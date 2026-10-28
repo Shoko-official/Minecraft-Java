@@ -62,6 +62,7 @@ final class TagDecoder {
 
   /** Reads a payload; {@code depth} counts lists and compounds, the root container being 1. */
   private NbtTag readPayload(TagType type, int depth) throws NbtException {
+    input.countTag();
     return switch (type) {
       case BYTE -> new ByteTag(input.readByte());
       case SHORT -> new ShortTag(input.readShort());
@@ -69,7 +70,7 @@ final class TagDecoder {
       case LONG -> new LongTag(input.readLong());
       case FLOAT -> new FloatTag(input.readInt());
       case DOUBLE -> new DoubleTag(input.readLong());
-      case BYTE_ARRAY -> ByteArrayTag.of(input.readBytes(readArrayLength()));
+      case BYTE_ARRAY -> ByteArrayTag.of(input.readBytes(readArrayLength(Byte.BYTES)));
       case STRING -> new StringTag(readString());
       case LIST -> readList(depth);
       case COMPOUND -> readCompound(depth);
@@ -105,6 +106,7 @@ final class TagDecoder {
     if (length <= 0) {
       return ListTag.empty();
     }
+    input.reserve(length * (BinaryInput.TAG_UNITS + minimumPayload(elementType)));
     var elements = new ArrayList<NbtTag>(Math.min(length, INITIAL_ELEMENTS));
     for (int k = 0; k < length; k++) {
       elements.add(readPayload(elementType, depth + 1));
@@ -125,18 +127,32 @@ final class TagDecoder {
     return CompoundTag.of(entries);
   }
 
-  private int readArrayLength() throws NbtException {
+  /** Reads an array length and reserves its elements in the quota before any allocation (R60). */
+  private int readArrayLength(int elementBytes) throws NbtException {
     long at = input.position();
     int length = input.readInt();
     if (length < 0) {
       throw new NbtException(
           Reason.NEGATIVE_ARRAY_LENGTH, at, "array of negative length " + length);
     }
+    input.reserve((long) length * elementBytes);
     return length;
   }
 
+  /** Smallest payload of one element of each type, for the early check of a list (R60). */
+  private static long minimumPayload(TagType type) {
+    return switch (type) {
+      case END -> 0;
+      case BYTE, COMPOUND -> 1;
+      case SHORT, STRING -> 2;
+      case INT, FLOAT, BYTE_ARRAY, INT_ARRAY, LONG_ARRAY -> 4;
+      case LONG, DOUBLE -> 8;
+      case LIST -> 5;
+    };
+  }
+
   private IntArrayTag readIntArray() throws NbtException {
-    int length = readArrayLength();
+    int length = readArrayLength(Integer.BYTES);
     int[] values = new int[Math.min(length, INITIAL_ELEMENTS)];
     for (int k = 0; k < length; k++) {
       if (k == values.length) {
@@ -148,7 +164,7 @@ final class TagDecoder {
   }
 
   private LongArrayTag readLongArray() throws NbtException {
-    int length = readArrayLength();
+    int length = readArrayLength(Long.BYTES);
     long[] values = new long[Math.min(length, INITIAL_ELEMENTS)];
     for (int k = 0; k < length; k++) {
       if (k == values.length) {

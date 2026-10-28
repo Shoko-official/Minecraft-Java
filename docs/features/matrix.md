@@ -22,10 +22,13 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Fluides | M5 | A | non-spécifié | |
 | Ticks planifiés et aléatoires | M5 | A | non-spécifié | |
 | Redstone | M5 | A | non-spécifié | |
-| Objets et composants | M6 | B | non-spécifié | |
-| Recettes | M6 | B | non-spécifié | |
-| Tables de butin | M6 | A | non-spécifié | |
-| Enchantements | M6 | A | non-spécifié | |
+| Objets et composants | M6 | B | spécifié | `docs/specs/item-components-inventory.md` (brouillon, règles S) |
+| Recettes | M6 | B | spécifié | `docs/specs/item-recipes.md` (brouillon, règles S) |
+| Tables de butin | M6 | A | spécifié | `docs/specs/loot-tables.md` (brouillon, règles S) |
+| Enchantements | M6 | A | spécifié | `docs/specs/item-enchantments.md` (brouillon, règles S) |
+| Inventaires et menus | M6 | B | spécifié | `docs/specs/item-components-inventory.md` (brouillon, règles S) |
+| Cuisson et carburants | M6 | B | spécifié | `docs/specs/item-recipes.md` (brouillon, règles S) |
+| Prédicats et modificateurs d'objet | M6 | A | spécifié | `docs/specs/loot-tables.md` (brouillon, règles S) |
 | Physique et collisions d'entités | M7 | A | non-spécifié | |
 | IA des mobs | M7 | A | non-spécifié | |
 | Spawn naturel | M7 | A | non-spécifié | |

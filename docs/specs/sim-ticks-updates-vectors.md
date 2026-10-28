@@ -6,7 +6,7 @@ Pour ne pas recopier de données de Mojang, les tableaux volumineux ne sont pas 
 
 ## Outil et commandes
 
-L'annexe en fin de fichier est le texte intégral de `sim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF : `614ad5912bc4eef739e65cc7faa4250feb13a9d07e692ea82b72164c6b7bfff0`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`. Les sous-commandes de données sont `python -I sim_ref.py REF <sous-commande>` ; les calculateurs sont `python -I sim_ref.py - <sous-commande>`. Le script ne lit que le cache d'extraction, n'écrit rien et ne lance pas le jeu.
+L'annexe en fin de fichier est le texte intégral de `sim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF : `6225c9977eefdb7ba00f88dcfee81ed313944572f570aea986090bc4eb3e7d4a`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`. Sous Windows, la sortie de `python -I` est en CRLF : les empreintes de ce fichier et les sorties reproduites sont celles de la sortie normalisée en LF (par exemple `python -I sim_ref.py REF tags | tr -d '\r' | sha256sum`, 16 premiers caractères), et l'empreinte de l'annexe porte sur son texte en LF. Les sous-commandes de données sont `python -I sim_ref.py REF <sous-commande>` ; les calculateurs sont `python -I sim_ref.py - <sous-commande>`. Le script ne lit que le cache d'extraction, n'écrit rien et ne lance pas le jeu.
 
 | Sous-commande | Sortie | Empreinte | Vecteur |
 |---|---|---|---|
@@ -15,8 +15,8 @@ L'annexe en fin de fichier est le texte intégral de `sim_ref.py` (SHA-256 du te
 | `propscan` | effectifs et plages de 29 propriétés lues par la simulation | ac278bdf0a53564a | SKV3 |
 | `props` | propriétés de 78 blocs choisis (état par bloc) | 602def4ad2e6590c | SKV4 |
 | `tickorder` | tri d'une file de test (échéance, priorité, ordre) | 3807ed7953ef55f6 | SKV5 |
-| `randtick` | cases distinctes touchées par n tirages avec et sans remise | 34008b56b5c62425 | SKV6 |
-| `dims`, `tags`, `lightball`, `floodwater`, `comparator`, `container` | voir `sim-light-vectors.md`, `sim-fluids-vectors.md`, `sim-growth-redstone-vectors.md` | b868e24f6f3fd4c6, d984925c6f3f0f76, a87c56dab5d0d42b, bf49316d0b095508, 3db3e6feedb49d34, 477cdd543bd266f7 | |
+| `randtick` | minerais éteints (moyenne, écart type) pour q = 1, 0,5 et 0,1 et n tirages, avec et sans remise | 8db16f5a16467627 | SKV6 |
+| `dims`, `tags`, `lightball`, `floodwater`, `comparator`, `container` | voir `sim-light-vectors.md`, `sim-fluids-vectors.md`, `sim-growth-redstone-vectors.md` | 26744735e26248d5, 421e04a44c01fd4a, a87c56dab5d0d42b, bf49316d0b095508, 3db3e6feedb49d34, 477cdd543bd266f7 | |
 
 ## SKV : vecteurs calculés
 
@@ -101,13 +101,21 @@ order: ['c', 'e', 'b', 'f', 'a', 'd', 'g']
 order at due 10: ['e', 'b', 'f', 'a', 'd']
 ```
 
-**SKV6 (R17) : tirages avec et sans remise.** Sortie de `randtick` (C sur S : prémisse = tirage uniforme parmi 4096) :
+**SKV6 (R17) : tirages avec et sans remise.** Sortie de `randtick` (C sur S : prémisses = tirage uniforme parmi 4096 positions et extinction d'un minerai allumé avec la probabilité q à chaque tirage qui le touche) :
 
 ```
-draws 1 with_replacement mean 1.0000 sd 0.0000 without_replacement mean 1
-draws 3 with_replacement mean 2.9993 sd 0.0271 without_replacement mean 3
-draws 100 with_replacement mean 98.8011 sd 1.0775 without_replacement mean 100
-draws 4096 with_replacement mean 2589.3498 sd 19.9546 without_replacement mean 4096
+q 1.0 draws 1 extinguished mean 1.0000 sd 0.0000 without_replacement mean 1.0
+q 1.0 draws 3 extinguished mean 2.9993 sd 0.0271 without_replacement mean 3.0
+q 1.0 draws 100 extinguished mean 98.8011 sd 1.0775 without_replacement mean 100.0
+q 1.0 draws 4096 extinguished mean 2589.3498 sd 19.9546 without_replacement mean 4096.0
+q 0.5 draws 1 extinguished mean 0.5000 sd 0.5000 without_replacement mean 0.5
+q 0.5 draws 3 extinguished mean 1.4998 sd 0.8659 without_replacement mean 1.5
+q 0.5 draws 100 extinguished mean 49.6991 sd 4.9698 without_replacement mean 50.0
+q 0.5 draws 4096 extinguished mean 1611.7262 sd 24.5124 without_replacement mean 2048.0
+q 0.1 draws 1 extinguished mean 0.1000 sd 0.3000 without_replacement mean 0.1
+q 0.1 draws 3 extinguished mean 0.3000 sd 0.5196 without_replacement mean 0.3
+q 0.1 draws 100 extinguished mean 9.9879 sd 2.9948 without_replacement mean 10.0
+q 0.1 draws 4096 extinguished mean 389.7905 sd 17.8653 without_replacement mean 409.6
 ```
 
 ## Harnais commun SK0
@@ -142,11 +150,11 @@ Notation : `S(x, y, z, B)` = `setblock x y z B`, `F(p1, p2, B)` = `fill p1 p2 B`
 
 **SK7 (R10) : tick de bloc contre tick de fluide.** Zone P(0, 0, 0). Colonne de pierre en (2,Y+1,2) ; source d'eau W en (2,Y+2,2) (voisine horizontale de la cellule C) ; cellule C = (3,Y+2,2) occupée par du sable ; (3,Y+1,2) est de l'air sous C, donc le sable posé en C reçoit un tick de bloc (vérification de chute) et W un tick de fluide. À l'échéance commune T, deux issues : tick de bloc d'abord, le sable devient une entité qui tombe, C est de l'air quand le tick de fluide de W s'exécute et l'eau entre dans C ; tick de fluide d'abord, C est encore du sable, l'eau n'entre pas, et ne coulera dans C qu'environ 5 ticks plus tard après la mise à jour issue de la chute. Alignement des échéances : poser en premier celui dont le délai est le plus long, avancer de l'écart, poser l'autre, vérifier par SNAP que les deux entrées ont le même `t` ; essayer tous les écarts de 0 à 6 pas. Mesure : STEP jusqu'à l'échéance commune, puis O1 de C en `water`. Critère de succès : même résultat dans 10 répétitions à échéance alignée ; résultat contraire quand le tick de bloc est dû un tick après celui du fluide. Présupposé non sourcé : le sable posé sans appui reçoit un tick de bloc ; SNAP le vérifie, et si les délais du sable et de l'eau ne peuvent pas être alignés ou si le sable ne planifie rien, la sonde est invalidée et remplacée par un autre couple (bloc, fluide) consigné.
 
-**SK8 (R12) : valeurs de priorité.** Gel. Cinq montages, SNAP après chacun : (a) répéteur qui s'allume, face de sortie contre l'arrière d'un autre répéteur ; (b) répéteur qui s'allume, face de sortie contre le côté d'un autre répéteur ; (c) répéteur qui perd son entrée ; (d) répéteur isolé qui s'allume ; (e) comparateur contre l'arrière d'un répéteur ; (f) lampe qui perd son courant. Critère de succès : champ `p` relevé = -3, -3, -2, -1, -1, 0.
+**SK8 (R12) : valeurs de priorité.** Gel. Six montages, SNAP après chacun : (a) répéteur qui s'allume, face de sortie contre l'arrière d'un autre répéteur ; (b) répéteur qui s'allume, face de sortie contre le côté d'un autre répéteur ; (c) répéteur qui perd son entrée ; (d) répéteur isolé qui s'allume ; (e) comparateur contre l'arrière d'un répéteur ; (f) lampe qui perd son courant. Critère de succès : champ `p` relevé = -3, -3, -2, -1, -1, 0.
 
 **SK9 (R13) : budget par tick.** `gamerule max_block_modifications 1000000`. Zone P(0, 0, 8) (289 chunks), serveur à `max-tick-time=-1`. Remplir par `fill` de lots de 32 768 positions `water[level=7]` à échéance commune jusqu'à N = 70 000, 131 072 et 200 000 entrées de fluide dues au même tick (SNAP de contrôle sur le décompte et les `t`) ; STEP(1) ; SNAP : nombre d'entrées restantes. Variante avec des répéteurs pour les entrées de blocs. Critère de succès : R13 (restant = N - 65 536, ou budget réel consigné).
 
-**SK10 (R17 à R21) : ticks aléatoires.** Zone P(0, 0, 0), serveur sans joueur. Montage : section Y -48..-33 du chunk (0, 0), remplie de `redstone_ore[lit=true]` (4096 blocs, réaction attendue à l'extinction au tirage, H-K5) ; décompte O4 des blocs `lit=true`. (a) Vitesse 0 : STEP(50), décompte constant. (b) Vitesse 1 : STEP(1), décompte des éteints ; 400 répétitions (remise à zéro par `fill`). (c) Vitesse 4096 : STEP(1), 400 répétitions. (d) Vitesse 3 : 400 répétitions, comparer à 2,9993 q. (e) Section de pierre, vitesse 4096, STEP(50) : aucun changement. (f) Deux sections superposées avec 4096 minerais chacune : les moyennes des deux sections sont indépendantes (corrélation entre les comptes des deux sections à 3 écarts types de 0). (g) Même mesure avec deux ordres de chunks (chunks forcés dans l'ordre croissant puis décroissant de leurs coordonnées). Critère de succès : (b) q relevé (1 attendu) ; (c) moyenne égale à q fois 2589,35 à 3 écarts types (SKV6) ; (a), (e) aucun changement ; (f) corrélation nulle ; (g) moyennes égales à 3 écarts types.
+**SK10 (R17 à R21) : ticks aléatoires.** Zone P(0, 0, 0), serveur sans joueur. Montage : section Y -48..-33 du chunk (0, 0), remplie de `redstone_ore[lit=true]` (4096 blocs, réaction attendue à l'extinction au tirage, H-K5) ; décompte O4 des blocs `lit=true`. (a) Vitesse 0 : STEP(50), décompte constant. (b) Vitesse 1 : STEP(1), décompte des éteints ; 400 répétitions (remise à zéro par `fill`) ; la moyenne est q. (c) Vitesse 4096 : STEP(1), 400 répétitions, comparées à la ligne de SKV6 de même q (la formule N(1 - (1 - q/N)^n) vaut pour tout q, un minerai éteint ne pouvant plus l'être). (d) Vitesse 3 : 400 répétitions, comparées à la ligne n = 3 de SKV6 de même q (2,9993 pour q = 1). (e) Section de pierre, vitesse 4096, STEP(50) : aucun changement. (f) Deux sections superposées avec 4096 minerais chacune : les moyennes des deux sections sont indépendantes (corrélation entre les comptes des deux sections à 3 écarts types de 0). (g) Même mesure avec deux ordres de chunks (chunks forcés dans l'ordre croissant puis décroissant de leurs coordonnées). Critère de succès : (b) q relevé (1 attendu) ; (c) moyenne égale à la valeur de SKV6 pour ce q à 3 écarts types ; (a), (e) aucun changement ; (f) corrélation nulle ; (g) moyennes égales à 3 écarts types.
 
 **SK11 (R23) : ordre des mises à jour de forme.** Gel. Un bloc central X (`stone`) ; six dalles immergées (`oak_slab[type=bottom,waterlogged=true]` ou, si la dalle ne planifie pas de tick, escaliers immergés, puis tout bloc immergé qui planifie un tick de fluide quand on l'actualise) occupent les six voisins de X ; STEP(8) pour que la file soit vide (SNAP : `fluid_ticks` vide). Puis `S(X, glass)` sans `strict`, SNAP : l'ordre des entrées de `fluid_ticks` pour les six positions. Critère de succès : ordre = ouest, est, nord, sud, bas, haut (R23), ou, si la file n'est pas ordonnée par insertion (SK2), ordre de lecture reconstruit par le plus petit `t` et la position ; sinon la sonde échoue et R23 est marquée non observable par ce canal (utiliser alors la contre-épreuve par deux pistons de SK12).
 
@@ -166,7 +174,7 @@ Notation : `S(x, y, z, B)` = `setblock x y z B`, `F(p1, p2, B)` = `fill p1 p2 B`
 
 - Sondes : SK0 (harnais) + 17 sondes SK1 à SK17 ; vecteurs SKV1 à SKV6.
 - Prérequis : EULA acceptée, lecteur `.mca` indépendant, `tools/oracle` capable d'enchaîner RCON et lecture de région sans arrêt du serveur.
-- Hypothèses nommées : H-K1 (unicité), H-K2 (entrée périmée), H-K3 (délai gelé), H-K4 (délai 0), H-K5 (extinction du minerai au tirage), H-K6 (chunk forcé sans joueur), H-U1 (ordre de `fill`), H-U2 (mises à jour au chargement).
+- Hypothèses nommées : H-K1 (unicité), H-K2 (entrée périmée), H-K3 (délai gelé), H-K4 (délai 0), H-K5 (extinction du minerai au tirage), H-K6 (chunk forcé sans joueur), H-K7 (l'échéance précède la priorité), H-U1 (ordre de `fill`), H-U2 (mises à jour au chargement).
 
 ## Annexe : `sim_ref.py`
 
@@ -182,7 +190,7 @@ Usage: python -I sim_ref.py REF_DIR SUBCOMMAND     (data subcommands)
        python -I sim_ref.py - SUBCOMMAND            (calculators, no data read)
   REF_DIR = .cache/reference/26.3
 
-Data subcommands:  dims props propscan tags rules cmds
+Data subcommands:  dims props propscan tags rules cmds fluidclasses
 Calculators:       lightball floodwater comparator container tickorder randtick
 The script never writes a file and never launches the game.
 """
@@ -224,6 +232,9 @@ def cmd_dims(ref):
             if k.startswith("minecraft:gameplay/") and k.split("/")[1] in (
                     "fast_lava", "water_evaporates", "sky_light_level", "snow_golem_melts"):
                 print("  attribute", k, json.dumps(att[k]))
+    end = data(ref, "dimension_type/the_end.json")
+    print("the_end skybox", json.dumps(end.get("skybox")), "visual sky attributes",
+          {k: v for k, v in sorted(end["attributes"].items()) if "sky_light" in k})
     day = data(ref, "timeline/day.json")
     tr = day["tracks"]["minecraft:gameplay/sky_light_level"]
     print("timeline day clock", day["clock"], "period_ticks", day["period_ticks"])
@@ -283,7 +294,8 @@ TAGS = [
     "block/air", "block/replaceable", "block/washed_away_by_fluids", "block/impermeable",
     "block/blocks_motion", "block/blocks_motion_no_leaves", "block/blocks_lava_fire_spread",
     "block/infiniburn_overworld", "block/infiniburn_nether", "block/infiniburn_end",
-    "block/fire", "block/ice", "block/supports_melon_stem_fruit", "block/supports_pumpkin_stem_fruit", "block/snow", "block/leaves", "block/logs",
+    "block/fire", "block/ice", "block/blocks_fluid_flow", "block/all_signs",
+    "block/ice_melts_when_destroyed_above", "block/supports_melon_stem_fruit", "block/supports_pumpkin_stem_fruit", "block/snow", "block/leaves", "block/logs",
     "block/prevents_nearby_leaf_decay", "block/crops", "block/saplings", "block/supports_crops",
     "block/maintains_farmland", "block/supports_sugar_cane", "block/supports_sugar_cane_adjacently",
     "block/substrate_overworld", "block/sand", "block/supports_cactus", "block/supports_bamboo",
@@ -338,7 +350,9 @@ def cmd_tags(ref):
                             "mega_pine.json", "acacia.json", "dark_oak.json", "cherry.json",
                             "pale_oak.json", "mangrove.json", "azalea_tree.json",
                             "orange_poplar.json", "red_poplar.json", "yellow_poplar.json"))
-    print("tree configured features present", len(feats), feats)
+    print("tree configured features present", len(feats))
+    for i in range(0, len(feats), 6):
+        print("  ", feats[i:i + 6])
 
 
 RULES = ["random_tick_speed", "water_source_conversion", "lava_source_conversion",
@@ -462,18 +476,44 @@ def cmd_tickorder(_):
 
 
 def cmd_randtick(_):
-    # Distinct cells hit by n uniform draws among N cells: with replacement versus without.
+    # An ore is extinguished by a draw that hits it with probability q (a lit ore cannot be
+    # extinguished twice). Distinct-cell count N(1 - (1 - 1/N)^n) is the q = 1 case.
     N = 4096
-    for n in (1, 3, 100, 4096):
-        mean = N * (1 - (1 - 1 / N) ** n)
-        var = (N * (1 - 1 / N) ** n + N * (N - 1) * (1 - 2 / N) ** n
-               - N * N * (1 - 1 / N) ** (2 * n))
-        print("draws", n, "with_replacement mean %.4f sd %.4f" % (mean, var ** 0.5),
-              "without_replacement mean %d" % min(n, N))
+    for q in (1.0, 0.5, 0.1):
+        for n in (1, 3, 100, 4096):
+            p_lit = (1 - q / N) ** n
+            both = (1 - 2 * q / N) ** n
+            mean = N * (1 - p_lit)
+            var = N * p_lit * (1 - p_lit) + N * (N - 1) * (both - p_lit * p_lit)
+            print("q %.1f draws %d extinguished mean %.4f sd %.4f" % (q, n, mean, var ** 0.5),
+                  "without_replacement mean %.1f" % (min(n, N) * q))
+
+
+def cmd_fluidclasses(ref):
+    b = blocks(ref)
+    names = set(b)
+    sets = {
+        "air": resolve(ref, "block/air"),
+        "replaceable": resolve(ref, "block/replaceable"),
+        "washed_away_by_fluids": resolve(ref, "block/washed_away_by_fluids"),
+        "blocks_fluid_flow": resolve(ref, "block/blocks_fluid_flow"),
+        "impermeable": resolve(ref, "block/impermeable"),
+    }
+    for k, v in sets.items():
+        print(k, "resolved", len(v), "unknown_to_registry", len(v - names))
+    W, F, R = sets["washed_away_by_fluids"], sets["blocks_fluid_flow"], sets["replaceable"]
+    print("washed and blocks_fluid_flow", len(W & F), "replaceable and blocks_fluid_flow", len(R & F),
+          "washed and replaceable", len(W & R))
+    print("washed and blocks_fluid_flow examples", sorted(W & F)[:3])
+    print("replaceable only (not washed)", sorted(R - W))
+    print("impermeable and blocks_fluid_flow", len(sets["impermeable"] & F))
+    none = names - W - F - R - sets["air"]
+    print("blocks in none of air, replaceable, washed_away, blocks_fluid_flow", len(none), "of", len(names))
+    print("examples", sorted(none)[:5])
 
 
 COMMANDS = {
-    "dims": (cmd_dims, True), "props": (cmd_props, True), "propscan": (cmd_propscan, True),
+    "dims": (cmd_dims, True), "fluidclasses": (cmd_fluidclasses, True), "props": (cmd_props, True), "propscan": (cmd_propscan, True),
     "tags": (cmd_tags, True), "rules": (cmd_rules, True), "cmds": (cmd_cmds, True),
     "lightball": (cmd_lightball, False), "floodwater": (cmd_floodwater, False),
     "comparator": (cmd_comparator, False), "container": (cmd_container, False),

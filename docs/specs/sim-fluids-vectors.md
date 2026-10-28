@@ -8,12 +8,13 @@ Complète `sim-fluids.md`. Les vecteurs SFV sont des calculs sur les données ex
 
 | Sous-commande | Sortie | Empreinte | Vecteur |
 |---|---|---|---|
-| `tags` | tailles directes et résolues de 58 étiquettes (blocs, fluides, événements de jeu) | d984925c6f3f0f76 | SFV1 |
+| `tags` | tailles directes et résolues de 58 étiquettes (blocs, fluides, événements de jeu) | 421e04a44c01fd4a | SFV1 |
 | `props` | propriétés de 78 blocs choisis | 602def4ad2e6590c | SFV2 |
 | `propscan` | effectifs de `level`, `waterlogged`, `drag`... | ac278bdf0a53564a | SFV3 |
-| `dims` | types de dimension et attributs `fast_lava`, `water_evaporates` | b868e24f6f3fd4c6 | SFV4 |
+| `dims` | types de dimension et attributs `fast_lava`, `water_evaporates` | 26744735e26248d5 | SFV4 |
 | `rules` | gamerules M5 | 5e9475808ba24ed4 | SFV5 |
 | `floodwater` | cellules par distance sur sol plat | bf49316d0b095508 | SFV6 |
+| `fluidclasses` | recouvrements des étiquettes `replaceable`, `washed_away_by_fluids`, `blocks_fluid_flow`, `impermeable` | a615b0daa1f8012c | SFV7 |
 
 ## SFV : vecteurs calculés
 
@@ -24,6 +25,8 @@ block/air direct=3 resolved=3 first=['minecraft:air', 'minecraft:cave_air', 'min
 block/replaceable direct=30 resolved=30 first=['minecraft:air', 'minecraft:bubble_column', 'minecraft:bush']
 block/washed_away_by_fluids direct=134 resolved=254 first=['minecraft:acacia_button', 'minecraft:acacia_sapling', 'minecraft:activator_rail']
 block/impermeable direct=19 resolved=19 first=['minecraft:barrier', 'minecraft:black_stained_glass', 'minecraft:blue_stained_glass']
+block/blocks_fluid_flow direct=2 resolved=1026 first=['minecraft:acacia_door', 'minecraft:acacia_fence', 'minecraft:acacia_fence_gate']
+block/all_signs direct=2 resolved=52 first=['minecraft:acacia_hanging_sign', 'minecraft:acacia_sign', 'minecraft:acacia_wall_hanging_sign']
 fluid/water direct=2 resolved=2 first=['minecraft:flowing_water', 'minecraft:water']
 fluid/lava direct=2 resolved=2 first=['minecraft:flowing_lava', 'minecraft:lava']
 fluid/supports_sugar_cane_adjacently direct=1 resolved=2 first=['minecraft:flowing_water', 'minecraft:water']
@@ -59,6 +62,7 @@ drag blocks=1 value_sets=['{true,false}']
   attribute minecraft:gameplay/sky_light_level 4.0
   attribute minecraft:gameplay/snow_golem_melts true
   attribute minecraft:gameplay/water_evaporates true
+the_end skybox "end" visual sky attributes {'minecraft:visual/sky_light_color': '#ac60cd', 'minecraft:visual/sky_light_factor': 0.0}
 ```
 
 **SFV5 (R6) : gamerules.** Extrait de `rules` :
@@ -79,6 +83,22 @@ nether lava reach 7: {0: 1, 1: 4, 2: 8, 3: 12, 4: 16, 5: 20, 6: 24, 7: 28} total
 ```
 
 Lecture : pour l'eau, 1 source, 4 cellules à la distance 1, 8 à la distance 2, ... 28 à la distance 7, soit 113 cellules ; pour la lave de l'Overworld, 25 cellules (portée 3) ou 41 (portée 4, H-F1).
+
+**SFV7 (R4, R21a, R21b) : classes de blocs prédites par les étiquettes.** Sortie de `fluidclasses` :
+
+```
+air resolved 3 unknown_to_registry 0
+replaceable resolved 30 unknown_to_registry 0
+washed_away_by_fluids resolved 254 unknown_to_registry 0
+blocks_fluid_flow resolved 1026 unknown_to_registry 0
+impermeable resolved 19 unknown_to_registry 0
+washed and blocks_fluid_flow 1 replaceable and blocks_fluid_flow 0 washed and replaceable 28
+washed and blocks_fluid_flow examples ['minecraft:straw_bed']
+replaceable only (not washed) ['minecraft:bubble_column', 'minecraft:structure_void']
+impermeable and blocks_fluid_flow 19
+blocks in none of air, replaceable, washed_away, blocks_fluid_flow 5 of 1286
+examples ['minecraft:end_gateway', 'minecraft:end_portal', 'minecraft:ladder', 'minecraft:nether_portal', 'minecraft:sugar_cane']
+```
 
 ## Montages communs
 
@@ -104,11 +124,11 @@ Mêmes montages que `sim-light-vectors.md` (SL1) pour l'isolation ; en plus :
 
 **SF7 (R25) : retrait d'une source.** SF3 stabilisée, puis `S(source, air)` ; SNAP à chaque tick jusqu'à l'absence de fluide ; décompte des cellules par distance. Mêmes mesures pour la lave dans l'Overworld et le Nether. Critère de succès : trace consignée ; la disparition totale arrive à un tick répétable sur 5 passages.
 
-**SF8 (R26) : mélange.** Cas : (1) lave source, eau placée par le côté, par le haut ; (2) lave coulante, eau par le côté ; (3) eau source, lave coulante qui descend dessus ; (4) lave sur terre d'âme avec glace bleue à côté ; (5) terre d'âme seule, (6) glace bleue seule ; chaque cas avec les deux ordres de pose (eau d'abord, lave d'abord), les fluides posés par `S` à la main ou par écoulement depuis une source distante. SNAP à STEP(30). Critère de succès : bloc obtenu au point de rencontre égal à obsidienne (1), pavé (2), pierre (3), basalte (4) et inchangé pour (5), (6), sans dépendre de l'ordre de pose ; tout cas divergent est consigné avec ses coordonnées.
+**SF8 (R26a à R26d) : mélange.** Cas : (1) lave source, eau placée par le côté, par le haut ; (2) lave coulante, eau par le côté ; (3) eau source, lave coulante qui descend dessus ; (4) lave sur terre d'âme avec glace bleue à côté ; (5) terre d'âme seule, (6) glace bleue seule ; chaque cas avec les deux ordres de pose (eau d'abord, lave d'abord), les fluides posés par `S` à la main ou par écoulement depuis une source distante. SNAP à STEP(30). Critère de succès : bloc obtenu au point de rencontre égal à obsidienne (1), pavé (2), pierre (3), basalte (4) et inchangé pour (5), (6), sans dépendre de l'ordre de pose ; tout cas divergent est consigné avec ses coordonnées.
 
-**SF9 (R21, R22) : classes de blocs.** Pour chacun des 1286 blocs (état par défaut) : M-FLOOR avec une source d'eau en (0, 60, 0), le bloc X en (1, 60, 0) posé en mode `strict`, STEP(15) ; relever (a) X toujours en place, (b) cellule remplacée par de l'eau, (c) nombre d'entités `item` apparues (`execute store result ... run execute if entity @e[type=item]`) ; même balayage avec une source de lave dans l'Overworld. Critère de succès : classe de chaque bloc égale à la prédiction de R21 (union des étiquettes de SFV1), taux d'accord relevé, écarts listés ; pour la lave aucun item.
+**SF9 (R21a, R21b, R22) : classes de blocs.** Pour chacun des 1286 blocs (état par défaut) : M-FLOOR avec une source d'eau en (0, 60, 0), le bloc X en (1, 60, 0) posé en mode `strict`, STEP(15) ; relever (a) X toujours en place, (b) cellule remplacée par de l'eau, (c) nombre d'entités `item` apparues (`execute store result ... run execute if entity @e[type=item]`) ; même balayage avec une source de lave dans l'Overworld. Critère de succès : classe de chaque bloc égale à la prédiction de R21a (SFV7), taux d'accord relevé, écarts listés ; classe des 34 blocs de R21b consignée ; pour la lave aucun item.
 
-**SF10 (R23, R24) : immersion.** (a) Pour chacun de dalle (bas, haut, double), escalier (4 orientations, 2 moitiés), trappe (ouverte, fermée, 4 orientations), clôture, échelle, chaîne, lanterne, panneau, barres de fer : source d'eau voisine par chacun des 4 côtés et par le haut, STEP(30), état `waterlogged` obtenu. (b) Bloc déjà immergé voisin d'une cellule d'air : l'eau en sort-elle, et par quelles faces ? (c) Les 19 blocs de l'étiquette `impermeable` et la pierre : même mesure. Critère de succès : table (bloc, face d'entrée, `waterlogged` obtenu) complète ; escalier et trappe : face carrée bloquante ; (c) tout écart avec la pierre consigné.
+**SF10 (R23, R24a à R24c) : immersion.** (a) Pour chacun de dalle (bas, haut, double), escalier (4 orientations, 2 moitiés), trappe (ouverte, fermée, 4 orientations), clôture, échelle, chaîne, lanterne, panneau, barres de fer : source d'eau voisine par chacun des 4 côtés et par le haut, STEP(30), état `waterlogged` obtenu. (b) Bloc déjà immergé voisin d'une cellule d'air : l'eau en sort-elle, et par quelles faces ? (c) Les 19 blocs de l'étiquette `impermeable` et la pierre : même mesure. Critère de succès : table (bloc, face d'entrée, `waterlogged` obtenu) complète ; escalier et trappe : face carrée bloquante ; (c) tout écart avec la pierre consigné.
 
 **SF11 (R27, R28) : Nether.** `execute in minecraft:the_nether run` pour tout. (a) lave : SF2 et SF3 dans le Nether ; contrôle dans l'Overworld. (b) `setblock minecraft:water` posé dans le Nether : état après STEP(0), 1, 5, 20. Critère de succès : (a) délai 10 et portée 7 dans le Nether, 30 et 3 ou 4 dans l'Overworld ; (b) l'eau reste, s'étale ou disparaît : observation consignée.
 
@@ -118,6 +138,6 @@ Mêmes montages que `sim-light-vectors.md` (SL1) pour l'isolation ; en plus :
 
 ## Récapitulatif
 
-- Sondes : SF1 à SF13 ; vecteurs SFV1 à SFV6.
-- Hypothèses nommées : H-F1 (portée de la lave de l'Overworld), H-F2 (niveau au pied d'une chute), H-F3 (rayon de recherche), H-F4 (variante source au-dessus), H-F5 (bordure de chunk non chargé).
+- Sondes : SF1 à SF13 ; vecteurs SFV1 à SFV7.
+- Hypothèses nommées : H-F1 (portée de la lave de l'Overworld), H-F2 (niveau au pied d'une chute), H-F3 (rayon de recherche), H-F4 (variante source au-dessus), H-F5 (bordure de chunk non chargé), H-F6 (disparition d'une cellule sans alimentation), H-F7 (niveaux 9 à 15 traités comme 8).
 - Prérequis : EULA acceptée, lecteur `.mca` indépendant, harnais SK0, accès au Nether pour SF11.

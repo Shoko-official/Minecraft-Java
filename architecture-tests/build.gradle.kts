@@ -27,3 +27,8 @@ tasks.test {
         .withPropertyName("architectureDoc")
         .withPathSensitivity(PathSensitivity.RELATIVE)
 }
+
+// No test here talks to the reference game, and its engine needs the system properties set on test.
+tasks.named("oracleTest") {
+    enabled = false
+}

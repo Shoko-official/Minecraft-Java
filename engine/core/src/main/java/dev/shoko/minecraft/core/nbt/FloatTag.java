@@ -17,7 +17,7 @@ public record FloatTag(int bits) implements NumericTag {
    * @return the tag
    */
   public static FloatTag of(float value) {
-    return Skeleton.throwNotImplemented();
+    return new FloatTag(Float.floatToIntBits(value));
   }
 
   /**
@@ -27,36 +27,36 @@ public record FloatTag(int bits) implements NumericTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.FLOAT;
   }
 
   @Override
   public byte byteValue() {
-    return Skeleton.throwNotImplemented();
+    return (byte) floatValue();
   }
 
   @Override
   public short shortValue() {
-    return Skeleton.throwNotImplemented();
+    return (short) floatValue();
   }
 
   @Override
   public int intValue() {
-    return Skeleton.throwNotImplemented();
+    return (int) floatValue();
   }
 
   @Override
   public long longValue() {
-    return Skeleton.throwNotImplemented();
+    return (long) floatValue();
   }
 
   @Override
   public float floatValue() {
-    return Skeleton.throwNotImplemented();
+    return Float.intBitsToFloat(bits);
   }
 
   @Override
   public double doubleValue() {
-    return Skeleton.throwNotImplemented();
+    return floatValue();
   }
 }

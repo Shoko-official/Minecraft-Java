@@ -14,36 +14,36 @@ public record LongTag(long value) implements NumericTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.LONG;
   }
 
   @Override
   public byte byteValue() {
-    return Skeleton.throwNotImplemented();
+    return (byte) value;
   }
 
   @Override
   public short shortValue() {
-    return Skeleton.throwNotImplemented();
+    return (short) value;
   }
 
   @Override
   public int intValue() {
-    return Skeleton.throwNotImplemented();
+    return (int) value;
   }
 
   @Override
   public long longValue() {
-    return Skeleton.throwNotImplemented();
+    return value;
   }
 
   @Override
   public float floatValue() {
-    return Skeleton.throwNotImplemented();
+    return value;
   }
 
   @Override
   public double doubleValue() {
-    return Skeleton.throwNotImplemented();
+    return value;
   }
 }

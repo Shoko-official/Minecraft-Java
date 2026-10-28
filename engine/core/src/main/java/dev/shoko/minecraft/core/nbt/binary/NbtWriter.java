@@ -2,8 +2,12 @@ package dev.shoko.minecraft.core.nbt.binary;
 
 import dev.shoko.minecraft.core.nbt.NamedTag;
 import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtException.Reason;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.TagType;
+import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Objects;
 
 /**
  * Encodes one root in the binary form (R1 to R11), inside the container chosen at creation. It is
@@ -23,7 +27,11 @@ import java.io.OutputStream;
  */
 public final class NbtWriter {
 
-  private NbtWriter() {}
+  private final NbtCompression compression;
+
+  private NbtWriter(NbtCompression compression) {
+    this.compression = Objects.requireNonNull(compression, "compression");
+  }
 
   /**
    * Returns a writer for this container (R16, R18, R19).
@@ -32,7 +40,7 @@ public final class NbtWriter {
    * @return the writer
    */
   public static NbtWriter of(NbtCompression compression) {
-    return Skeleton.throwNotImplemented();
+    return new NbtWriter(compression);
   }
 
   /**
@@ -43,7 +51,7 @@ public final class NbtWriter {
    * @throws NbtException on a string too long (nothing written) or a stream failure
    */
   public void writeNamed(NamedTag root, OutputStream out) throws NbtException {
-    Skeleton.throwNotImplemented();
+    emit(writeNamed(root), out);
   }
 
   /**
@@ -55,7 +63,7 @@ public final class NbtWriter {
    * @throws NbtException on a string too long
    */
   public byte[] writeNamed(NamedTag root) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return ContainerCodec.pack(TagEncoder.named(root), compression);
   }
 
   /**
@@ -66,7 +74,7 @@ public final class NbtWriter {
    * @throws NbtException on a string too long (nothing written) or a stream failure
    */
   public void writeUnnamed(NbtTag root, OutputStream out) throws NbtException {
-    Skeleton.throwNotImplemented();
+    emit(writeUnnamed(root), out);
   }
 
   /**
@@ -78,7 +86,7 @@ public final class NbtWriter {
    * @throws NbtException on a string too long
    */
   public byte[] writeUnnamed(NbtTag root) throws NbtException {
-    return Skeleton.throwNotImplemented();
+    return ContainerCodec.pack(TagEncoder.unnamed(root), compression);
   }
 
   /**
@@ -88,6 +96,17 @@ public final class NbtWriter {
    * @throws NbtException on a stream failure
    */
   public void writeAbsentRoot(OutputStream out) throws NbtException {
-    Skeleton.throwNotImplemented();
+    emit(ContainerCodec.pack(new byte[] {(byte) TagType.END.id()}, compression), out);
+  }
+
+  // The bytes are complete before the first write: a failed encoding leaves the stream untouched.
+  private static void emit(byte[] bytes, OutputStream out) throws NbtException {
+    Objects.requireNonNull(out, "out");
+    try {
+      out.write(bytes);
+      out.flush();
+    } catch (IOException e) {
+      throw new NbtException(Reason.IO_FAILURE, "output stream failed", e);
+    }
   }
 }

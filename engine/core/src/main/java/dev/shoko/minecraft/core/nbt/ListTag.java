@@ -15,7 +15,26 @@ import java.util.List;
  */
 public final class ListTag implements NbtTag {
 
-  private ListTag() {}
+  private static final ListTag EMPTY = new ListTag(List.of(), TagType.END);
+
+  private final List<NbtTag> elements;
+  private final TagType elementType;
+
+  private ListTag(List<NbtTag> elements, TagType elementType) {
+    this.elements = elements;
+    this.elementType = elementType;
+  }
+
+  // A heterogeneous list is written as compounds wrapping each element (R47).
+  private static TagType commonType(List<NbtTag> elements) {
+    TagType first = elements.getFirst().type();
+    for (NbtTag element : elements) {
+      if (element.type() != first) {
+        return TagType.COMPOUND;
+      }
+    }
+    return first;
+  }
 
   /**
    * Returns a list holding these elements in this order (R7, R47).
@@ -25,7 +44,8 @@ public final class ListTag implements NbtTag {
    * @throws NullPointerException when {@code elements} or one of its elements is {@code null}
    */
   public static ListTag of(List<? extends NbtTag> elements) {
-    return Skeleton.throwNotImplemented();
+    List<NbtTag> copy = List.copyOf(elements);
+    return copy.isEmpty() ? EMPTY : new ListTag(copy, commonType(copy));
   }
 
   /**
@@ -35,7 +55,7 @@ public final class ListTag implements NbtTag {
    * @return the empty list
    */
   public static ListTag empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -45,7 +65,7 @@ public final class ListTag implements NbtTag {
    * @return the element type
    */
   public TagType elementType() {
-    return Skeleton.throwNotImplemented();
+    return elementType;
   }
 
   /**
@@ -54,7 +74,7 @@ public final class ListTag implements NbtTag {
    * @return an unmodifiable list
    */
   public List<NbtTag> elements() {
-    return Skeleton.throwNotImplemented();
+    return elements;
   }
 
   /**
@@ -64,7 +84,7 @@ public final class ListTag implements NbtTag {
    */
   @Override
   public TagType type() {
-    return Skeleton.throwNotImplemented();
+    return TagType.LIST;
   }
 
   /**
@@ -75,7 +95,7 @@ public final class ListTag implements NbtTag {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof ListTag list && elements.equals(list.elements);
   }
 
   /**
@@ -85,6 +105,6 @@ public final class ListTag implements NbtTag {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return elements.hashCode();
   }
 }

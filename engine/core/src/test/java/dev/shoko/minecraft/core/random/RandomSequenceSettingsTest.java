@@ -1,12 +1,14 @@
 package dev.shoko.minecraft.core.random;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * Named sequence settings and initial state (spec core-random R30, R31, R25, R26). Every rule here
@@ -155,6 +157,16 @@ class RandomSequenceSettingsTest {
     Seed128 state = new RandomSequenceSettings(0, true, true).initialState(12345L, PROBE_A);
     XoroshiroRandom random = XoroshiroRandom.ofState(state);
     assertThat(random.nextIntBetweenInclusive(0, 2147483645)).isEqualTo(2089840009);
+  }
+
+  // API contract: initialState throws NullPointerException on a null identifier, whatever the
+  // flags (the identifier is only hashed when included, but is always checked)
+  @ParameterizedTest(name = "includeSequenceId={0}")
+  @ValueSource(booleans = {true, false})
+  void nullSequenceIdIsRejectedWhateverTheFlags(boolean includeSequenceId) {
+    RandomSequenceSettings settings = new RandomSequenceSettings(0, true, includeSequenceId);
+    assertThatThrownBy(() -> settings.initialState(12345L, null))
+        .isInstanceOf(NullPointerException.class);
   }
 
   // record semantics (generated members): equal settings are interchangeable

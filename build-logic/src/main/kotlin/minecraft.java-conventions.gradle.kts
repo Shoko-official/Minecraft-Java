@@ -1,3 +1,5 @@
+import java.time.Duration
+
 plugins {
     `java-library`
     checkstyle
@@ -32,6 +34,12 @@ tasks.withType<JavaCompile>().configureEach {
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Werror"))
 }
 
+// A looping test must kill the forked test JVM instead of hanging the build: JUnit @Timeout runs
+// the test in a separate thread that it cannot stop.
+tasks.withType<Test>().configureEach {
+    timeout = Duration.ofMinutes(5)
+}
+
 // Tests against the reference game need a local oracle (ADR 0002): they run in oracleTest only.
 tasks.test {
     useJUnitPlatform {
@@ -46,6 +54,25 @@ val oracleTest by tasks.registering(Test::class) {
     classpath = sourceSets.test.get().runtimeClasspath
     useJUnitPlatform {
         includeTags("oracle")
+    }
+
+    // Oracle tests skip themselves when the cache is absent: running this task without it would
+    // report success with nothing proved. A cached or up-to-date result would hide the same thing.
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+    val cacheDirVariable = providers.environmentVariable("MINECRAFT_CACHE_DIR")
+    val defaultCacheDir = rootProject.layout.projectDirectory.dir(".cache")
+    doFirst {
+        val cacheDir = cacheDirVariable.orNull?.takeIf { it.isNotBlank() }?.let(::File)
+            ?: defaultCacheDir.asFile
+        val reference = cacheDir.resolve("reference")
+        if (reference.list().isNullOrEmpty()) {
+            throw GradleException(
+                "oracleTest needs the reference data, but $reference is missing or empty. " +
+                    "Run ./gradlew :tools:bootstrap:run first " +
+                    "(or set MINECRAFT_CACHE_DIR to an existing cache)."
+            )
+        }
     }
 }
 

@@ -1,0 +1,87 @@
+# Workflow Git
+
+## Branches
+
+`main` est protégée par convention : jamais de commit direct. Tout passe par une branche de travail et une PR.
+
+Nom : `type/sujet-court` en minuscules avec tirets.
+
+| Préfixe | Usage |
+|---|---|
+| `feat/` | Nouvelle fonctionnalité |
+| `fix/` | Correction de bug |
+| `refactor/` | Restructuration sans changement de comportement |
+| `test/` | Ajout ou amélioration de tests |
+| `docs/` | Documentation, specs, ADR |
+| `chore/` | Outillage, dépendances, configuration |
+| `perf/` | Optimisation mesurée |
+
+Exemples : `feat/xoroshiro-random`, `fix/chunk-border-light`, `docs/spec-aquifers`.
+
+## Commits
+
+Format : `[KEYWORD] : description courte et claire`, en français, première lettre en majuscule, sans point final.
+
+Mots-clés : `FEAT`, `FIX`, `REFACTOR`, `TEST`, `DOCS`, `CHORE`, `PERF`, `BUILD`, `CI`, `REVERT`.
+
+```bash
+git commit -m "[FEAT] : Ajout du générateur xoroshiro"
+git commit -m "[FIX] : Correction du modulo sur coordonnées négatives"
+git commit -m "[TEST] : Vecteurs dorés du bruit de Perlin"
+```
+
+Règles :
+
+- Un commit = un changement cohérent qui compile et passe les tests.
+- Première ligne : 72 caractères visés, 100 au maximum.
+- Corps optionnel pour le pourquoi, séparé par une ligne vide.
+- Aucune mention d'outil, d'assistant ou d'attribution automatique.
+- Le hook `commit-msg` rejette les formats invalides.
+
+## Pull requests
+
+- Titre : même format que les commits, par exemple `[FEAT] : Ajout du générateur xoroshiro`.
+- Un incrément cohérent par PR, diff idéalement sous 600 lignes (hors fichiers générés ou fixtures).
+- Le template de PR demande : lien vers la spec, niveau de vérification atteint, résultat du diff oracle, images éventuelles (jointes en commentaire, pas commitées).
+- Fusion : **squash uniquement**. Le message final est le titre de la PR, le corps résume le pourquoi.
+- La branche est supprimée après fusion.
+
+## Conditions de fusion
+
+Toutes requises :
+
+1. CI verte (hygiène, build, tests, ArchUnit, budgets).
+2. Preuves du niveau de vérification exigé par le niveau de risque de la tâche (tableau ci-dessous).
+3. Verdict du `reviewer` sans point bloquant ouvert.
+4. Branche à jour avec `main`.
+
+Au début du projet, la fusion est effectuée par l'orchestrateur une fois ces conditions remplies, sauf demande contraire.
+
+## Niveaux de risque et vérifications
+
+Pour ne pas perdre de temps, l'effort suit le risque.
+
+| Niveau | Exemples | Parcours requis |
+|---|---|---|
+| A, fidélité critique | RNG, génération de monde, ordre des ticks, loot, IA | spec, tests aveugles, implémentation, diff oracle, bug-hunter, reviewer |
+| B, standard | Structures de données, I/O, commandes | tests, implémentation, reviewer, oracle si le comportement est observable |
+| C, plomberie | Build, outils, docs, refactor sans effet | reviewer seul |
+
+Le niveau est choisi par l'orchestrateur dans le brief de la tâche et noté dans la PR.
+
+## Hooks locaux
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+Installe `core.hooksPath=.githooks`. Le hook `commit-msg` contrôle le format et l'absence d'attribution automatique ; le hook `pre-commit` lance `scripts/check-hygiene.sh`.
+
+## CI
+
+- `pr-title` : vérifie le format du titre de PR.
+- `ci` : hygiène du dépôt aujourd'hui ; build, tests, ArchUnit et budgets de taille s'ajoutent avec le squelette Gradle.
+
+## Fichiers jamais commités
+
+`.cache/`, `run/`, `reports/`, `docs/reference/*` (sauf son README), assets et données Mojang, secrets. Voir `.gitignore` et l'ADR 0003.

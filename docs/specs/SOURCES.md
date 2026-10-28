@@ -1,6 +1,6 @@
 # Sources sous licence
 
-Les specs de ce dossier s'appuient sur de la documentation publique. Ce fichier recense les pages du Minecraft Wiki utilisées, la licence qui s'y applique et ce que cela implique pour les specs. Il ne choisit pas la licence du dépôt : c'est une décision du propriétaire, non prise à ce jour.
+Les specs de ce dossier s'appuient sur de la documentation publique. Ce fichier recense les pages du Minecraft Wiki utilisées, la licence qui s'y applique et ce que cela implique pour les specs. Il ne choisit pas la licence du dépôt : c'est une décision du propriétaire, non prise à ce jour. Ce fichier n'est pas un avis juridique ; en cas de doute sur une reprise de contenu, le propriétaire consulte le texte de la licence ou un conseil juridique.
 
 ## Licence du Minecraft Wiki
 
@@ -9,7 +9,7 @@ Le texte du Minecraft Wiki (`https://minecraft.wiki`) est publié sous licence C
 Obligations, selon le texte standard de la licence (pas selon la page du wiki, qui ne les détaille pas) :
 
 - **Attribution** : citer la source (page du wiki, avec son adresse) et la licence, et indiquer que le contenu a été modifié. Chaque spec le fait dans sa section « Sources » ; ce fichier regroupe les pages.
-- **Partage dans les mêmes conditions** : une adaptation d'un contenu du wiki est diffusée sous la même licence ou une licence compatible. Cela concerne les passages d'une spec qui reprennent le contenu d'une page, pas les valeurs lues dans les fichiers extraits du jeu.
+- **Partage dans les mêmes conditions** : une adaptation d'un contenu du wiki ne peut être diffusée que sous (i) les termes de cette licence, (ii) une version ultérieure de cette licence avec les mêmes éléments de licence, ou (iii) une licence Creative Commons d'une autre juridiction (cette version ou une ultérieure) contenant les mêmes éléments, par exemple BY-NC-SA 3.0 Unported (section 4(b) du texte de la licence, dont le texte complet fait foi). Cela concerne les passages d'une spec qui reprennent le contenu d'une page, pas les valeurs lues dans les fichiers extraits du jeu.
 - **Pas d'usage commercial** : la licence interdit un usage commercial des parties reprises.
 
 Portée dans le dépôt :
@@ -41,9 +41,11 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plus
 | `worldgen-noise-density.md` | Density function, Noise settings, Noise router, Noise, Noise generator, World generation, Dimension definition |
 | `worldgen-surface-carvers.md` | Material rule, Noise settings, Aquifer, Carver |
 | `worldgen-features-structures.md` | Placed feature, Structure set, Jigsaw structure, Heightmap, Stronghold, Chunk format |
+| `world-vectors.md` | Debug mode (niveau Y de la grille du monde de débogage), Chunk format (`PostProcessing`) |
+| `worldgen-features-structures-vectors.md` | Stronghold (plages des anneaux) |
 | `worldgen-pipeline.md` | Chunk format, Heightmap, Aquifer, Carver, Material rule, Placed feature |
 
-Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>`. Les vecteurs (`*-vectors.md`), `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki.
+Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>`. Les vecteurs non listés ci-dessus, `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki.
 
 ## Autres sources citées
 

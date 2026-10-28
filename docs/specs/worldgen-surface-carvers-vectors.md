@@ -174,7 +174,7 @@ Montage commun FLAT + CLEAN sauf carvers (donc pas de grotte de bruit ; FLAT pos
 
 ## Correspondance règle -> sonde
 
-R18 WS13 ; R19 WO1 à WO4 ; R20 WO5 ; R21 WS12 ; R22 et R23 WS1 ; R24 WS2 et WK6 ; R25 WS7 ; R26 WS2 et WS4 ; R27 WS3 ; R28 et R29 WS5 ; R30 et R31 WS6 ; R32 WS11 ; R33 WS8 ; R34 et R84 WS9 ; R36 WS10 ; R42 WA0 ; R43 WA1 ; R44 WA0 et WA3 ; R45 WA1 et WA2 ; R46 et R47 WA2 ; R48 WA2 et WA3 ; R41 WA4 ; R49 WA5 ; R51 WA6 ; R52 WK6 ; R60 WK2 et WK7 ; R61 WK2 ; R62 WK4 ; R63 WK3 ; R64 WK5 ; R65 WK1 ; R66 WK8 ; R67 `worldgen-pipeline.md` WP2 ; R68 WP5 ; R71 WP4.
+R18 WS13 ; R19 WO1 à WO4 ; R20 WO5 ; R21 WS12 ; R22 et R23 WS1 ; R24 WS2 et WK6 ; R25 WS7 ; R26 WS2 et WS4 ; R27 WS3 ; R28 et R29 WS5 ; R30 et R31 WS6 ; R32 WS11 ; R33 WS8 ; R34 et R84 WS9 ; R36 WS10 ; R42 WA0 ; R43 WA1 ; R44 WA0 et WA3 ; R45 WA1 et WA2 ; R46 et R47 WA2 ; R48 WA2 et WA3 ; R41 WA4 ; R49 WA5 ; R51 WA6 ; R52 WK6 ; R60 WK2 et WK7 ; R61 WK2 ; R62 WK4 ; R63 WK3 ; R64 WK5 ; R65 WK1 ; R66 WK8 ; R67 `worldgen-pipeline.md` WP2 ; R68 WP3 ; R71 WP4.
 
 ## Récapitulatif
 

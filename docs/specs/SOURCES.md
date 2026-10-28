@@ -34,6 +34,9 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les p
 | `entity-model-physics.md` | Attribute, Hitbox, Entity, Entity format, Item (entity), Falling Block, Damage, Effect, Experience, Transportation |
 | `entity-model-physics-vectors.md` | Attribute (tableau V-EM1), Hitbox (V-EM2), Entity format (clés du harnais) |
 | `entity-player.md` | Hunger, Experience, Sprinting, Transportation, Boat, Minecart, Entity, Entity format, Health, Damage, Attribute, Hitbox |
+| `dim-definitions-portals.md` | Nether portal, Dimension, End portal, End gateway, The End, Void, Respawn Anchor, Nether, Ender Dragon |
+| `dim-end-generation.md` | The End, Obsidian Pillar, Ender Dragon, End gateway, End City, End Highlands, World generation, Biome, Configured feature, Density function |
+| `dim-nether-generation.md` | Nether, World generation, Nether Fortress, Bastion Remnant, Biome, Configured feature, Density function |
 | `item-components-inventory.md` | Java Edition protocol/Inventory, Inventory, Item modifier, Loot table, Predicate |
 | `item-enchantments.md` | Enchanting mechanics, Anvil mechanics, Enchantment definition, Item modifier, Predicate |
 | `item-recipes.md` | Item modifier, Loot table, Inventory, Java Edition protocol/Inventory |
@@ -50,6 +53,11 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les p
 | `world-vectors.md` | Debug mode (niveau Y de la grille du monde de débogage), Chunk format (`PostProcessing`) |
 | `worldgen-features-structures-vectors.md` | Stronghold (plages des anneaux) |
 | `worldgen-pipeline.md` | Chunk format, Heightmap, Aquifer, Carver, Material rule, Placed feature |
+| `sim-light.md` | Light, Redstone Lamp |
+| `sim-fluids.md` | Water, Lava, Fluid, Ice |
+| `sim-ticks-updates.md` | Tick, Random tick, Block update, Commands/setblock, Redstone Repeater, Piston, Tutorials/Quasi-connectivity |
+| `sim-growth-redstone.md` | Wheat, Farmland, Sapling, Grass Block, Sugar Cane, Cactus, Leaves, Fire, Lava, Ice, Random tick, Redstone mechanics, Conductivity, Redstone Dust, Redstone Torch, Redstone Repeater, Redstone Comparator, Observer, Piston, Sticky Piston, Tutorials/Quasi-connectivity, Redstone Lamp, Button |
+| `sim-light-vectors.md`, `sim-fluids-vectors.md`, `sim-ticks-updates-vectors.md`, `sim-growth-redstone-vectors.md` | Les pages de leur spec (les sondes en citent des passages pour leurs critères) |
 
 Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>` (l'adresse de la page "Mob effect" redirige vers "Effect"). Les vecteurs non listés ci-dessus (`entity-ai-spawning-vectors.md`, `entity-damage-effects-vectors.md`, `entity-player-vectors.md`, les autres fichiers de vecteurs hors ceux de la table), `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki ; ils reprennent des sorties de scripts sur les fichiers extraits ou des prédictions calculées à partir des règles des specs.
 

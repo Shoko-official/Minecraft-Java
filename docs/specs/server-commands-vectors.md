@@ -256,7 +256,7 @@ me <action:message>
 msg <targets:entity> <message:message>
 ```
 
-### teammsg
+### teammsg (rang B, indication)
 
 ```
 teammsg <message:message>
@@ -763,7 +763,7 @@ Les sondes utilisent le serveur de référence en boîte noire (RCON pour les co
 | PX6 | Retour d'information et journal | `send_command_feedback`, `log_admin_commands`, `command_block_output` à faux puis vrai ; `broadcast-console-to-ops`, `broadcast-rcon-to-ops` ; lire les paquets reçus par un second opérateur et le journal. | R21, R33 |
 | PX7 | Sélecteurs | Scène fixe (joueurs, vaches, cochons, armures de support nommées, équipes, scores) ; `@p @r @a @e @s @n` avec chaque option, négations, plages, `limit`, `sort`, doublons, options invalides ; enregistrer les cibles et leur ordre. | R16 |
 | PX8 | Suggestions | `command_suggestion` pour un corpus de textes (préfixes de racines, d'arguments de joueurs, de gamemodes, de ressources, texte vide, `/`) ; enregistrer début, longueur, correspondances, info-bulles. | R18 |
-| PX9 | Sémantique de rang A | Pour `gamemode`, `defaultgamemode`, `difficulty`, `teleport`, `tp`, `setworldspawn`, `spawnpoint`, `weather` : état avant/après via `/data get`, `execute if`, fichiers sauvegardés, paquets reçus ; coordonnées limites (R17), `~` et `^` mélangés, centrage des `vec3`, durées de météo (échantillon de 200 tirages par type), interaction `advance_weather`, limites `max_*` des gamerules (texte d'erreur). | R17, R23, R29, R30, Q3, Q6 |
+| PX9 | Sémantique de rang A | Pour `gamemode`, `defaultgamemode`, `difficulty`, `teleport`, `tp`, `setworldspawn`, `spawnpoint`, `weather` : état avant/après via `/data get`, `execute if`, fichiers sauvegardés, paquets reçus ; coordonnées limites (R17), `~` et `^` mélangés, centrage des `vec3`, durées de météo (échantillon de 200 tirages par type), interaction `advance_weather`, limites `max_*` des gamerules (texte d'erreur). | R17, R23, R29, R30, R34, Q3, Q6 |
 | PX10 | Fichiers d'accès | `op`, `deop`, `ban`, `ban-ip`, `pardon`, `pardon-ip`, `whitelist` : contenu des JSON après chaque commande, expulsions et messages de déconnexion des joueurs connectés. Voir aussi PD7 de `server-game-loop.md`. | R28 |
 
 ## Annexe : `cmd_ref.py`

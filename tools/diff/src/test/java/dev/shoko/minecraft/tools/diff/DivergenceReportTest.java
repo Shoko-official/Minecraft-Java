@@ -135,4 +135,16 @@ class DivergenceReportTest {
     assertThatThrownBy(() -> new DivergenceReport("a\rb", "r", "s", List.of()))
         .isInstanceOf(IllegalArgumentException.class);
   }
+
+  @Test
+  void escapesCarriageReturnAndBackslashInValuesAndHypotheses() {
+    CanonicalState one = CanonicalState.builder().add("k", "a\rb\\c").build();
+    CanonicalState none = CanonicalState.builder().add("k", "z").build();
+    DivergenceReport report = new DivergenceReport("s", "r", "t", List.of("h\rx"));
+
+    String text = report.render(StateComparator.compare(one, none));
+
+    assertThat(text.lines()).hasSize(6);
+    assertThat(text).contains("attendu a\\rb\\\\c obtenu z").contains("h\\rx");
+  }
 }

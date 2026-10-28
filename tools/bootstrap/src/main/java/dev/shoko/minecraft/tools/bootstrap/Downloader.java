@@ -8,10 +8,27 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.time.Duration;
+import java.util.List;
 
-/** Downloads a file and publishes it only once its size and SHA-1 match what was expected. */
+/** Downloads a file and publishes it only once its size and digests match what was expected. */
 final class Downloader {
+
+  /** A digest the file must have, as lower-case hexadecimal. */
+  record Digest(String algorithm, String hex) {}
+
+  /**
+   * What the file must be.
+   *
+   * @param size expected size in bytes, or a negative value when it is not known
+   */
+  record Expected(long size, List<Digest> digests) {
+
+    static Expected sha1(String sha1) {
+      return new Expected(-1, List.of(new Digest("SHA-1", sha1)));
+    }
+  }
 
   private final HttpClient client =
       HttpClient.newBuilder()
@@ -21,24 +38,29 @@ final class Downloader {
 
   /**
    * Makes {@code target} hold the expected bytes. A target that already matches is left alone, so
-   * repeated runs do not download again.
-   *
-   * @param size expected size in bytes, or a negative value when it is not known
+   * repeated runs do not download again. A download that does not match is never published.
    */
-  void fetch(URI uri, Path target, String sha1, long size)
-      throws IOException, InterruptedException {
-    if (Files.exists(target) && mismatch(target, sha1, size) == null) {
+  void fetch(URI uri, Path target, Expected expected) throws IOException, InterruptedException {
+    if (Files.exists(target) && mismatch(target, expected) == null) {
       return;
     }
     Files.createDirectories(target.toAbsolutePath().getParent());
     Path partial = target.resolveSibling(target.getFileName() + ".part");
     try {
       HttpRequest request = HttpRequest.newBuilder(uri).timeout(Duration.ofMinutes(10)).build();
-      HttpResponse<Path> response = client.send(request, HttpResponse.BodyHandlers.ofFile(partial));
+      // A leftover partial file from a killed run must not survive under the new bytes.
+      HttpResponse<Path> response =
+          client.send(
+              request,
+              HttpResponse.BodyHandlers.ofFile(
+                  partial,
+                  StandardOpenOption.CREATE,
+                  StandardOpenOption.WRITE,
+                  StandardOpenOption.TRUNCATE_EXISTING));
       if (response.statusCode() != 200) {
         throw new IOException("HTTP " + response.statusCode() + " for " + uri);
       }
-      String problem = mismatch(partial, sha1, size);
+      String problem = mismatch(partial, expected);
       if (problem != null) {
         throw new IOException("Downloaded file from " + uri + " is rejected: " + problem);
       }
@@ -52,14 +74,16 @@ final class Downloader {
   /**
    * Returns a description of the first difference with the expectation, or null when it matches.
    */
-  static String mismatch(Path file, String sha1, long size) throws IOException {
+  static String mismatch(Path file, Expected expected) throws IOException {
     long actualSize = Files.size(file);
-    if (size >= 0 && actualSize != size) {
-      return "size " + actualSize + " instead of " + size;
+    if (expected.size() >= 0 && actualSize != expected.size()) {
+      return "size " + actualSize + " instead of " + expected.size();
     }
-    String actualSha1 = Hashes.hex(file, "SHA-1");
-    if (!actualSha1.equals(sha1)) {
-      return "SHA-1 " + actualSha1 + " instead of " + sha1;
+    for (Digest digest : expected.digests()) {
+      String actual = Hashes.hex(file, digest.algorithm());
+      if (!actual.equals(digest.hex())) {
+        return digest.algorithm() + " " + actual + " instead of " + digest.hex();
+      }
     }
     return null;
   }

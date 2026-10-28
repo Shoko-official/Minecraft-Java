@@ -10,7 +10,7 @@ Textures, sons, modèles, langues et données de jeu appartiennent à Mojang. Le
 
 - Aucun asset ni aucune donnée Mojang n'est commité. `.cache/`, `run/`, `reports/` et `docs/reference/*` sont ignorés, et `scripts/check-hygiene.sh` refuse les chemins `assets/minecraft/`, `data/minecraft/` et les formats `.jar`, `.mca`, `.ogg`, `.nbt` (exceptions listées et justifiées dans `scripts/hygiene-exceptions.txt`).
 - `tools/bootstrap` télécharge et vérifie :
-  - le `server.jar` officiel de la version cible, contrôlé par la taille et le SHA-1 du manifeste officiel, puis son SHA-256 enregistré dans `tools/bootstrap/pins.json` ;
+  - le `server.jar` officiel de la version cible, contrôlé par la taille et le SHA-1 du manifeste officiel, puis son SHA-256 enregistré dans `tools/bootstrap/src/main/resources/pins.json` ;
   - les assets (implémentés au jalon M9, le moteur sans graphique n'en a pas besoin), par deux fournisseurs interchangeables choisis par option : le dépôt GitHub `InventivetalentDev/minecraft-assets`, branche `26.3`, épinglé par commit et sommes de contrôle (choix du propriétaire, par défaut), ou le canal officiel (`client.jar` et index d'assets avec SHA-1 du fichier de version) ;
   - les données et rapports générés par le serveur de référence (`--all` / `--reports`).
 - Les rapports de recherche personnels restent en local dans `docs/reference/` ; les agents en tirent des specs courtes et originales dans `docs/specs/`.

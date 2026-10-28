@@ -11,5 +11,9 @@
   },
   "innerServerSha256": "a362163eec5d1612d520772bc16e5b39c09e3b234fdc045f56bf544284ee8ae6",
   "worldVersion": 5023,
-  "protocolVersion": 777
+  "protocolVersion": 777,
+  "packVersion": {
+    "data": "121.0",
+    "resource": "97.1"
+  }
 }

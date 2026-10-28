@@ -133,14 +133,16 @@ public final class CompoundTag implements NbtTag {
   }
 
   /**
-   * Reads a boolean stored as a Byte (R36, R38): {@code getByte(key) != 0}, so any non-zero byte is
-   * true (provisional).
+   * Reads a boolean (R36, provisional): true when the value is numeric and its original value is
+   * not 0, without converting it to Byte first. Byte 2, Int 256, Double 0.5 and any NaN are true;
+   * 0, 0.0 and -0.0 are false, as is an absent or non-numeric value (R38).
    *
    * @param key the key
    * @return the boolean, or {@code false}
    */
   public boolean getBoolean(String key) {
-    return getByte(key) != 0;
+    // doubleValue() is exact enough: a non-zero integer never converts to 0.0, NaN != 0 is true.
+    return entries.get(key) instanceof NumericTag number && number.doubleValue() != 0;
   }
 
   /**

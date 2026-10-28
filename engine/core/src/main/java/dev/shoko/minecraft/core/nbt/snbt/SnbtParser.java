@@ -24,8 +24,9 @@ import java.util.regex.Pattern;
 /**
  * Parses SNBT text into a value (R41 to R50). The whole text must be one value; blanks (space, tab,
  * carriage return, line feed) are allowed between tokens and around the value (R41). Invalid text
- * fails with an {@link NbtException} whose reason starts with {@code SNBT_} and gives no result
- * (R51).
+ * fails with an {@link NbtException} and gives no result (R51): a reason starting with {@code
+ * SNBT_}, or {@link NbtException.Reason#TOO_DEEP} beyond 512 nested compounds, lists and typed
+ * arrays (R58).
  *
  * <p>Grammar summary, every rule provisional until probe PS1 (vectors T1 to T52):
  *
@@ -54,7 +55,11 @@ public final class SnbtParser {
       Pattern.compile(
           "\\p{XDigit}{8}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{4}-\\p{XDigit}{12}");
 
+  /** Most nested compounds, lists and typed arrays, the outermost value included (R58). */
+  private static final int MAX_DEPTH = 512;
+
   private final SnbtCursor cursor;
+  private int depth;
 
   private SnbtParser(String text) {
     this.cursor = new SnbtCursor(Objects.requireNonNull(text, "text"));
@@ -104,8 +109,7 @@ public final class SnbtParser {
       throw cursor.syntax("expected a value");
     }
     return switch (cursor.peek()) {
-      case '{' -> readCompound();
-      case '[' -> readListOrArray();
+      case '{', '[' -> readContainer();
       case '"', '\'' -> new StringTag(SnbtStrings.readQuoted(cursor));
       default -> readWord();
     };
@@ -152,6 +156,22 @@ public final class SnbtParser {
     }
     throw cursor.error(
         Reason.SNBT_INVALID_OPERATION, argumentStart, "invalid argument of " + name + "()");
+  }
+
+  /**
+   * Reads a compound, list or typed array. The level is counted before descending, so that a text
+   * nested beyond the limit fails at the character opening level 513 without exhausting the stack
+   * (R58).
+   */
+  private NbtTag readContainer() throws NbtException {
+    if (depth == MAX_DEPTH) {
+      throw cursor.error(
+          Reason.TOO_DEEP, cursor.position(), "more than " + MAX_DEPTH + " nested levels");
+    }
+    depth++;
+    NbtTag value = cursor.peek() == '{' ? readCompound() : readListOrArray();
+    depth--;
+    return value;
   }
 
   private CompoundTag readCompound() throws NbtException {

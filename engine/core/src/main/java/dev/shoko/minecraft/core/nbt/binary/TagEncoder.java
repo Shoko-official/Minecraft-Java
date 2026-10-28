@@ -12,16 +12,18 @@ import dev.shoko.minecraft.core.nbt.LongArrayTag;
 import dev.shoko.minecraft.core.nbt.LongTag;
 import dev.shoko.minecraft.core.nbt.NamedTag;
 import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtException.Reason;
 import dev.shoko.minecraft.core.nbt.NbtTag;
 import dev.shoko.minecraft.core.nbt.ShortTag;
 import dev.shoko.minecraft.core.nbt.StringTag;
 import dev.shoko.minecraft.core.nbt.TagType;
 import java.io.ByteArrayOutputStream;
+import java.util.Collection;
 import java.util.Map;
 
 /**
- * Encodes one root in memory, so that a failure (R13) happens before anything reaches the caller's
- * stream. Big-endian (R3).
+ * Encodes one root in memory, so that a failure (R13, R57) happens before anything reaches the
+ * caller's stream. Big-endian (R3).
  */
 final class TagEncoder {
 
@@ -31,6 +33,7 @@ final class TagEncoder {
 
   /** Returns type, name and payload (R5). */
   static byte[] named(NamedTag root) throws NbtException {
+    checkDepth(root.tag());
     var encoder = new TagEncoder();
     encoder.out.write(root.tag().type().id());
     encoder.writeString(root.name());
@@ -40,6 +43,7 @@ final class TagEncoder {
 
   /** Returns type and payload, without name (R20). */
   static byte[] unnamed(NbtTag root) throws NbtException {
+    checkDepth(root);
     var encoder = new TagEncoder();
     encoder.out.write(root.type().id());
     encoder.writePayload(root);
@@ -78,9 +82,7 @@ final class TagEncoder {
 
   private void writeList(ListTag list) throws NbtException {
     // Empty lists carry End (R22); a heterogeneous list wraps each element under "" (R47).
-    boolean wrap =
-        list.elementType() == TagType.COMPOUND
-            && !list.elements().stream().allMatch(CompoundTag.class::isInstance);
+    boolean wrap = isWrapped(list);
     out.write(list.elementType().id());
     writeInt(list.elements().size());
     for (NbtTag element : list.elements()) {
@@ -91,6 +93,50 @@ final class TagEncoder {
         writePayload(element);
       }
     }
+  }
+
+  /** Whether the list is heterogeneous, each element then wrapped in a compound (R47, R63). */
+  private static boolean isWrapped(ListTag list) {
+    return list.elementType() == TagType.COMPOUND
+        && !list.elements().stream().allMatch(CompoundTag.class::isInstance);
+  }
+
+  /**
+   * Fails with TOO_DEEP, before any byte is produced, when the binary form nests more than 512
+   * lists and compounds, root and wrappers of heterogeneous lists included (R31, R57).
+   */
+  private static void checkDepth(NbtTag root) throws NbtException {
+    if (exceedsDepth(root, 1)) {
+      throw new NbtException(
+          Reason.TOO_DEEP, "binary form deeper than " + NbtReader.MAX_DEPTH + " levels");
+    }
+  }
+
+  // Returns as soon as a level passes the limit: the recursion stays within 513 levels.
+  private static boolean exceedsDepth(NbtTag tag, int level) {
+    if (tag instanceof CompoundTag compound) {
+      return level > NbtReader.MAX_DEPTH || anyExceeds(compound.entries().values(), level + 1);
+    }
+    if (tag instanceof ListTag list) {
+      if (level > NbtReader.MAX_DEPTH) {
+        return true;
+      }
+      if (isWrapped(list)) {
+        // The wrappers sit one level below the list, their elements two levels below.
+        return level + 1 > NbtReader.MAX_DEPTH || anyExceeds(list.elements(), level + 2);
+      }
+      return anyExceeds(list.elements(), level + 1);
+    }
+    return false;
+  }
+
+  private static boolean anyExceeds(Collection<NbtTag> tags, int level) {
+    for (NbtTag tag : tags) {
+      if (exceedsDepth(tag, level)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private void writeCompound(CompoundTag compound) throws NbtException {

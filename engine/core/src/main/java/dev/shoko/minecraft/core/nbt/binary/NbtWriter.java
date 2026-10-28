@@ -17,7 +17,10 @@ import java.util.Objects;
  *   <li>Compound keys are written in storage order (R30).
  *   <li>An empty list is written with element type End, {@code 00 00 00 00 00} (R22).
  *   <li>A heterogeneous list is written as a list of compounds, each holding one element under the
- *       empty key (R47).
+ *       empty key (R47, R63); reading it back gives that list of compounds.
+ *   <li>A tree whose binary form nests more than {@link NbtReader#MAX_DEPTH} lists and compounds,
+ *       root and wrappers included, fails with {@link NbtException.Reason#TOO_DEEP}, without
+ *       offset, before anything is written (R57): what is written can always be read.
  *   <li>Floats and doubles are written with their exact bit pattern (R35).
  *   <li>A string encoding to more than 65535 bytes fails with {@link
  *       NbtException.Reason#STRING_TOO_LONG}, and then nothing at all is written to the stream

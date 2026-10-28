@@ -5,10 +5,10 @@ import java.util.Objects;
 import java.util.OptionalLong;
 
 /**
- * The single checked failure of binary reading and writing and of SNBT parsing. A failed read or
- * parse gives no partial result (R33, R51); a failed write leaves nothing written (R13). Messages
- * are for humans and not specified (R51); callers and tests rely on {@link #reason()} and {@link
- * #offset()}.
+ * The single checked failure of binary reading and writing and of SNBT parsing and writing. A
+ * failed read or parse gives no partial result (R33, R51); a failed write leaves nothing written
+ * (R13). Messages are for humans and not specified (R51); callers and tests rely on {@link
+ * #reason()} and {@link #offset()}.
  */
 public final class NbtException extends Exception {
 
@@ -49,15 +49,23 @@ public final class NbtException extends Exception {
      */
     NEGATIVE_ARRAY_LENGTH,
     /**
-     * More than 512 nested lists and compounds, root included ({@code NbtReader.MAX_DEPTH}, R31).
-     * Offset: the first payload byte of the first container beyond the limit.
+     * More than 512 nesting levels, root included. Binary reading (R31): lists and compounds;
+     * offset: the first payload byte of the first container beyond the limit. SNBT reading (R58):
+     * compounds, lists and typed arrays; offset: the UTF-16 index of the character opening level
+     * 513. Binary writing (R57, wrappers of heterogeneous lists included) and SNBT writing (R59):
+     * no offset, nothing written.
      */
     TOO_DEEP,
     /**
-     * The read needs more decompressed bytes than the configured limit (R32). Offset: the limit.
+     * The estimated memory of a read exceeds the quota of the reader (R32, R60). The quota is in
+     * memory units, not in bytes; the offset is a byte position in the decompressed payload, where
+     * the excess was found, and is not specified further.
      */
     TOO_LARGE,
-    /** The gzip or zlib container cannot be decoded (R16, R18). No offset. */
+    /**
+     * The gzip or zlib container cannot be decoded, or its trailer is wrong, missing or truncated
+     * (R16, R18, R61). No offset.
+     */
     CORRUPT_CONTAINER,
     /** The underlying stream failed; the {@link java.io.IOException} is the cause. No offset. */
     IO_FAILURE,

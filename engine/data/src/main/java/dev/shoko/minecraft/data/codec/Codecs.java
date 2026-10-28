@@ -161,7 +161,9 @@ public final class Codecs {
    *
    * @param typeField the key holding the variant name, such as {@code type}
    * @param variants the codec of each variant by the identifier written in the field; the codec
-   *     receives the whole object, the type field included
+   *     receives the whole object, the type field included: a variant built with {@link
+   *     UnknownFields#REJECT} must declare that field itself (for instance with {@code
+   *     reader.has(typeField)}), or it is rejected as unknown
    * @param <T> the common type
    * @return a codec reading the field as an identifier (R22) and delegating to the matching codec;
    *     an absent field is {@code CODEC_MISSING_FIELD}, a field that is not a valid identifier

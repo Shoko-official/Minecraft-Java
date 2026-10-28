@@ -27,7 +27,7 @@ public abstract class Codec<T> {
    * @param node the node, of any type
    * @param access used to check references to registry entries and tags (K3, K4)
    * @return the value, or empty with error diagnostics when the node is not valid; the diagnostics
-   *     of every faulty part are reported, in the order given by the combinator that found them
+   *     of every faulty part are reported, in the order of the text of the node (R62 g)
    */
   public abstract Outcome<T> decode(JsonNode node, RegistryAccess access);
 

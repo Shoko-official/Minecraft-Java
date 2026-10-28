@@ -6,7 +6,11 @@ import dev.shoko.minecraft.data.diag.Outcome;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -28,22 +32,39 @@ final class ObjectCodec<T> extends Codec<T> {
     }
     ObjectReader reader = new ObjectReader(object, access, unknownFields);
     Supplier<T> builder = reading.apply(reader);
-    List<Diagnostic> diagnostics = reader.diagnostics();
-    if (unknownFields == UnknownFields.REJECT) {
-      for (String key : object.members().keySet()) {
-        if (!reader.isKnown(key)) {
-          diagnostics.add(
-              new Diagnostic(
-                  DiagnosticCode.CODEC_UNKNOWN_FIELD,
-                  object.origin(),
-                  object.path().field(key),
-                  "unknown field " + key));
-        }
-      }
-    }
+    List<Diagnostic> diagnostics = inTextOrder(object, reader);
     if (reader.failed()) {
       return Outcome.failure(diagnostics);
     }
     return Outcome.success(builder.get(), diagnostics);
+  }
+
+  /** Orders the diagnostics by the place of their member in the object, absent members last. */
+  private List<Diagnostic> inTextOrder(JsonObject object, ObjectReader reader) {
+    List<ObjectReader.Found> found = new ArrayList<>(reader.found());
+    if (unknownFields == UnknownFields.REJECT) {
+      for (String key : object.members().keySet()) {
+        if (!reader.isKnown(key)) {
+          Diagnostic unknown =
+              new Diagnostic(
+                  DiagnosticCode.CODEC_UNKNOWN_FIELD,
+                  object.origin(),
+                  object.path().field(key),
+                  "unknown field " + key);
+          found.add(new ObjectReader.Found(key, List.of(unknown)));
+        }
+      }
+    }
+    Map<String, Integer> places = new HashMap<>();
+    for (String key : object.members().keySet()) {
+      places.put(key, places.size());
+    }
+    // The sort is stable: members with the same place, or absent, keep the order of the calls.
+    found.sort(
+        Comparator.comparingInt(
+            f -> f.member() == null ? Integer.MAX_VALUE : places.get(f.member())));
+    List<Diagnostic> ordered = new ArrayList<>();
+    found.forEach(f -> ordered.addAll(f.diagnostics()));
+    return ordered;
   }
 }

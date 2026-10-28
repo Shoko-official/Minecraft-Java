@@ -18,8 +18,11 @@ import java.util.function.Supplier;
  * <p>Reading never stops at the first problem (R62 g): a method that finds an invalid or missing
  * field records its error diagnostics and returns a handle that cannot be read; the object codec
  * calls the handles, through the supplier returned by the reading function, only when no field
- * failed. All diagnostics of the object are therefore reported. Diagnostics are ordered by the
- * order of the calls on this reader, then, in strict mode, the unknown fields in text order.
+ * failed. All diagnostics of the object are therefore reported, in the order of the text (R62 g,
+ * R63 b): those of a member sit where the member is in the object, whatever the order of the calls
+ * on this reader, and in strict mode the unknown fields are interleaved by their own place. The
+ * diagnostics of a required field that is absent have no place in the text and come last, in the
+ * order of the calls.
  *
  * <p>A key is known as soon as one method of this class is called with it, {@link #has(String)}
  * included; the others are unknown (R63). Not thread-safe; it lives for one decode call.
@@ -31,7 +34,7 @@ public final class ObjectReader {
   private final UnknownFields unknownFields;
   // Membership tests only: never iterated, so its order is not observable.
   private final Set<String> known = new HashSet<>();
-  private final List<Diagnostic> diagnostics = new ArrayList<>();
+  private final List<Found> found = new ArrayList<>();
   private boolean failed;
 
   ObjectReader(JsonObject node, RegistryAccess access, UnknownFields unknownFields) {
@@ -93,10 +96,10 @@ public final class ObjectReader {
     known.add(name);
     JsonNode value = node.members().get(name);
     if (value == null) {
-      diagnostics.add(Failures.missingField(node, name));
+      found.add(new Found(null, List.of(Failures.missingField(node, name))));
       return failedHandle();
     }
-    return decoded(codec.decode(value, access));
+    return decoded(name, codec.decode(value, access));
   }
 
   /**
@@ -116,7 +119,7 @@ public final class ObjectReader {
     if (value == null) {
       return () -> defaultValue;
     }
-    return decoded(codec.decode(value, access));
+    return decoded(name, codec.decode(value, access));
   }
 
   /**
@@ -132,20 +135,23 @@ public final class ObjectReader {
     return optional(name, codec.map(Optional::of), Optional.empty());
   }
 
+  /** The diagnostics met for one member, or for an absent one when {@code member} is null. */
+  record Found(String member, List<Diagnostic> diagnostics) {}
+
   boolean failed() {
     return failed;
   }
 
-  List<Diagnostic> diagnostics() {
-    return diagnostics;
+  List<Found> found() {
+    return found;
   }
 
   boolean isKnown(String name) {
     return known.contains(name);
   }
 
-  private <F> Supplier<F> decoded(Outcome<F> outcome) {
-    diagnostics.addAll(outcome.diagnostics());
+  private <F> Supplier<F> decoded(String name, Outcome<F> outcome) {
+    found.add(new Found(name, outcome.diagnostics()));
     if (outcome.value().isEmpty()) {
       return failedHandle();
     }

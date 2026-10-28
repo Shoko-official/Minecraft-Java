@@ -62,7 +62,8 @@ public final class TagResolver {
    * </ul>
    *
    * The result is always present: failures are in {@link TagResolution#failed()} and in the
-   * diagnostics.
+   * diagnostics. The resolved lists are fully expanded (R35), so a chain of n tags that each add one
+   * element has an output of the order of n squared entries; nothing here bounds it.
    *
    * @param registry the registry the tags belong to, used in messages
    * @param layers the layers of each tag identifier, from the lowest to the highest priority; a tag

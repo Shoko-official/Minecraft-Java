@@ -106,24 +106,33 @@ public final class TagFileReader {
       error(DiagnosticCode.CODEC_TYPE_MISMATCH, node.path(), "expected a string or an object");
       return null;
     }
-    JsonNode id = object.members().get("id");
-    TagEntry entry = null;
+    // The members are read in the order of the text, so are their errors (R62 g).
+    TagEntry reference = null;
     boolean required = true;
-    if (id == null) {
+    for (var member : object.members().entrySet()) {
+      JsonNode value = member.getValue();
+      if (member.getKey().equals("id")) {
+        reference = value instanceof JsonString text ? reference(text, true) : badId(value);
+      } else if (member.getKey().equals("required")) {
+        if (value instanceof JsonBoolean bool) {
+          required = bool.value();
+        } else {
+          error(DiagnosticCode.CODEC_TYPE_MISMATCH, value.path(), "expected a boolean");
+        }
+      }
+    }
+    if (!object.members().containsKey("id")) {
       error(DiagnosticCode.CODEC_MISSING_FIELD, object.path().field("id"), "missing id");
     }
-    JsonNode flag = object.members().get("required");
-    if (flag instanceof JsonBoolean bool) {
-      required = bool.value();
-    } else if (flag != null) {
-      error(DiagnosticCode.CODEC_TYPE_MISMATCH, flag.path(), "expected a boolean");
+    if (errors.isEmpty() && reference != null) {
+      return new TagEntry(reference.id(), reference.tag(), required);
     }
-    if (id instanceof JsonString text) {
-      entry = reference(text, required);
-    } else if (id != null) {
-      error(DiagnosticCode.CODEC_TYPE_MISMATCH, id.path(), "expected a string");
-    }
-    return errors.isEmpty() ? entry : null;
+    return null;
+  }
+
+  private TagEntry badId(JsonNode value) {
+    error(DiagnosticCode.CODEC_TYPE_MISMATCH, value.path(), "expected a string");
+    return null;
   }
 
   private TagEntry reference(JsonString text, boolean required) {

@@ -55,6 +55,25 @@ val oracleTest by tasks.registering(Test::class) {
     useJUnitPlatform {
         includeTags("oracle")
     }
+
+    // Oracle tests skip themselves when the cache is absent: running this task without it would
+    // report success with nothing proved. A cached or up-to-date result would hide the same thing.
+    outputs.upToDateWhen { false }
+    outputs.cacheIf { false }
+    val cacheDirVariable = providers.environmentVariable("MINECRAFT_CACHE_DIR")
+    val defaultCacheDir = rootProject.layout.projectDirectory.dir(".cache")
+    doFirst {
+        val cacheDir = cacheDirVariable.orNull?.takeIf { it.isNotBlank() }?.let(::File)
+            ?: defaultCacheDir.asFile
+        val reference = cacheDir.resolve("reference")
+        if (reference.list().isNullOrEmpty()) {
+            throw GradleException(
+                "oracleTest needs the reference data, but $reference is missing or empty. " +
+                    "Run ./gradlew :tools:bootstrap:run first " +
+                    "(or set MINECRAFT_CACHE_DIR to an existing cache)."
+            )
+        }
+    }
 }
 
 spotless {

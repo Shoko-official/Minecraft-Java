@@ -27,7 +27,7 @@ public final class Codecs {
    * @return a codec accepting only a JSON string
    */
   public static Codec<String> string() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.STRING;
   }
 
   /**
@@ -37,7 +37,7 @@ public final class Codecs {
    *     "true"} are {@code CODEC_TYPE_MISMATCH}
    */
   public static Codec<Boolean> bool() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.BOOL;
   }
 
   /**
@@ -49,7 +49,7 @@ public final class Codecs {
    *     CODEC_NUMBER_RANGE}
    */
   public static Codec<Integer> integer() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.INTEGER;
   }
 
   /**
@@ -60,7 +60,7 @@ public final class Codecs {
    *     CODEC_NUMBER_RANGE} cannot occur on a tree read from a file
    */
   public static Codec<Long> longInteger() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.LONG;
   }
 
   /**
@@ -70,7 +70,7 @@ public final class Codecs {
    *     double ({@code 9007199254740993} gives {@code 9007199254740992.0})
    */
   public static Codec<Double> decimal() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.DECIMAL;
   }
 
   /**
@@ -80,7 +80,7 @@ public final class Codecs {
    *     the nearest float; a result that is infinite ({@code 1e40}) is {@code CODEC_NUMBER_RANGE}
    */
   public static Codec<Float> floatDecimal() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.FLOAT;
   }
 
   /**
@@ -90,7 +90,7 @@ public final class Codecs {
    *     text, a {@code #tag} included, is {@code CODEC_INVALID_IDENTIFIER}
    */
   public static Codec<Identifier> identifier() {
-    return Skeleton.throwNotImplemented();
+    return ScalarCodecs.IDENTIFIER;
   }
 
   /**
@@ -99,7 +99,7 @@ public final class Codecs {
    * @return a codec accepting any node, {@code null} included
    */
   public static Codec<JsonNode> raw() {
-    return Skeleton.throwNotImplemented();
+    return StructureCodecs.raw();
   }
 
   /**
@@ -113,7 +113,7 @@ public final class Codecs {
    *     one element failed
    */
   public static <T> Codec<List<T>> list(Codec<T> element) {
-    return Skeleton.throwNotImplemented();
+    return StructureCodecs.list(element);
   }
 
   /**
@@ -126,7 +126,7 @@ public final class Codecs {
    *     not find is {@code CODEC_UNRESOLVED_REFERENCE} at the path of the value (K3)
    */
   public static <T> Codec<Holder<T>> registryReference(RegistryKey<T> registry) {
-    return Skeleton.throwNotImplemented();
+    return ReferenceCodecs.reference(registry);
   }
 
   /**
@@ -153,7 +153,7 @@ public final class Codecs {
    * @return the codec
    */
   public static <T> Codec<HolderSet<T>> holderSet(RegistryKey<T> registry) {
-    return Skeleton.throwNotImplemented();
+    return ReferenceCodecs.set(registry);
   }
 
   /**
@@ -170,7 +170,7 @@ public final class Codecs {
    */
   public static <T> Codec<T> byType(
       String typeField, Map<Identifier, Codec<? extends T>> variants) {
-    return Skeleton.throwNotImplemented();
+    return StructureCodecs.byType(typeField, variants);
   }
 
   /**
@@ -182,7 +182,7 @@ public final class Codecs {
    * @return the codec; see {@link #object(UnknownFields, Function)}
    */
   public static <T> Codec<T> object(Function<ObjectReader, Supplier<T>> reading) {
-    return Skeleton.throwNotImplemented();
+    return object(UnknownFields.IGNORE, reading);
   }
 
   /**
@@ -204,6 +204,6 @@ public final class Codecs {
    */
   public static <T> Codec<T> object(
       UnknownFields unknownFields, Function<ObjectReader, Supplier<T>> reading) {
-    return Skeleton.throwNotImplemented();
+    return new ObjectCodec<>(unknownFields, reading);
   }
 }

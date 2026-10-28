@@ -15,10 +15,11 @@ Obligations, selon le texte standard de la licence (pas selon la page du wiki, q
 Portée dans le dépôt :
 
 - La colonne « Champs » de `net-protocol-777.md` reprend la structure (types et ordre des champs) de la page « Java Edition protocol/Packets ». C'est la reprise la plus directe ; elle reste sous CC BY-NC-SA 3.0 (voir aussi la note « Licence et attribution » de cette spec).
+- `entity-model-physics-vectors.md` (V-EM1) reprend le tableau de la page "Attribute" : 40 lignes de nombres (défaut, minimum, maximum de chaque attribut), sans le texte de la page. C'est une reprise de données chiffrées et non une reformulation ; elle reste sous CC BY-NC-SA 3.0 si le propriétaire la juge dérivée. Elle porte le comportement provisoire de la règle R8 de la spec ; elle peut être supprimée au démarrage de l'implémentation, la sonde EM3 produisant alors la table (type, attribut, base, bornes) sur l'oracle.
 - Les autres specs ne reprennent du wiki que des valeurs, des syntaxes, des noms et des comportements reformulés, signalés au niveau de preuve S (`README.md`). Aucune règle n'est recopiée mot pour mot ; un doute sur le caractère dérivé d'une reformulation relève aussi du propriétaire.
 - Les valeurs de niveau D viennent des fichiers extraits du jeu de référence (conservés hors du dépôt, ADR 0003), pas du wiki.
 
-Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plusieurs pages ont été lues par un outil de résumé automatique ou tronquées, ce que leur section « Sources » indique.
+Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les pages Entity, Falling Block, Entity format et Explosion ont été relues le 2026-10-29 pour les specs d'entités) ; plusieurs pages ont été lues par un outil de résumé automatique ou tronquées, ce que leur section « Sources » indique.
 
 ## Pages du Minecraft Wiki par spec
 
@@ -28,6 +29,11 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plus
 | `core-nbt.md` | NBT format, Minecraft Wiki:Projects/wiki.vg merge/NBT |
 | `core-random.md` | Commands/random, Random sequence |
 | `data-datapack-loading.md` | Pack format, Data pack, Pack.mcmeta, Identifier, Tag (Java Edition) |
+| `entity-ai-spawning.md` | Mob spawning, Zombie, Creeper, Entity format, Minecart |
+| `entity-damage-effects.md` | Damage, Armor, Resistance, Absorption, Regeneration, Poison, Strength, Effect (la page Mob effect y est redirigée), Knockback, Knockback (mechanic), Explosion, Fire, Breathing, Health, Hunger, Experience, Entity format, Falling Block, Zombie, Mob spawning |
+| `entity-model-physics.md` | Attribute, Hitbox, Entity, Entity format, Item (entity), Falling Block, Damage, Effect, Experience, Transportation |
+| `entity-model-physics-vectors.md` | Attribute (tableau V-EM1), Hitbox (V-EM2), Entity format (clés du harnais) |
+| `entity-player.md` | Hunger, Experience, Sprinting, Transportation, Boat, Minecart, Entity, Entity format, Health, Damage, Attribute, Hitbox |
 | `dim-definitions-portals.md` | Nether portal, Dimension, End portal, End gateway, The End, Void, Respawn Anchor, Nether, Ender Dragon |
 | `dim-end-generation.md` | The End, Obsidian Pillar, Ender Dragon, End gateway, End City, End Highlands, World generation, Biome, Configured feature, Density function |
 | `dim-nether-generation.md` | Nether, World generation, Nether Fortress, Bastion Remnant, Biome, Configured feature, Density function |
@@ -53,7 +59,7 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plus
 | `sim-growth-redstone.md` | Wheat, Farmland, Sapling, Grass Block, Sugar Cane, Cactus, Leaves, Fire, Lava, Ice, Random tick, Redstone mechanics, Conductivity, Redstone Dust, Redstone Torch, Redstone Repeater, Redstone Comparator, Observer, Piston, Sticky Piston, Tutorials/Quasi-connectivity, Redstone Lamp, Button |
 | `sim-light-vectors.md`, `sim-fluids-vectors.md`, `sim-ticks-updates-vectors.md`, `sim-growth-redstone-vectors.md` | Les pages de leur spec (les sondes en citent des passages pour leurs critères) |
 
-Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>`. Les vecteurs non listés ci-dessus, `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki.
+Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>` (l'adresse de la page "Mob effect" redirige vers "Effect"). Les vecteurs non listés ci-dessus (`entity-ai-spawning-vectors.md`, `entity-damage-effects-vectors.md`, `entity-player-vectors.md`, les autres fichiers de vecteurs hors ceux de la table), `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki ; ils reprennent des sorties de scripts sur les fichiers extraits ou des prédictions calculées à partir des règles des specs.
 
 ## Autres sources citées
 

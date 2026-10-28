@@ -100,15 +100,18 @@ public interface RandomSource {
 
   /**
    * Returns the number of steps taken since creation or the last {@link #setSeed(long)} (R11, R21).
-   * {@link #skip(long)} counts its steps too.
+   * {@link #skip(long)} counts its steps too. The count saturates at {@link Long#MAX_VALUE} instead
+   * of overflowing, so it is never negative; the generator state stays exact (spec interface
+   * requirements).
    *
-   * @return the step count, 0 or more
+   * @return the step count, from 0 to {@link Long#MAX_VALUE}
    */
   long steps();
 
   /**
    * Advances the state by exactly {@code n} steps, as {@code n} single-step draws would (R10, R21).
-   * The cached gaussian, if any, is kept.
+   * The cached gaussian, if any, is kept. {@link #steps()} grows by {@code n}, saturating at {@link
+   * Long#MAX_VALUE}; the state is advanced by the full {@code n} steps whatever the count.
    *
    * @param n the number of steps, 0 or more
    * @throws IllegalArgumentException when {@code n < 0}

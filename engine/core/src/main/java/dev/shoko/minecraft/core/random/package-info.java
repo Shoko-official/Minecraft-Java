@@ -23,6 +23,8 @@
  * <p>No class here extends {@code java.util.Random} or implements {@code
  * java.util.random.RandomGenerator}: their bounded-range methods use other algorithms and other
  * consumption (R12), and the engine determinism rule forbids them. Generators are mutable and not
- * thread-safe; seed functions and values are immutable. No method accepts or returns {@code null}.
+ * thread-safe; seed functions and values are immutable. No method accepts or returns {@code null}:
+ * a {@code null} argument throws {@link NullPointerException}, even where the value would be
+ * unused.
  */
 package dev.shoko.minecraft.core.random;

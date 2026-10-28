@@ -28,7 +28,7 @@ Ne couvre pas :
 - **Rapports locaux** (indices) : rapport Overworld, section 1.2 et tableau de la partie I (comptes 1 286 / 35 723, que les données confirment). Aucune règle ci-dessous n'en vient seule.
 - **Sondes de l'oracle** : aucune exécutée. Sondes PC2 et PB1 décrites dans `world-vectors.md`.
 
-Niveaux : **D** valeur lue telle quelle dans un fichier extrait ; **C** propriété établie par calcul reproductible sur ces fichiers ; **M** non utilisé (oracle non lancé) ; **S** documentation publique seule, rapport local ou hypothèse, avec comportement **provisoire**.
+Niveaux : **D** valeur lue telle quelle dans un fichier extrait ; **C** propriété établie par calcul reproductible sur ces fichiers ; **M** non utilisé (oracle non lancé) ; **S** documentation publique seule, rapport local ou hypothèse ; une règle S énonce elle-même le comportement **provisoire** que le moteur applique en attendant la sonde.
 
 ## Règles
 
@@ -93,6 +93,6 @@ Voir `world-vectors.md`, partie BS : comptes (BS1), identifiants calculés (BS2)
 
 ## Questions ouvertes
 
-- R19 et R20 : forme réelle des palettes écrites par le serveur 26.3 (Compound complet, propriétés élidées, List de String). Sonde PC2 (monde de débogage `debug_all_block_states`) et PC1 (monde plat).
-- R21 : comportement du serveur face à une entrée invalide. Sonde PB1.
-- R5 à R7 sont C sur les données ; la sonde PC2 les confirme en M en vérifiant que le monde de débogage contient les 35 723 états, rangés par identifiant croissant.
+- R19 et R20 : forme réelle des palettes écrites par le serveur 26.3 (Compound complet, propriétés élidées, List de String) : sondes PC2 (monde de débogage `debug_all_block_states`) et PC1 (monde plat) ; lecture par le serveur de ces formes : sonde PB1, variantes `string_palette` et `partial_props`.
+- R21 : comportement du serveur face à une entrée invalide : sonde PB1, variantes `unknown_block` et `bad_value`.
+- R5 à R7 sont C sur les données ; la sonde PC2 les confirme en M en vérifiant que le monde de débogage contient les 35 722 états autres que `air`, rangés par identifiant croissant.

@@ -17,10 +17,10 @@ python -I world_ref.py dims       "$REF/resources/data/minecraft"               
 python -I world_ref.py coords                                                                                     # CO1
 python -I world_ref.py pack                                                                                       # PK1 à PK5, HM1, HM2
 python -I world_ref.py light                                                                                      # LI1
-python -I world_ref.py lz4                                                                                        # LZ1
-python -I world_ref.py region     OUT_DIR [zlib|gzip|none|lz4|external|string_palette|partial_props|unknown_block|bad_value|bad_length|wrong_pos|bad_offset]  # RG1 à RG3
+python -I world_ref.py lz4                                                                                        # LZ1 (et tests négatifs)
+python -I world_ref.py region     OUT_DIR VARIANTE     # RG1 à RG3 ; VARIANTE : une des 19 valeurs des tableaux RG2 et RG3, zlib par défaut
 python -I world_ref.py dump       FICHIER.mca          # résumé des chunks d'un fichier de région
-python -I world_ref.py check      FICHIER.mca          # contrôle des règles provisoires sur un fichier de l'oracle
+python -I world_ref.py check      FICHIER.mca [T_MIN T_MAX]   # contrôle des règles provisoires ; bornes Unix des horodatages (AR-R9)
 python -I world_ref.py debugcheck "$REF/generated/reports/blocks.json" DOSSIER_REGION   # PC2
 python -I world_ref.py probe-cmds "$REF/generated/reports/blocks.json" X Y Z            # commandes de PC3
 ```
@@ -41,7 +41,7 @@ Les sorties sont en anglais ; les tableaux ci-dessous les reprennent. Les octets
 | États par défaut par bloc | exactement 1 pour les 1286 blocs |
 | Blocs dont le défaut n'est pas le premier état | 746 |
 | Plus gros bloc | `note_block`, 1350 états |
-| Noms de propriété distincts / avec plusieurs listes de valeurs | 93 / 13 |
+| Noms de propriété distincts / avec plusieurs listes de valeurs | 93 / 13 (`age`, `axis`, `distance`, `east`, `facing`, `half`, `level`, `mode`, `north`, `shape`, `south`, `type`, `west`) |
 | Bits d'un identifiant global | 16 |
 
 ### BS2 : identifiants calculés (C, égaux à `blocks.json`)
@@ -173,7 +173,7 @@ Deux chunks complets construits par `world_ref.py` (racine `0a 00 00`, `DataVers
 - chunk A (-1, -1), index 1023, zlib : section -4 avec palette `[{id:"minecraft:air"}, {id:"minecraft:bedrock"}]` et `data` de PK4 (couche y = -64 en bedrock), autres sections `[{id:"minecraft:air"}]` sans `data`, heightmaps HM1. NBT : 5999 octets, SHA-256 `f9f9cdf5aa4c8084f9eef177ba5d5fe91f024241014bf2f7cedddc4947f9a6d6`.
 - chunk B (-32, -32), index 0, type 3 : tout en air, heightmaps à 0. NBT : 3915 octets, SHA-256 `f4f617ec08567f3e2ea2c3e97d5b5a0ff698e3bb8406cb0b9ab3d111605dbf02`.
 
-Fichier (variante `zlib`) : 16 384 octets (4 secteurs), SHA-256 `b7696ce4af6554e50540e51fda5d6dc631849187e29a888f4f862c5507fc5d88` avec la zlib de référence de l'outil (non normatif). Octets normatifs :
+Fichier (variante `zlib`) : 16 384 octets (4 secteurs), SHA-256 `b7696ce4af6554e50540e51fda5d6dc631849187e29a888f4f862c5507fc5d88` avec la zlib de référence de l'outil (non normatif). Octets fixés par AR-R5 à R10 pour ce contenu (sauf la dernière ligne, qui suit l'ordre des clés de l'outil) :
 
 | Position | Octets | Sens |
 |---|---|---|
@@ -188,34 +188,43 @@ Fichier (variante `zlib`) : 16 384 octets (4 secteurs), SHA-256 `b7696ce4af6554e
 
 Les octets après chaque enregistrement jusqu'à la fin de son secteur sont nuls.
 
+Ordre des clés : l'outil écrit la racine dans l'ordre `DataVersion`, `xPos`, `zPos`, `yPos`, `Status`, `LastUpdate`, `InhabitedTime`, `sections`, `Heightmaps`, `block_entities`, `block_ticks`, `fluid_ticks`, et chaque section dans l'ordre `Y`, `block_states`, `biomes`. Les empreintes SHA-256 ci-dessus dépendent de cet ordre, qui n'est **pas** une règle (`core-nbt.md` R28 et R30) : un lecteur accepte tout ordre, et les tests de l'écrivain comparent les arbres décodés, jamais les octets ni les empreintes. Les empreintes servent seulement à vérifier que deux exécutions de `world_ref.py` produisent les mêmes vecteurs.
+
 ### RG2 : variantes de compression du chunk A
 
-| Variante | Octets 4092 à 4095 | En-tête du chunk A | Taille du fichier | SHA-256 du fichier (non normatif sauf `none`, `lz4`, `external`) |
+| Variante | Octets 4092 à 4095 | En-tête du chunk A | Taille du fichier | SHA-256 du fichier (reproductibilité de l'outil ; `gzip` dépend aussi de la zlib locale) |
 |---|---|---|---|---|
 | `gzip` | `00 00 02 01` | `00 00 01 b9 01 1f 8b 08 ...` | 16 384 | `16adc8de54ba6366b7ba07f5f4dec4221cec0af676e43e438e8565601ef7c53c` |
 | `none` | `00 00 02 02` | `00 00 17 70 03 0a 00 00` (L = 6000, 2 secteurs) ; B passe au secteur 4 (`00 00 04 01`) | 20 480 | `14b4880b0d37205296cf21c6a5de9b38fa1284e57789a1d7fcab053169b42c2e` |
 | `lz4` | `00 00 02 02` | `00 00 17 9a 04 4c 5a 34 42 6c 6f 63 6b 16 ...` (L = 6042, un bloc brut de 5999 octets puis fin de flux) | 20 480 | `7715a9a5681862f8f0ed396b23864515c8219e6ba36042b03825e8b67cee14c8` |
 | `external` | `00 00 02 01` | `00 00 00 01 82` puis zéros ; `c.-1.-1.mcc` = flux zlib seul (428 octets) | 16 384 | `628d1cf50f57436921067f67ad3a6bb9e37b72793c8e812f58c450feb41e9100` |
 
-### RG3 : variantes altérées (sondes PB1, PB2, PR5)
+### RG3 : variantes altérées (sondes PB1, PB2, PR4, PR5)
 
-Même fichier que RG1 (zlib), chunk A modifié. `check` signale les deux dernières lignes ; les autres sont des fichiers valides au sens de l'enveloppe.
+Même fichier que RG1 (chunk A en zlib) avec une seule modification. `check` signale 9 variantes sur 14 (colonne "check") ; `unknown_block`, `bad_value`, `unknown_biome`, `string_palette` et `partial_props` sont des fichiers valides au sens de l'enveloppe et du conteneur, que seul un lecteur qui connaît les registres distingue. "Refusé" et "absent" sont définis dans `world-anvil-region.md`, partie Entrées / sorties.
 
-| Variante | Modification du chunk A | Lecture provisoire par notre moteur |
-|---|---|---|
-| `string_palette` | palette de la section -4 = List de String `["minecraft:air", "minecraft:bedrock"]` | bedrock à y = -64 (BS-R19) |
-| `partial_props` | 2e entrée `{id:"minecraft:oak_log"}` sans `properties` | `oak_log[axis=y]`, identifiant 140 (BS-R20) |
-| `unknown_block` | 2e entrée `{id:"probe:unknown"}` | air (BS-R21) |
-| `bad_value` | 2e entrée `{id:"minecraft:oak_log",properties:{axis:"w"}}` | `oak_log[axis=y]` (BS-R21) |
-| `bad_length` | `data` de la section -4 tronqué à 255 longs | chunk refusé (CF-R10) |
-| `wrong_pos` | `xPos` = -2 à l'index du chunk (-1, -1) | chunk absent (AR-R21) |
-| `bad_offset` | emplacement de l'index 1023 = `00 00 01 01` (dans l'en-tête) | chunk absent (AR-R20) |
+| Variante | Modification | NBT du chunk A (octets, SHA-256) | check | Lecture provisoire par notre moteur |
+|---|---|---|---|---|
+| `string_palette` | palette de blocs de la section -4 = List de String `["minecraft:air", "minecraft:bedrock"]` | 5987, `fb537acc2817cd6c205b899561c44b18cc64a20792af67ddc740a1bb1349637d` | rien | bedrock à y = -64 (BS-R19) |
+| `partial_props` | 2e entrée `{id:"minecraft:oak_log"}` sans `properties` | 5999, `e07511443902df5c6e98dbdfb8eba8a76f2315f0d815afd3196ad609f00e3f7c` | rien | `oak_log[axis=y]`, identifiant 140 (BS-R20) |
+| `unknown_block` | 2e entrée `{id:"probe:unknown"}` | 5995, `98a99f57c93b1efa351f36b2790dbe5259580b5048becde32f4cdd8b865a8b61` | rien | air (BS-R21) |
+| `bad_value` | 2e entrée `{id:"minecraft:oak_log",properties:{axis:"w"}}` | 6023, `c2c0ff9b72320ada5a92cb6c340c4d8bd3eaf4656b85c4dfbf95efd9aaffebc7` | rien | `oak_log[axis=y]` (BS-R21) |
+| `bad_length` | `data` de la section -4 tronqué à 255 longs | 5991, `ccfece2c6c7ba5bbdbe8b4869621a7c637ba8af6d63731fa5b6414f7af030cee` | `palette 2 data 255 expected 256` | refusé (CF-R10) |
+| `empty_palette` | palette de blocs de la section -4 vide (List de type End), pas de `data` | 3894, `e0cd53b0da596264d4e9bd0d8e982c8935a4806ace01ab08ab7a6fb346f3780b` | `palette is empty` | refusé (CF-R10) |
+| `index_overflow` | palette de 2 entrées, index 2 sur la couche y = -64 | 5999, `ba034c0d63b322cede34e9aa4f34c49fe5c701f92fc1c91646abee726a1f4ae2` | `index beyond palette` | refusé (CF-R10) |
+| `unknown_biome` | palette de biomes de la section -4 = `["probe:unknown_biome"]` | 6002, `af7f78cd7f9ebcf57f626f2f3b96349b09438c868561315b40a87e6a06f6e037` | rien | biome `minecraft:plains` (CF-R11) |
+| `missing_block_states` | section -4 sans `block_states` | 3863, `035a4da0ee88fc15cda8d4531795490bbdfb48aeca4eb7ea90638d06fcfe859b` | `has no block_states` | section -4 en air (CF-R22) |
+| `missing_biomes` | section -4 sans `biomes` | 5956, `4cc0f271d02c3b2a465db9dd22b7217b95c1b4c90654375b5168d424e72665ea` | `has no biomes` | biome `minecraft:plains` dans la section -4 (CF-R22) |
+| `wrong_pos` | `xPos` = -2 à l'index du chunk (-1, -1) | 5999, `b156292a64a3e4c13b37ed990ee6a9dffcf358cec52a6fe93d458554c4eed0ed` | `xPos/zPos -2,-1 do not match` | absent (AR-R21) |
+| `bad_offset` | emplacement de l'index 1023 = `00 00 01 01` (dans l'en-tête) | inchangé (RG1) | `invalid location (sector 1 ...)` | absent (AR-R20) |
+| `offset_beyond` | emplacement de l'index 1023 = `00 00 c8 01` (secteur 200, au-delà des 4 secteurs du fichier) | inchangé (RG1) | `invalid location (sector 200 ...)` | absent (AR-R20) |
+| `missing_mcc` | enregistrement externe `00 00 00 01 82` sans fichier `c.-1.-1.mcc` | inchangé (RG1) | `external chunk file c.-1.-1.mcc is missing` | refusé (AR-R18) |
 
 ## LZ1 : trame LZ4Block (`lz4`, D pour le format, C pour les octets)
 
 Contrôle de l'implémentation XXH32 (graine 0) : `""` -> `0x02cc5d05`, `"a"` -> `0x550d7456`, `"abc"` -> `0x32d153ff`.
 
-Données : `"minecraft"` répété 8 fois (72 octets). XXH32 graine `0x9747b28c` = `0x1f6103ad`, masqué sur 28 bits = `0x0f6103ad`. Bloc LZ4 fait à la main (une séquence de 9 littéraux et une copie de 58 octets à distance 9, puis 5 littéraux) : `9f 6d 69 6e 65 63 72 61 66 74 09 00 27 50 63 72 61 66 74` (19 octets). Flux complet (61 octets), somme masquée :
+Données : `"minecraft"` répété 8 fois (72 octets). XXH32 graine `0x9747b28c` = `0x1f6103ad`, masqué sur 28 bits (AR-R15) = `0x0f6103ad`. Bloc LZ4 fait à la main (une séquence de 9 littéraux et une copie de 58 octets à distance 9, puis 5 littéraux) : `9f 6d 69 6e 65 63 72 61 66 74 09 00 27 50 63 72 61 66 74` (19 octets). Flux complet (61 octets) :
 
 ```
 4c 5a 34 42 6c 6f 63 6b 26 13 00 00 00 48 00 00 00 ad 03 61 0f
@@ -225,20 +234,33 @@ Données : `"minecraft"` répété 8 fois (72 octets). XXH32 graine `0x9747b28c`
 
 Même données en bloc brut : en-tête `4c 5a 34 42 6c 6f 63 6b 16 48 00 00 00 48 00 00 00 ad 03 61 0f`, puis les 72 octets, puis la même fin de flux.
 
+Tests négatifs (le décodeur doit lever une erreur) : distance de copie 0 (`... 74 00 00 27 ...`) ; flux sans marque de fin ; marque de fin avec une somme non nulle ; somme de contrôle fausse. Le décodeur exige aussi une méthode `0x10` ou `0x20`, des longueurs positives, une longueur décompressée au plus égale à la taille de bloc du jeton, et des longueurs égales pour un bloc brut.
+
 ## Sondes de l'oracle
 
 Aucune n'a été exécutée (EULA non acceptée). Résultats attendus **provisoires** (S) tant que la sonde n'a pas tourné ; un écart corrige la règle citée et la fait passer à M.
 
-Préparation commune : serveur 26.3, monde neuf, RCON actif. `server.properties` : `online-mode=false`, `enable-rcon=true`, `level-seed=0`, `spawn-protection=0`, plus les clés de chaque sonde. Mondes utilisés : W-FLAT (`level-type=minecraft\:flat`, `generate-structures=false`), W-DEBUG (`level-type=minecraft\:debug_all_block_states`), W-NORMAL (`level-type=minecraft\:normal`). Les trois préréglages existent dans `worldgen/world_preset/` (D) ; l'acceptation de ces valeurs par `level-type` est S. Après chaque série de commandes : `save-all flush` puis `stop`. Dossier de région attendu : `world/dimensions/minecraft/overworld/region/` (AR-R1) ; s'il n'existe pas, relever le chemin réel.
+Préparation commune : serveur 26.3, monde neuf, RCON actif, aucun joueur connecté. `server.properties` : `online-mode=false`, `enable-rcon=true`, `level-seed=0`, `spawn-protection=0`, plus les clés de chaque sonde. Mondes utilisés : W-FLAT (`level-type=minecraft\:flat`, `generate-structures=false`), W-DEBUG (`level-type=minecraft\:debug_all_block_states`), W-NORMAL (`level-type=minecraft\:normal`). Les trois préréglages existent dans `worldgen/world_preset/` (D) ; l'acceptation de ces valeurs par `level-type` est S. Après chaque série de commandes : `save-all flush` puis `stop`. Dossier de région attendu : `world/dimensions/minecraft/overworld/region/` (AR-R1) ; s'il n'existe pas, relever le chemin réel.
 
-### PC1 : chunk réel d'un monde plat (CF-R4, R6 à R8, R16 à R20, R22 ; BS-R19 ; AR-R4 à R10, R24, R25)
+**Chargement des chunks (attente W).** Sans joueur, aucun chunk n'est garanti chargé : le registre `minecraft:ticket_type` (D) ne contient aucun ticket de spawn permanent (`dragon`, `ender_pearl`, `forced`, `player_loading`, `player_simulation`, `player_spawn`, `portal`, `spawn_search`, `unknown`), et une position non chargée fait échouer les commandes avec le message `argument.pos.unloaded` "That position is not loaded" (D, `en_us.json`). Toute sonde applique donc, après chaque `forceload add`, l'attente W avant le moindre `setblock`, `fill`, `fillbiome`, `summon` ou `execute if block` :
+
+1. `forceload query <x> <z>` pour un bloc de chaque chunk visé : réponse attendue "Chunk at ... is marked for force loading" (D, `en_us.json`) ;
+2. `execute if loaded <x> <y> <z>` pour un bloc de chaque chunk visé (condition présente dans `commands.json`, D ; sa sémantique "chunk entièrement chargé" est S), répété toutes les 100 ms jusqu'à "Test passed", 10 s au plus ;
+3. si la limite est atteinte, consigner "jamais chargé" pour ce chunk (c'est une observation, attendue pour un chunk refusé) et ne pas lancer les commandes qui le visent.
+
+Dans les blocs de commandes ci-dessous, `W(x, z)` désigne cette attente pour le chunk du bloc (x, z).
+
+### PC1 : chunk réel d'un monde plat (CF-R4, R6 à R8, R16 à R18, R20, R22 ; BS-R19 ; AR-R4 à R10, R24, R25)
+
+Noter `T0` = heure Unix (secondes) du poste avant le démarrage du serveur.
 
 ```
 forceload add -16 -16 15 15
+W(-16, -16)  W(0, -16)  W(-16, 0)  W(0, 0)
 save-all flush
 ```
 
-Puis `world_ref.py check` et `dump` sur `r.-1.-1.mca`, `r.0.-1.mca`, `r.-1.0.mca`, `r.0.0.mca`. Attendus : chunk (-1, -1) à l'index 1023 de `r.-1.-1.mca` ; type de compression 2 ; `DataVersion` 5023, `xPos` -1, `zPos` -1, `yPos` -4, `Status` `minecraft:full` ; 24 sections Y -4 à 19 ; section -4 : palette de 4 entrées {air, `bedrock`, `dirt`, `grass_block[snowy=false]`} dans un ordre quelconque, 4 bits, 256 longs, décodage : index 0 à 255 bedrock, 256 à 767 dirt, 768 à 1023 grass_block, reste air (préréglage `flat.json` : 1 bedrock, 2 dirt, 1 grass_block, D) ; sections -3 à 19 : palette d'une entrée air, sans `data` ; biomes : palette `["minecraft:plains"]` sans `data` ; heightmaps `WORLD_SURFACE`, `MOTION_BLOCKING`, `MOTION_BLOCKING_NO_LEAVES`, `OCEAN_FLOOR` égaux à HM3 (valeur 4) ; `SkyLight` de la section -4 : octets 0 à 511 nuls, 512 à 2047 à `0xff` ; `check` sans problème. Relever en plus : forme exacte des entrées de palette (Compound complet, propriétés élidées, List de String), présence de `isLightOn`, sections de lumière Y -5 et 20.
+Noter `T1` = heure Unix après la réponse de `save-all flush`. Puis `world_ref.py check FICHIER T0 T1` et `dump` sur `r.-1.-1.mca`, `r.0.-1.mca`, `r.-1.0.mca`, `r.0.0.mca`. Attendus : chunk (-1, -1) à l'index 1023 de `r.-1.-1.mca` ; type de compression 2 ; aucun horodatage hors de `[T0, T1]` (AR-R9) ; `DataVersion` 5023, `xPos` -1, `zPos` -1, `yPos` -4, `Status` `minecraft:full` ; 24 sections Y -4 à 19 ; section -4 : palette de 4 entrées {air, `bedrock`, `dirt`, `grass_block[snowy=false]`} dans un ordre quelconque, 4 bits, 256 longs, décodage : index 0 à 255 bedrock, 256 à 767 dirt, 768 à 1023 grass_block, reste air (préréglage `flat.json` : 1 bedrock, 2 dirt, 1 grass_block, D) ; sections -3 à 19 : palette d'une entrée air, sans `data` ; biomes : palette `["minecraft:plains"]` sans `data` ; heightmaps `WORLD_SURFACE`, `MOTION_BLOCKING`, `MOTION_BLOCKING_NO_LEAVES`, `OCEAN_FLOOR` égaux à HM3 (valeur 4) ; `SkyLight` de la section -4 : octets 0 à 511 nuls, 512 à 2047 à `0xff` ; `check` sans problème. Relever en plus : forme exacte des entrées de palette (Compound complet, propriétés élidées, List de String), présence de `isLightOn`, sections de lumière Y -5 et 20.
 
 ### PC2 : monde de débogage (BS-R5 à R7, R19 ; CF-R7)
 
@@ -249,14 +271,25 @@ forceload add 0 0 255 255
 forceload add 256 0 511 255
 forceload add 0 256 255 511
 forceload add 256 256 511 511
+W pour chaque chunk de (0, 0) à (31, 31)
 save-all flush
 ```
 
-Puis `world_ref.py debugcheck "$REF/generated/reports/blocks.json" <dossier region>`. Attendus : un niveau Y de grille (Y 70 selon le wiki, S) ; 35 722 états distincts sur la grille (tous sauf `air`) ; identifiants croissants le long des rangées lues par z puis x. Si le compte est inférieur, la grille dépasse la zone chargée : étendre `forceload` (y compris en coordonnées négatives) et relancer. Relever la forme des palettes (sortie `check`, ligne `block_states_palette_forms`).
+Puis `world_ref.py debugcheck "$REF/generated/reports/blocks.json" <dossier region>`. Attendus : un niveau Y de grille (Y 70 selon le wiki, S) ; 35 722 états distincts sur la grille (tous sauf `air`) ; identifiants croissants le long des rangées lues par z puis x. Si le compte est inférieur, la grille dépasse la zone chargée : étendre `forceload` (y compris en coordonnées négatives, au plus 256 chunks par commande, message `commands.forceload.toobig`) et relancer. Relever la forme des palettes (sortie `check`, ligne `block_states_palette_forms`).
 
 ### PC3 : grandes palettes (CF-R7 à R9)
 
-W-FLAT, puis les commandes produites par `world_ref.py probe-cmds "$REF/generated/reports/blocks.json" 0 0 0` (261 `setblock` d'états distincts sans mise à jour de voisinage : bûches, bois, laines, bétons, terres cuites, terres cuites émaillées, verres teintés, planches), et les 16 premières seulement avec `probe-cmds ... 0 16 0` (tronquer la sortie à 16 lignes). Attendus pour le chunk (0, 0) : section 0, palette de 262 entrées (261 états + air), 9 bits, 586 longs ; section 1, palette de 17 entrées, 5 bits, 342 longs ; état décodé à la position `k` = `k`-ième commande.
+W-FLAT :
+
+```
+forceload add 0 0
+W(0, 0)
+<les 261 lignes de : world_ref.py probe-cmds "$REF/generated/reports/blocks.json" 0 0 0>
+<les 16 premières lignes de : world_ref.py probe-cmds "$REF/generated/reports/blocks.json" 0 16 0>
+save-all flush
+```
+
+Les commandes posent des bûches, bois, laines, bétons, terres cuites, terres cuites émaillées, verres teintés et planches, blocs qui ne changent pas d'état selon leurs voisins, avec le mode `strict` de `setblock` (présent dans `commands.json` 26.3, D ; sa sémantique "pose sans mise à jour de voisinage" est S, et le choix de ces blocs rend la sonde valable même si `strict` se comportait comme `replace`). Chaque commande doit répondre "Changed the block at ..." (D, `en_us.json`). Attendus pour le chunk (0, 0) : section 0, palette de 262 entrées (261 états + air), 9 bits, 586 longs ; section 1, palette de 17 entrées, 5 bits, 342 longs ; état décodé à la position `k` = `k`-ième commande.
 
 ### PC4 : biomes (CF-R5, R7, R11)
 
@@ -264,6 +297,7 @@ W-FLAT :
 
 ```
 forceload add 0 0
+W(0, 0)
 fillbiome 0 0 0 7 15 15 minecraft:desert
 save-all flush
 ```
@@ -276,6 +310,7 @@ W-FLAT :
 
 ```
 forceload add 0 0
+W(0, 0)
 setblock 8 0 8 minecraft:glowstone
 save-all flush
 ```
@@ -288,40 +323,57 @@ W-NORMAL, `generate-structures=true` :
 
 ```
 forceload add 0 0
+W(0, 0)
 save-all flush
 ```
 
-Puis `world_ref.py check` sur les quatre fichiers autour de l'origine. Attendus : toutes les valeurs de `Status` dans la liste de CF-R27 ; chunks `minecraft:full` et proto-chunks à divers statuts ; pour chaque statut, relever les clés de la racine, des sections, des heightmaps, des structures (`References` ou `references`), le nombre de listes de `PostProcessing` (24 attendu), les clés des entrées de ticks et de block entities. Ces relevés remplacent les listes provisoires de CF-R19 à R21.
+Puis `world_ref.py check` sur les quatre fichiers autour de l'origine (et, si aucun chunk n'a de `PostProcessing` ou de références, sur les fichiers d'une zone plus grande chargée de la même façon, par exemple `forceload add -256 -256 -1 -1`). Attendus :
 
-### PB1 et PB2 : lecture de chunks altérés par le serveur (BS-R19 à R21 ; CF-R10)
+- toutes les valeurs de `Status` dans la liste de CF-R27 ; chunks `minecraft:full` et proto-chunks à divers statuts ; pour chaque statut, clés de la racine, des sections, des heightmaps (CF-R19), des structures, nombre de listes de `PostProcessing` (24) et clés des entrées de ticks et de block entities ;
+- `PostProcessing` (CF-R24) : la ligne `postprocessing as x|z<<4|y<<8` compte, pour chaque Short décodé avec le codage provisoire, le bloc désigné ; attendu : une majorité de blocs non air (fluides et blocs qui dépendent de leurs voisins, d'après le wiki), nettement plus que la ligne `postprocessing as y|z<<4|x<<8` (codage inversé) ; si c'est l'inverse, CF-R24 est fausse ;
+- références (CF-R25, ST1) : la ligne `references decoded as x low` doit montrer une distance maximale de quelques chunks (provisoire : 16 au plus) et, pour les cibles situées dans le même fichier, autant de départs correspondants (`starts` du chunk ciblé avec le même identifiant de structure) que de cibles ; la ligne `x high` sert de contre-épreuve et doit en trouver moins. Relever aussi le nom exact de la clé (`References` ou `references`).
 
-Pour chaque variante de RG3 (`string_palette`, `partial_props`, `unknown_block`, `bad_value`, `bad_length`) : copie d'un monde W-FLAT après PC1, serveur arrêté ; remplacer `r.-1.-1.mca` par le fichier de la variante ; démarrer ; RCON :
+### PB1 : entrées de palette altérées (BS-R19 à R21)
+
+Variantes `string_palette`, `partial_props`, `unknown_block`, `bad_value` de RG3. Pour chacune : copie d'un monde W-FLAT après PC1, serveur arrêté ; remplacer `r.-1.-1.mca` par le fichier de la variante ; démarrer ; RCON :
 
 ```
 forceload add -16 -16
+W(-16, -16)
 execute if block -16 -64 -16 minecraft:bedrock
 execute if block -16 -64 -16 minecraft:oak_log[axis=y]
 execute if block -16 -64 -16 minecraft:air
 execute if block -16 -63 -16 minecraft:dirt
 ```
 
-La dernière ligne distingue notre chunk (air à y = -63) d'un chunk régénéré (dirt). Attendus provisoires : `string_palette` -> bedrock ; `partial_props` et `bad_value` -> `oak_log[axis=y]` ; `unknown_block` -> air ; `bad_length` -> notre moteur refuse le chunk, relever le comportement du serveur (chunk régénéré, section vide ou autre) et le journal. Puis `save-all flush` et `dump` : relever la forme réécrite par le serveur.
+La dernière ligne distingue notre chunk (air à y = -63) d'un chunk régénéré (dirt). Attendus provisoires : `string_palette` -> bedrock ; `partial_props` et `bad_value` -> `oak_log[axis=y]` ; `unknown_block` -> air. Puis `save-all flush` et `dump` : relever la forme réécrite par le serveur.
 
-### PR1 : arborescence et fichiers auxiliaires (AR-R1, R2, R22, R23)
+### PB2 : conteneurs et sections altérés (CF-R10, R11, R22)
+
+Variantes `bad_length`, `empty_palette`, `index_overflow`, `unknown_biome`, `missing_block_states`, `missing_biomes` de RG3, même procédure que PB1, avec en plus :
+
+```
+execute if biome -16 -64 -16 minecraft:plains
+```
+
+Attendus provisoires (comportement de notre moteur) : `bad_length`, `empty_palette`, `index_overflow` -> chunk refusé, donc l'attente W expire ("jamais chargé") ; `unknown_biome` et `missing_biomes` -> bedrock à y = -64 et biome `plains` ; `missing_block_states` -> air à y = -64, pas de dirt à y = -63. Relever le comportement réel du serveur (chunk régénéré, section vidée, chunk non chargé, arrêt du serveur), son journal, puis, après `save-all flush`, ce qu'il a réécrit dans `r.-1.-1.mca`.
+
+### PR1 : arborescence et fichiers auxiliaires (AR-R1, R2, R9, R22, R23)
 
 W-FLAT après PC1, en plus :
 
 ```
+W(0, 0)
 summon minecraft:armor_stand 0 -60 0
 setblock 1 -60 1 minecraft:composter
 save-all flush
 ```
 
-Attendus : `world/level.dat`, `world/session.lock` (octets `e2 98 83`), `world/dimensions/minecraft/overworld/{region,entities,poi,data}`, `world/players/`, aucun `world/region/` ni `DIM-1`. Fichiers de région de taille multiple de 4096. `entities/r.0.0.mca` index 0 : `DataVersion` 5023, `Position` `[0, 0]`, `Entities` avec un Compound d'id `minecraft:armor_stand`. `poi/r.0.0.mca` index 0 : `Sections` avec une clé `"-4"`, `Records` contenant `pos` `[1, -60, 1]` et un `type` de point d'intérêt (registre `minecraft:point_of_interest_type`, 21 entrées).
+Attendus : `world/level.dat`, `world/session.lock` (octets `e2 98 83`), `world/dimensions/minecraft/overworld/{region,entities,poi,data}`, `world/players/`, aucun `world/region/` ni `DIM-1`. Fichiers de région de taille multiple de 4096. `entities/r.0.0.mca` index 0 : `DataVersion` 5023, `Position` `[0, 0]`, `Entities` avec un Compound d'id `minecraft:armor_stand`. `poi/r.0.0.mca` index 0 : `Sections` avec une clé `"-4"`, `Records` contenant `pos` `[1, -60, 1]` et un `type` de point d'intérêt (registre `minecraft:point_of_interest_type`, 21 entrées). Horodatages (AR-R9) : `check` avec les bornes `T0` (avant le démarrage du serveur de PR1) et `T1` (après `save-all flush`) sur `region/r.0.0.mca` et `entities/r.0.0.mca` (seules les lignes `timestamps` comptent pour ce dernier, qui n'a pas de `xPos`) ; attendu : l'horodatage de l'index 0 est dans `[T0, T1]` et supérieur à celui relevé dans PC1 pour le même chunk (il a été réécrit).
 
 ### PR2 : types de compression (AR-R13 à R16)
 
-W-FLAT neuf avec `region-file-compression=lz4`, puis `forceload add 0 0` et `save-all flush`. Attendus : octet de type 4 ; données commençant par `4c 5a 34 42 6c 6f 63 6b` ; jeton `0x26` ou `0x16` (blocs de 65 536 octets) ; `world_ref.py dump` décode sans erreur avec la somme masquée (si l'erreur `bad LZ4Block checksum` apparaît, comparer avec la somme non masquée). Même chose avec `region-file-compression=none` (type 3) et sans la clé (type 2).
+W-FLAT neuf avec `region-file-compression=lz4`, puis `forceload add 0 0`, `W(0, 0)` et `save-all flush`. Attendus : octet de type 4 ; données commençant par `4c 5a 34 42 6c 6f 63 6b` ; jeton `0x26` ou `0x16` (blocs de 65 536 octets) ; `world_ref.py dump` décode sans erreur avec la somme masquée de AR-R15. Même chose avec `region-file-compression=none` (type 3) et sans la clé (type 2).
 
 ### PR3 : relecture de nos fichiers (AR-R4 à R11, R17 ; CF-R20, R22)
 
@@ -329,10 +381,12 @@ Pour chaque variante de RG1 et RG2 (`zlib`, `gzip`, `none`, `lz4`, `external` ; 
 
 ```
 forceload add -16 -16
+W(-16, -16)
 execute if block -16 -64 -16 minecraft:bedrock
 execute if block -1 -64 -1 minecraft:bedrock
 execute if block -16 -63 -16 minecraft:air
 forceload add -512 -512
+W(-512, -512)
 execute if block -512 -64 -512 minecraft:air
 ```
 
@@ -344,15 +398,16 @@ W-FLAT neuf avec `region-file-compression=none` :
 
 ```
 forceload add 0 0
+W(0, 0)
 fill 0 0 0 15 7 15 minecraft:command_block{Command:"say <chaîne de 1000 caractères a>"}
 save-all flush
 ```
 
-2048 blocs de commande d'environ 1 Kio chacun dépassent 1 044 475 octets. Attendus : enregistrement de l'index 0 de `r.0.0.mca` = `00 00 00 01 83` ; fichier `c.0.0.mcc` dans le même dossier, commençant par `0a 00 00` (NBT brut, sans en-tête). Puis `fill 0 0 0 15 7 15 minecraft:air`, `save-all flush` : relever si `c.0.0.mcc` est supprimé (AR-R18).
+2048 blocs de commande d'environ 1 Kio chacun dépassent 1 044 475 octets. Attendus : enregistrement de l'index 0 de `r.0.0.mca` = `00 00 00 01 83` ; fichier `c.0.0.mcc` dans le même dossier, commençant par `0a 00 00` (NBT brut, sans en-tête). Puis `fill 0 0 0 15 7 15 minecraft:air`, `save-all flush` : relever si `c.0.0.mcc` est supprimé (AR-R18). Enfin, serveur arrêté, supprimer `c.0.0.mcc` d'une copie du monde de la première étape, redémarrer, `forceload add 0 0` et `W(0, 0)` : relever le comportement (notre moteur : chunk refusé, l'attente expire). La variante `missing_mcc` de RG3 donne le même cas pour le chunk (-1, -1), procédure de PB1.
 
 ### PR5 : emplacements invalides (AR-R20, R21)
 
-Variantes `wrong_pos` et `bad_offset` de RG3, même procédure que PB1. Attendus provisoires (notre moteur) : chunk absent, donc régénéré : `execute if block -16 -63 -16 minecraft:dirt` réussit. Relever le comportement réel et le journal du serveur.
+Variantes `wrong_pos`, `bad_offset` et `offset_beyond` de RG3, même procédure que PB1. Attendus provisoires (notre moteur) : chunk absent, donc régénéré : `execute if block -16 -63 -16 minecraft:dirt` réussit. Relever le comportement réel et le journal du serveur.
 
 ## Annexe : `world_ref.py`
 
@@ -440,7 +495,7 @@ def cmd_states(blocks_path, registries_path):
     print('largest_block', max_block)
     print('distinct_property_names', len(prop_names))
     multi = {k: v for k, v in prop_names.items() if len(v) > 1}
-    print('property_names_with_several_value_lists', len(multi), sorted(multi)[:12])
+    print('property_names_with_several_value_lists', len(multi), sorted(multi))
     bits = (total - 1).bit_length()
     print('global_palette_bits ceil(log2(states))', bits)
     for n in ['minecraft:air', 'minecraft:stone', 'minecraft:cave_air', 'minecraft:void_air', 'minecraft:water',
@@ -709,12 +764,18 @@ def cmd_light():
 
 # ---------- region ----------
 
-def section(y, palette_items, data=None):
-    bs = [('palette', T(9, palette_items, 10 if palette_items and palette_items[0].t == 10 else 8))]
+def section(y, palette_items, data=None, biome='minecraft:plains', with_blocks=True, with_biomes=True):
+    """Section compound; keys in the order Y, block_states, biomes (an observed order, not a rule)."""
+    et = 0 if not palette_items else (10 if palette_items[0].t == 10 else 8)
+    bs = [('palette', T(9, palette_items, et))]
     if data is not None:
         bs.append(('data', T(12, data)))
-    return T(10, [('Y', T(1, y)), ('block_states', T(10, bs)),
-                  ('biomes', T(10, [('palette', T(9, [T(8, 'minecraft:plains')], 8))]))])
+    items = [('Y', T(1, y))]
+    if with_blocks:
+        items.append(('block_states', T(10, bs)))
+    if with_biomes:
+        items.append(('biomes', T(10, [('palette', T(9, [T(8, biome)], 8))])))
+    return T(10, items)
 
 
 BOTTOM_ENTRIES = {
@@ -732,14 +793,19 @@ def chunk_nbt(cx, cz, with_bedrock, variant='bedrock'):
     secs = []
     for sy in range(-4, 20):
         if sy == -4 and with_bedrock:
-            data = pack([1 if i < 256 else 0 for i in range(4096)], 4)
+            data = pack([(2 if variant == 'index_overflow' else 1) if i < 256 else 0 for i in range(4096)], 4)
             if variant == 'bad_length':
                 data = data[:255]
             if variant == 'string_palette':
                 items = [T(8, 'minecraft:air'), T(8, 'minecraft:bedrock')]
+            elif variant == 'empty_palette':
+                items, data = [], None
             else:
                 items = [air, BOTTOM_ENTRIES.get(variant, BOTTOM_ENTRIES['bedrock'])]
-            secs.append(section(sy, items, data))
+            secs.append(section(sy, items, data,
+                                biome='probe:unknown_biome' if variant == 'unknown_biome' else 'minecraft:plains',
+                                with_blocks=variant != 'missing_block_states',
+                                with_biomes=variant != 'missing_biomes'))
         else:
             secs.append(section(sy, [air]))
     hm = pack([1 if with_bedrock else 0] * 256, 9)
@@ -770,21 +836,28 @@ def encode_chunk(nbt, kind):
 
 
 COMPRESSIONS = ('zlib', 'gzip', 'none', 'lz4', 'external')
-NBT_VARIANTS = ('string_palette', 'partial_props', 'unknown_block', 'bad_value', 'bad_length', 'wrong_pos')
+NBT_VARIANTS = ('string_palette', 'partial_props', 'unknown_block', 'bad_value', 'bad_length', 'wrong_pos',
+                'unknown_biome', 'missing_block_states', 'missing_biomes', 'empty_palette', 'index_overflow')
 
 
 def cmd_region(out_dir, kind='zlib'):
     """Synthetic r.-1.-1.mca: chunk (-1,-1) at index 1023, chunk (-32,-32) uncompressed at index 0.
 
     kind: a compression of chunk (-1,-1) (COMPRESSIONS), an altered chunk (-1,-1) stored with zlib
-    (NBT_VARIANTS), or 'bad_offset' (location of chunk (-1,-1) points into the header)."""
+    (NBT_VARIANTS), 'missing_mcc' (external record without its .mcc file), 'bad_offset' (location of
+    chunk (-1,-1) points into the header) or 'offset_beyond' (location points past the end of the file).
+
+    Key order of the compounds is fixed by this builder (root: DataVersion, xPos, zPos, yPos, Status,
+    LastUpdate, InhabitedTime, sections, Heightmaps, block_entities, block_ticks, fluid_ticks; section:
+    Y, block_states, biomes). It is not a rule: writer tests compare decoded trees, not bytes."""
     os.makedirs(out_dir, exist_ok=True)
     variant = kind if kind in NBT_VARIANTS else 'bedrock'
     a = chunk_nbt(-2 if kind == 'wrong_pos' else -1, -1, True, variant)
     b = chunk_nbt(-32, -32, False)
-    if kind == 'external':
+    if kind in ('external', 'missing_mcc'):
         ta, pa = encode_chunk(a, 'zlib')
-        open(os.path.join(out_dir, 'c.-1.-1.mcc'), 'wb').write(pa)
+        if kind == 'external':
+            open(os.path.join(out_dir, 'c.-1.-1.mcc'), 'wb').write(pa)
         ta, pa = ta + 128, b''
     else:
         ta, pa = encode_chunk(a, kind if kind in COMPRESSIONS else 'zlib')
@@ -798,7 +871,7 @@ def cmd_region(out_dir, kind='zlib'):
         rec = struct.pack('>i', len(payload) + 1) + bytes([ctype]) + payload
         nsec = -(-len(rec) // 4096)
         rec += b'\x00' * (nsec * 4096 - len(rec))
-        loc_sector = 1 if (kind == 'bad_offset' and idx == 1023) else sector
+        loc_sector = {'bad_offset': 1, 'offset_beyond': 200}.get(kind, sector) if idx == 1023 else sector
         struct.pack_into('>I', header, 4 * idx, (loc_sector << 8) | nsec)
         struct.pack_into('>I', header, 4096 + 4 * idx, ts)
         layout.append((idx, sector, nsec, len(payload) + 1, ctype))
@@ -871,12 +944,18 @@ def lz4_block_decompress(src, out_len):
                 lit += b
                 if b != 255:
                     break
+        if i + lit > len(src):
+            raise ValueError('lz4 literals overrun the input')
         out += src[i:i + lit]
         i += lit
         if i >= len(src):
             break
+        if i + 2 > len(src):
+            raise ValueError('lz4 truncated match offset')
         off = src[i] | (src[i + 1] << 8)
         i += 2
+        if off == 0 or off > len(out):
+            raise ValueError('lz4 invalid match offset %d' % off)
         ml = token & 15
         if ml == 15:
             while True:
@@ -886,6 +965,8 @@ def lz4_block_decompress(src, out_len):
                 if b != 255:
                     break
         ml += 4
+        if len(out) + ml > out_len:
+            raise ValueError('lz4 match overruns the declared length')
         for _ in range(ml):
             out.append(out[-off])
     if len(out) != out_len:
@@ -898,19 +979,31 @@ LZ4_SEED = 0x9747B28C
 
 
 def lz4block_decode(data):
+    """Decode a whole lz4-java block stream; the stream must end with the end mark (zero lengths and checksum)."""
     out = bytearray()
     p = 0
     while True:
+        if p + 21 > len(data):
+            raise ValueError('LZ4Block stream truncated before its end mark at %d' % p)
         if data[p:p + 8] != LZ4_MAGIC:
             raise ValueError('bad LZ4Block magic at %d' % p)
         token = data[p + 8]
+        method, level = token & 0xF0, token & 0x0F
         clen, dlen, chk = struct.unpack_from('<iii', data, p + 9)
         p += 21
+        if method not in (0x10, 0x20):
+            raise ValueError('bad LZ4Block method 0x%02x' % method)
+        if clen < 0 or dlen < 0 or dlen > 1 << (level + 10) or (method == 0x10 and clen != dlen):
+            raise ValueError('bad LZ4Block lengths %d/%d' % (clen, dlen))
         if dlen == 0:
+            if clen != 0 or chk != 0 or method != 0x10:
+                raise ValueError('bad LZ4Block end mark')
             return bytes(out), p
+        if p + clen > len(data):
+            raise ValueError('LZ4Block payload truncated')
         payload = data[p:p + clen]
         p += clen
-        blk = payload if token & 0xF0 == 0x10 else lz4_block_decompress(payload, dlen)
+        blk = payload if method == 0x10 else lz4_block_decompress(payload, dlen)
         if (xxh32(blk, LZ4_SEED) & 0x0FFFFFFF) != (chk & 0x0FFFFFFF):
             raise ValueError('bad LZ4Block checksum')
         out += blk
@@ -939,6 +1032,18 @@ def cmd_lz4():
     print('Z2 RAW stream', len(raw), 'bytes, header:', raw[:21].hex(' '))
     assert lz4block_decode(stream)[0] == plain and lz4block_decode(raw)[0] == plain
     print('decode round trip ok')
+    bad = {
+        'match offset 0': lz4block_frame(0x20, 6, comp[:10] + b'\x00\x00' + comp[12:], plain) + lz4block_end(6),
+        'no end mark': lz4block_frame(0x20, 6, comp, plain),
+        'end mark with checksum': lz4block_frame(0x20, 6, comp, plain) + lz4block_end(6)[:17] + b'\x01\x00\x00\x00',
+        'wrong checksum': stream[:17] + b'\x00\x00\x00\x00' + stream[21:],
+    }
+    for label, s in bad.items():
+        try:
+            lz4block_decode(s)
+            print('negative test', label, 'NOT rejected')
+        except ValueError as e:
+            print('negative test', label, 'rejected:', e)
 
 
 # ---------- region reading and oracle checks ----------
@@ -953,18 +1058,23 @@ def read_chunks(path):
             continue
         off, cnt = loc >> 8, loc & 0xFF
         ts = struct.unpack_from('>I', data, 4096 + 4 * i)[0]
-        ln = struct.unpack_from('>i', data, off * 4096)[0]
-        ct = data[off * 4096 + 4]
-        raw = data[off * 4096 + 5: off * 4096 + 4 + ln]
-        ext = ct >= 128
-        if ext:
-            rx, rz = [int(t) for t in base.split('.')[1:3]]
-            cx, cz = rx * 32 + (i & 31), rz * 32 + (i >> 5)
-            raw = open(os.path.join(os.path.dirname(path), 'c.%d.%d.mcc' % (cx, cz)), 'rb').read()
-        kind = ct & 0x7F
+        ln, ct = None, None
         try:
-            if off < 2 or ln <= 0 or ln + 4 > cnt * 4096:
-                raise ValueError('invalid location or length')
+            if off < 2 or cnt == 0 or (off + cnt) * 4096 > len(data):
+                raise ValueError('invalid location (sector %d, count %d, file %d bytes)' % (off, cnt, len(data)))
+            ln = struct.unpack_from('>i', data, off * 4096)[0]
+            ct = data[off * 4096 + 4]
+            if ln <= 0 or ln + 4 > cnt * 4096:
+                raise ValueError('invalid length %d for %d sectors' % (ln, cnt))
+            raw = data[off * 4096 + 5: off * 4096 + 4 + ln]
+            kind = ct & 0x7F
+            if ct >= 128:
+                rx, rz = [int(t) for t in base.split('.')[1:3]]
+                cx, cz = rx * 32 + (i & 31), rz * 32 + (i >> 5)
+                mcc = os.path.join(os.path.dirname(path), 'c.%d.%d.mcc' % (cx, cz))
+                if not os.path.exists(mcc):
+                    raise ValueError('external chunk file %s is missing' % os.path.basename(mcc))
+                raw = open(mcc, 'rb').read()
             if kind == 1:
                 nbt = gzip.decompress(raw)
             elif kind == 2:
@@ -992,12 +1102,91 @@ def cmd_dump(path):
               'type', ct, 'xPos', v.get('xPos'), 'zPos', v.get('zPos'), 'keys', list(v))
 
 
-def cmd_check(path):
-    """Compare a region file written by the oracle with the provisional rules (probes PC1 to PC6)."""
+def palette_name(e):
+    return e if isinstance(e, str) else e.get('id', e.get('Name'))
+
+
+def block_name_at(v, sy, index):
+    """Palette name of the block at a section-local index, or None if the section cannot be decoded."""
+    for s in v.get('sections', ('L', 10, []))[2]:
+        if s.get('Y') != sy or 'block_states' not in s:
+            continue
+        pal = s['block_states']['palette'][2]
+        n = len(pal)
+        if n == 1:
+            return palette_name(pal[0])
+        bits = max(4, (n - 1).bit_length())
+        if n == 0 or 'data' not in s['block_states'] or len(s['block_states']['data'][2]) != n_longs(4096, bits):
+            return None
+        p = unpack(s['block_states']['data'][2], bits, 4096)[index]
+        return palette_name(pal[p]) if p < n else None
+    return None
+
+
+def postprocessing_report(chunks):
+    """Probe PC6 for CF-R24: decode every PostProcessing short with the provisional packing and with the
+    swapped one (y in the low bits), and count which blocks they designate."""
+    tally = {'x|z<<4|y<<8': {}, 'y|z<<4|x<<8': {}}
+    for _, _, _, _, _, _, v in chunks:
+        if not isinstance(v, dict) or 'PostProcessing' not in v:
+            continue
+        for k, lst in enumerate(v['PostProcessing'][2]):
+            sy = v.get('yPos', -4) + k
+            for sh in lst[2]:
+                sh &= 0xFFFF
+                lx, lz, ly = sh & 15, (sh >> 4) & 15, (sh >> 8) & 15
+                for label, idx in (('x|z<<4|y<<8', (ly << 8) | (lz << 4) | lx),
+                                   ('y|z<<4|x<<8', (lx << 8) | (lz << 4) | ly)):
+                    name = block_name_at(v, sy, idx)
+                    tally[label][name] = tally[label].get(name, 0) + 1
+    for label, t in tally.items():
+        print('postprocessing as', label, sorted(t.items(), key=lambda kv: -kv[1])[:8])
+
+
+def references_report(path, chunks):
+    """Probe PC6 for CF-R25: decode reference longs (x low 32 bits) and look for the matching start."""
+    starts = {}
+    refs = []
+    for _, _, _, _, _, _, v in chunks:
+        if not isinstance(v, dict):
+            continue
+        st = v.get('structures', {})
+        for sid, start in st.get('starts', {}).items():
+            if isinstance(start, dict) and start.get('id') != 'INVALID':
+                starts[(v['xPos'], v['zPos'], sid)] = True
+        for key in ('References', 'references'):
+            for sid, arr in st.get(key, {}).items():
+                for lv in (arr[2] if isinstance(arr, tuple) else []):
+                    refs.append((v['xPos'], v['zPos'], sid, lv))
+    rx, rz = [int(t) for t in os.path.basename(path).split('.')[1:3]]
+    for label, dec in (('x low', lambda l: (((l & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000, l >> 32)),
+                       ('x high', lambda l: (l >> 32, ((l & 0xFFFFFFFF) ^ 0x80000000) - 0x80000000))):
+        found = inside = 0
+        dist = 0
+        for x, z, sid, lv in refs:
+            cx, cz = dec(lv)
+            dist = max(dist, abs(cx - x), abs(cz - z))
+            if cx >> 5 == rx and cz >> 5 == rz:
+                inside += 1
+                found += (cx, cz, sid) in starts
+        print('references decoded as', label, 'count', len(refs), 'max chunk distance', dist,
+              'target in this file', inside, 'with a matching start', found)
+
+
+def cmd_check(path, t_min=None, t_max=None):
+    """Compare a region file written by the oracle with the provisional rules (probes PC1 to PC6, PR1).
+
+    Optional t_min and t_max (Unix seconds) bound the expected chunk timestamps (AR-R9)."""
     data, chunks = read_chunks(path)
     problems = []
     keysets = {}
     inventory = {}
+    stamps = [c[3] for c in chunks]
+    if stamps:
+        print('timestamps min', min(stamps), 'max', max(stamps))
+        if t_min is not None:
+            out = [s for s in stamps if not int(t_min) <= s <= int(t_max)]
+            print('timestamps outside [%s, %s]:' % (t_min, t_max), len(out))
     for i, off, cnt, ts, ln, ct, v in chunks:
         if isinstance(v, str):
             problems.append((i, v))
@@ -1026,8 +1215,14 @@ def cmd_check(path):
             for key, minbits, count in (('block_states', 4, 4096), ('biomes', 0, 64)):
                 c = s.get(key)
                 if c is None:
+                    # Overworld height assumed: 24 sections from yPos (CF-R2).
+                    if v.get('yPos', -4) <= s.get('Y', 0) < v.get('yPos', -4) + 24:
+                        problems.append((i, 'section %s has no %s' % (s.get('Y'), key)))
                     continue
                 n = len(c['palette'][2])
+                if n == 0:
+                    problems.append((i, 'section %s %s palette is empty' % (s.get('Y'), key)))
+                    continue
                 bits = 0 if n <= 1 else max(minbits, (n - 1).bit_length())
                 got = len(c['data'][2]) if 'data' in c else 0
                 if got != n_longs(count, bits):
@@ -1043,6 +1238,8 @@ def cmd_check(path):
         print(len(idx), 'chunks with root keys', list(k))
     for st, inv in inventory.items():
         print('status', st, {k: sorted(x) if isinstance(x, set) else x for k, x in inv.items()})
+    postprocessing_report(chunks)
+    references_report(path, chunks)
     print('problems', len(problems), problems[:20])
 
 
@@ -1066,9 +1263,11 @@ def decoded_states(v, blocks):
                 props.update(e['properties'])
             ids.append(by_props[(name, tuple(sorted(props.items())))])
         n = len(ids)
+        if n == 0 or (n > 1 and len(bs.get('data', ('A', 12, []))[2]) != n_longs(4096, max(4, (n - 1).bit_length()))):
+            continue
         vals = unpack(bs['data'][2], max(4, (n - 1).bit_length()), 4096) if n > 1 else [0] * 4096
         for i, p in enumerate(vals):
-            if ids[p] != 0:
+            if p < n and ids[p] != 0:
                 yield ((cx << 4) | (i & 15), (s['Y'] << 4) | (i >> 8), (cz << 4) | ((i >> 4) & 15)), ids[p]
 
 
@@ -1085,6 +1284,9 @@ def cmd_debugcheck(blocks_path, region_dir):
     per_y = {}
     for p, s in found.items():
         per_y.setdefault(p[1], set()).add(s)
+    if not per_y:
+        print('no decodable non-air block in', region_dir)
+        return
     grid_y = max(per_y, key=lambda y: len(per_y[y]))
     grid = {p: s for p, s in found.items() if p[1] == grid_y}
     order = [grid[p] for p in sorted(grid, key=lambda p: (p[2], p[0]))]
@@ -1096,7 +1298,8 @@ def cmd_debugcheck(blocks_path, region_dir):
 
 
 def cmd_probe_cmds(blocks_path, x0, y0, z0):
-    """Commands placing >= 257 distinct states without neighbour updates into one section (probe PC3)."""
+    """Commands placing >= 257 distinct states into one section (probe PC3), with the `strict` mode of
+    setblock, from blocks that do not react to their neighbours."""
     blocks = json.load(open(blocks_path, encoding='utf-8'))
     names = [n for n in blocks if n.endswith(('_glazed_terracotta', '_wool', '_concrete', '_stained_glass', '_planks'))
              or (n.endswith('_terracotta') and 'glazed' not in n) or n.endswith(('_log', '_wood'))]
@@ -1108,7 +1311,7 @@ def cmd_probe_cmds(blocks_path, x0, y0, z0):
     x0, y0, z0 = int(x0), int(y0), int(z0)
     print('# distinct states', len(states))
     for k, st in enumerate(states[:16 * 16 * 16]):
-        print('setblock %d %d %d %s' % (x0 + (k & 15), y0 + (k >> 8), z0 + ((k >> 4) & 15), st))
+        print('setblock %d %d %d %s strict' % (x0 + (k & 15), y0 + (k >> 8), z0 + ((k >> 4) & 15), st))
 
 
 if __name__ == '__main__':

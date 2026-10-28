@@ -8,7 +8,7 @@ Les conditions de butin (état de bloc, position, propriétés d'entité) et les
 
 ## Décision
 
-- `item` ne contient que objets, composants, inventaires et recettes (données et règles sans monde).
+- `item` ne contient que objets, composants, inventaires et recettes (données et règles sans monde). Cette liste est élargie par l'amendement 1 : algorithmes purs de clic de menu et de reconnaissance de recettes, références aux fournisseurs et prédicats.
 - Nouveau module `engine/loot` : tables de butin, prédicats, fournisseurs de nombres et évaluation des valeurs d'enchantements. Il dépend directement de `world` et `item` (donc de `core` et `data` par transitivité).
 - Les effets de statut vivent dans `entity`.
 - Les actions d'enchantement à effet de bord (remplacer un bloc, invoquer, exploser) sont exécutées par `game` ou `entity` via des ports : `loot` déclare de petites interfaces de lecture et d'action (`EntityView`, `ActionSink`), `entity` et `game` les implémentent et appellent `loot`. Aucune dépendance de `loot` vers `entity`.
@@ -27,7 +27,7 @@ Graphe résultant : `loot -> world, item` ; `entity -> world, item, loot` ; `gam
 
 ## Amendement 1 : propriété précisée par les specs du jalon M6
 
-Les specs `item-components-inventory.md` (« Propriétaires de modules »), `item-recipes.md` (DC1), `loot-tables.md` (R16, R17, R50) et `item-enchantments.md` (« Propriétaires de modules ») ont tranché le découpage fin annoncé plus haut. Cet amendement consigne ces décisions de conception ; elles ne décrivent pas le jeu de référence et n'ont pas de niveau de preuve. Il ne change ni le tableau des modules ni leurs dépendances directes (`docs/ARCHITECTURE.md`).
+Les specs `item-components-inventory.md` (« Propriétaires de modules »), `item-recipes.md` (DC1), `loot-tables.md` (R16, R17, R50) et `item-enchantments.md` (« Propriétaires de modules ») ont tranché le découpage fin annoncé plus haut. Cet amendement consigne ces décisions de conception ; elles ne décrivent pas le jeu de référence et n'ont pas de niveau de preuve. Il ne change pas les dépendances directes du tableau des modules de `docs/ARCHITECTURE.md`, dont les colonnes « Responsabilité » sont réécrites en conséquence.
 
 ### Décisions
 

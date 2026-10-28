@@ -84,7 +84,7 @@ Une image n'est une preuve que si l'entrée (seed, zone, caméra, version) est �
 | Statut | Signification |
 |---|---|
 | `non-spécifié` | Connu, pas encore décrit |
-| `spécifié` | Spec écrite avec niveau de preuve (D, M, C ou S) |
+| `spécifié` | Spec écrite avec niveau de preuve (D, M, C, S ou S-arch pour une règle de conception, voir `docs/specs/README.md`) |
 | `implémenté` | Code présent, tests unitaires verts |
 | `vérifié-L2` | Identique à l'oracle sur le jeu d'échantillons nommé |
 | `vérifié-L3` | Identique visuellement, planche jointe |

@@ -16,6 +16,8 @@ public record PackFormat(int major, int minor) implements Comparable<PackFormat>
    */
   @Override
   public int compareTo(PackFormat other) {
-    return Skeleton.throwNotImplemented();
+    return Integer.compare(major, other.major) != 0
+        ? Integer.compare(major, other.major)
+        : Integer.compare(minor, other.minor);
   }
 }

@@ -1,6 +1,9 @@
 package dev.shoko.minecraft.data.pack.meta;
 
+import dev.shoko.minecraft.data.diag.FileOrigin;
+import dev.shoko.minecraft.data.diag.JsonPath;
 import dev.shoko.minecraft.data.json.JsonNode;
+import dev.shoko.minecraft.data.json.JsonString;
 import java.util.List;
 import java.util.Optional;
 
@@ -15,7 +18,28 @@ import java.util.Optional;
  */
 public final class PackMeta {
 
-  private PackMeta() {}
+  // Null when absent; exposed as Optional only.
+  private final JsonNode description;
+  private final PackFormatRange formats;
+  private final boolean broken;
+  private final FeatureFlags features;
+  private final List<FilterRule> filters;
+  private final List<OverlayEntry> overlays;
+
+  PackMeta(
+      JsonNode description,
+      PackFormatRange formats,
+      boolean broken,
+      FeatureFlags features,
+      List<FilterRule> filters,
+      List<OverlayEntry> overlays) {
+    this.description = description;
+    this.formats = formats;
+    this.broken = broken;
+    this.features = features;
+    this.filters = List.copyOf(filters);
+    this.overlays = List.copyOf(overlays);
+  }
 
   /**
    * Returns the metadata of a pack that has no {@code pack.mcmeta} file, such as the vanilla pack
@@ -27,7 +51,17 @@ public final class PackMeta {
    *     pack requires {@code minecraft:vanilla} (R66 b)
    */
   public static PackMeta implicit(String packId, PackType type) {
-    return Skeleton.throwNotImplemented();
+    PackFormat target = type.targetFormat();
+    JsonNode description =
+        new JsonString(
+            new FileOrigin(packId, ""), JsonPath.root(), "dataPack." + packId + ".description");
+    return new PackMeta(
+        description,
+        new PackFormatRange(target, target),
+        false,
+        FeatureFlags.vanilla(),
+        List.of(),
+        List.of());
   }
 
   /**
@@ -38,7 +72,7 @@ public final class PackMeta {
    * @return the JSON node of {@code pack.description}, or empty when absent
    */
   public Optional<JsonNode> description() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(description);
   }
 
   /**
@@ -49,7 +83,7 @@ public final class PackMeta {
    *     present: it is reported by {@link PackFormatRange#compatibilityWith(PackFormat)}
    */
   public Optional<PackFormatRange> formats() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(formats);
   }
 
   /**
@@ -61,7 +95,10 @@ public final class PackMeta {
    *     PackFormatRange#compatibilityWith(PackFormat)} for {@link PackType#targetFormat()}
    */
   public PackCompatibility compatibility(PackType type) {
-    return Skeleton.throwNotImplemented();
+    if (broken || formats == null) {
+      return PackCompatibility.BROKEN;
+    }
+    return formats.compatibilityWith(type.targetFormat());
   }
 
   /**
@@ -71,7 +108,7 @@ public final class PackMeta {
    * @return the flags, empty when the field is absent (or mistyped, which breaks the pack)
    */
   public FeatureFlags features() {
-    return Skeleton.throwNotImplemented();
+    return features;
   }
 
   /**
@@ -80,7 +117,7 @@ public final class PackMeta {
    * @return the rules in file order
    */
   public List<FilterRule> filters() {
-    return Skeleton.throwNotImplemented();
+    return filters;
   }
 
   /**
@@ -89,6 +126,6 @@ public final class PackMeta {
    * @return the entries in file order
    */
   public List<OverlayEntry> overlays() {
-    return Skeleton.throwNotImplemented();
+    return overlays;
   }
 }

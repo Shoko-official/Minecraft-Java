@@ -41,12 +41,16 @@ import java.util.Optional;
  */
 public final class AnvilChunkStore implements Closeable {
 
+  /** The most region files kept open at once; a file closed on eviction is reopened when needed. */
+  static final int MAX_OPEN_REGIONS = 256;
+
   private final Path regionFolder;
   private final WorldHeight height;
   private final ChunkCodec codec;
   private final RegionCompression compression;
   private final long decompressionLimit;
-  private final Map<RegionPos, RegionFile> regions = new LinkedHashMap<>();
+  // Access ordered: the eldest entry is the least recently used region, closed first.
+  private final Map<RegionPos, RegionFile> regions = new LinkedHashMap<>(16, 0.75f, true);
   private final Map<ChunkPos, ReadResult.Refused<Chunk>> marks = new HashMap<>();
 
   private AnvilChunkStore(
@@ -116,7 +120,9 @@ public final class AnvilChunkStore implements Closeable {
    * </ul>
    *
    * A refusal marks the position (AR-R28); later loads of it answer the same refusal without
-   * reading the file. Nothing is generated and the bytes are never touched. The message of a
+   * reading the file. The marks belong to the store, not to the region files: at most 256 region
+   * files stay open, the least recently used is closed, and a marked position stays protected after
+   * its file is closed. Nothing is generated and the bytes are never touched. The message of a
    * refusal names the file, the index in the region, and the faulty field or section.
    *
    * @param pos absolute chunk position
@@ -212,8 +218,18 @@ public final class AnvilChunkStore implements Closeable {
     if (region == null) {
       region = RegionFile.open(regionFolder, position);
       regions.put(position, region);
+      evictOldest();
     }
     return region;
+  }
+
+  private void evictOldest() throws IOException {
+    while (regions.size() > MAX_OPEN_REGIONS) {
+      var eldest = regions.entrySet().iterator();
+      RegionFile evicted = eldest.next().getValue();
+      eldest.remove();
+      evicted.close();
+    }
   }
 
   /**
@@ -224,6 +240,8 @@ public final class AnvilChunkStore implements Closeable {
    * @param chunk the chunk
    * @param timestampSeconds Unix seconds written in the region header, from the caller
    * @throws WriteOnRefusedPositionException if the position is marked: a load of it was refused
+   * @throws ChunkTooLargeException if the NBT of the chunk has more bytes than the decompression
+   *     limit of the store; nothing is written
    * @throws IOException on a write failure
    */
   public void save(Chunk chunk, long timestampSeconds) throws IOException {
@@ -238,6 +256,15 @@ public final class AnvilChunkStore implements Closeable {
       nbt = NbtWriter.of(NbtCompression.NONE).writeNamed(new NamedTag("", codec.encode(chunk)));
     } catch (NbtException e) {
       throw new IllegalStateException("chunk " + pos + " cannot be written as NBT", e);
+    }
+    if (nbt.length > decompressionLimit) {
+      throw new ChunkTooLargeException(
+          "chunk "
+              + pos
+              + " takes "
+              + nbt.length
+              + " NBT bytes, the limit of the store is "
+              + decompressionLimit);
     }
     region(pos).write(pos, nbt, compression, timestampSeconds);
   }

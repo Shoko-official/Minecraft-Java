@@ -22,6 +22,7 @@ public final class WorldLayout {
   private static final List<String> LEGACY_FOLDERS =
       List.of("region", "entities", "poi", "DIM-1", "DIM1");
   private static final Pattern PART = Pattern.compile("[a-z0-9_.-]+");
+  private static final Pattern DEVICE_NAME = Pattern.compile("(con|prn|aux|nul|com[1-9]|lpt[1-9])");
 
   private WorldLayout() {}
 
@@ -31,8 +32,12 @@ public final class WorldLayout {
    * @param worldRoot the world folder
    * @param dimensionId dimension identifier with namespace, such as {@code minecraft:the_nether}
    * @return {@code worldRoot/dimensions/minecraft/the_nether}
-   * @throws IllegalArgumentException if the identifier has no namespace, or a part is empty or
-   *     could leave the world folder (a separator or a {@code ..} part)
+   * @throws IllegalArgumentException if the identifier has no namespace, or a part is empty, could
+   *     leave the world folder (a separator or a {@code ..} part), or is not a safe folder name on
+   *     every platform: a trailing dot (Windows drops it, so two identifiers would share a folder)
+   *     and the DOS device names ({@code con}, {@code prn}, {@code aux}, {@code nul}, {@code com1}
+   *     to {@code com9}, {@code lpt1} to {@code lpt9}), with or without an extension. A {@code /}
+   *     in the path is refused too: the folder of a dimension is always two levels deep
    */
   public static Path dimensionFolder(Path worldRoot, String dimensionId) {
     int colon = dimensionId.indexOf(':');
@@ -113,9 +118,16 @@ public final class WorldLayout {
     return false;
   }
 
-  // Only characters that are safe in a file name on every platform; no separator, no dot-only part.
+  // Only names that are safe on every platform: no separator, no dot-only part, no trailing dot,
+  // and
+  // no DOS device name (the base name before the first dot decides).
   private static void checkPart(String part, String dimensionId) {
-    if (!PART.matcher(part).matches() || part.chars().allMatch(c -> c == '.')) {
+    int dot = part.indexOf('.');
+    String base = dot < 0 ? part : part.substring(0, dot);
+    if (!PART.matcher(part).matches()
+        || part.chars().allMatch(c -> c == '.')
+        || part.endsWith(".")
+        || DEVICE_NAME.matcher(base).matches()) {
       throw new IllegalArgumentException("invalid dimension identifier: " + dimensionId);
     }
   }

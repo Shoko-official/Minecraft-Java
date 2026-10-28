@@ -216,6 +216,28 @@ class RegionFileTest {
     assertThatThrownBy(() -> RegionFile.read(shortFile)).hasMessageContaining("shorter than");
   }
 
+  @Test
+  void refusesFileNameCoordinatesThatDoNotFitAnIntWithAnIoException(@TempDir Path dir)
+      throws IOException {
+    byte[] header = new byte[2 * RegionFile.SECTOR_BYTES];
+    Path tooBigX = dir.resolve("r.99999999999.0.mca");
+    Path tooSmallZ = dir.resolve("r.0.-2147483649.mca");
+    Path largest = dir.resolve("r.2147483647.-2147483648.mca");
+    Files.write(tooBigX, header);
+    Files.write(tooSmallZ, header);
+    Files.write(largest, header);
+
+    assertThatThrownBy(() -> RegionFile.read(tooBigX))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("r.99999999999.0.mca")
+        .hasMessageContaining("do not fit an int");
+    assertThatThrownBy(() -> RegionFile.read(tooSmallZ))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("do not fit an int");
+    assertThat(RegionFile.read(largest).regionX()).isEqualTo(Integer.MAX_VALUE);
+    assertThat(RegionFile.read(largest).regionZ()).isEqualTo(Integer.MIN_VALUE);
+  }
+
   private static byte[] positioned(int chunkX, int chunkZ) {
     return new NbtBytes()
         .named(10, "")
@@ -300,5 +322,27 @@ class RegionFileTest {
         .isInstanceOf(IOException.class)
         .hasMessageContaining("chunk (-32,-32): its NBT says xPos=-1 zPos=-1");
     assertThat(region.chunkCheckingPosition(-2, -1)).isEmpty();
+  }
+
+  @Test
+  void checksEachCoordinateOfTheChunkPositionOnItsOwn() throws IOException {
+    byte[] onlyX = new NbtBytes().named(10, "").named(3, "xPos").i32(-1).end().toByteArray();
+    RegionFile region =
+        new RegionBytes(6)
+            .location(1023, 2, 1)
+            .location(1022, 3, 1)
+            .location(1021, 4, 1)
+            .chunk(2, 3, positioned(-1, -2))
+            .chunk(3, 3, positioned(-3, -1))
+            .chunk(4, 3, onlyX)
+            .open(-1, -1);
+
+    assertThatThrownBy(() -> region.chunkCheckingPosition(-1, -1))
+        .isInstanceOf(IOException.class)
+        .hasMessageContaining("chunk (-1,-1): its NBT says xPos=-1 zPos=-2");
+    assertThatThrownBy(() -> region.chunkCheckingPosition(-2, -1))
+        .hasMessageContaining("chunk (-2,-1): its NBT says xPos=-3 zPos=-1");
+    assertThatThrownBy(() -> region.chunkCheckingPosition(-3, -1))
+        .hasMessageContaining("xPos=-1 zPos=null");
   }
 }

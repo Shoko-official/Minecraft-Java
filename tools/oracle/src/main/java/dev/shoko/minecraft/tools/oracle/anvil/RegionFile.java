@@ -68,16 +68,20 @@ public final class RegionFile {
     if (!name.matches()) {
       throw new IOException(file + ": not a region file name (r.<x>.<z>.mca)");
     }
+    int regionX;
+    int regionZ;
+    try {
+      regionX = Integer.parseInt(name.group(1));
+      regionZ = Integer.parseInt(name.group(2));
+    } catch (NumberFormatException e) {
+      throw new IOException(file + ": region coordinates in the file name do not fit an int", e);
+    }
     long size = Files.size(file);
     if (size > MAX_FILE_BYTES) {
       throw new IOException(file + ": " + size + " bytes, larger than " + MAX_FILE_BYTES);
     }
     return new RegionFile(
-        file.toString(),
-        Integer.parseInt(name.group(1)),
-        Integer.parseInt(name.group(2)),
-        Files.readAllBytes(file),
-        new NbtReader());
+        file.toString(), regionX, regionZ, Files.readAllBytes(file), new NbtReader());
   }
 
   /** Wraps region bytes that are already in memory. */

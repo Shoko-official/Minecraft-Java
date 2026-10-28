@@ -30,20 +30,17 @@ final class NbtExtent {
    * Returns the length of the named root at the start of the data.
    *
    * @param data a document the NBT reader accepted
-   * @return the number of bytes of the root, or the length of the data if it cannot be measured
+   * @return the number of bytes of the root
+   * @throws java.nio.BufferUnderflowException if the data is not a document the reader accepts
    */
   static int rootLength(byte[] data) {
     NbtExtent extent = new NbtExtent(data);
-    try {
-      int type = extent.in.get() & 0xFF;
-      if (type != TYPE_END) {
-        extent.skip(extent.in.getShort() & 0xFFFF);
-        extent.payload(type);
-      }
-      return extent.in.position();
-    } catch (BufferUnderflowException | IllegalArgumentException e) {
-      return data.length;
+    int type = extent.in.get() & 0xFF;
+    if (type != TYPE_END) {
+      extent.skip(extent.in.getShort() & 0xFFFF);
+      extent.payload(type);
     }
+    return extent.in.position();
   }
 
   private void skip(long count) {
@@ -71,7 +68,8 @@ final class NbtExtent {
 
   private void list() {
     int elementType = in.get() & 0xFF;
-    int count = in.getInt();
+    // A negative length is an empty list for the reader (core-nbt R25).
+    int count = Math.max(in.getInt(), 0);
     if (elementType >= 1 && elementType < FIXED_SIZE.length) {
       skip((long) FIXED_SIZE[elementType] * count);
       return;

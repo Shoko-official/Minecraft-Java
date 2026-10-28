@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.UncheckedIOException;
+import java.util.Arrays;
 import java.util.Optional;
 import java.util.function.LongSupplier;
 import java.util.zip.DeflaterOutputStream;
@@ -36,7 +37,7 @@ public enum RegionCompression {
    */
   public static final long DEFAULT_DECOMPRESSION_LIMIT = 134_217_728L;
 
-  private static final int BUFFER_SIZE = 8192;
+  private static final int BUFFER_SIZE = 65_536;
 
   private final int id;
 
@@ -60,7 +61,8 @@ public enum RegionCompression {
    * header). For {@link #NONE} the length of {@code data} is compared with the limit. A total of
    * exactly {@code maxOutputBytes} is accepted, one byte more is not. The first event in stream
    * order decides: a corruption before the limit is corruption, the limit reached first is the
-   * limit.
+   * limit. The peak memory is the output pieces plus the final array, twice the bytes produced,
+   * never a multiple of the limit.
    *
    * @param data the compressed bytes, without the length and type bytes of the record
    * @param maxOutputBytes the most bytes that may be produced
@@ -135,24 +137,27 @@ public enum RegionCompression {
   // decoder had already produced tell which event came first.
   private static byte[] inflate(InputStream stream, long limit, LongSupplier producedSoFar)
       throws CorruptStreamException, OutputLimitExceededException {
-    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    OutputPieces out = new OutputPieces();
     byte[] buffer = new byte[BUFFER_SIZE];
+    long bound = OutputPieces.effectiveLimit(limit);
     long total = 0;
     try (stream) {
       while (true) {
-        int wanted = (int) Math.min(buffer.length, limit - total + 1);
+        // total never exceeds the bound, so the room is not negative and the sum cannot overflow.
+        long room = bound - total;
+        int wanted = room >= buffer.length ? buffer.length : (int) room + 1;
         int read = stream.read(buffer, 0, wanted);
         if (read < 0) {
           return out.toByteArray();
         }
         total += read;
-        if (total > limit) {
+        if (total > bound) {
           throw new OutputLimitExceededException(limit);
         }
-        out.write(buffer, 0, read);
+        out.add(Arrays.copyOf(buffer, read));
       }
     } catch (IOException e) {
-      if (producedSoFar.getAsLong() > limit) {
+      if (producedSoFar.getAsLong() > bound) {
         throw new OutputLimitExceededException(limit);
       }
       throw new CorruptStreamException("compressed stream does not decode: " + e.getMessage(), e);

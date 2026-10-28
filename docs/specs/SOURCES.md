@@ -47,6 +47,11 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 ; plus
 | `world-vectors.md` | Debug mode (niveau Y de la grille du monde de débogage), Chunk format (`PostProcessing`) |
 | `worldgen-features-structures-vectors.md` | Stronghold (plages des anneaux) |
 | `worldgen-pipeline.md` | Chunk format, Heightmap, Aquifer, Carver, Material rule, Placed feature |
+| `sim-light.md` | Light, Redstone Lamp |
+| `sim-fluids.md` | Water, Lava, Fluid, Ice |
+| `sim-ticks-updates.md` | Tick, Random tick, Block update, Commands/setblock, Redstone Repeater, Piston, Tutorials/Quasi-connectivity |
+| `sim-growth-redstone.md` | Wheat, Farmland, Sapling, Grass Block, Sugar Cane, Cactus, Leaves, Fire, Lava, Ice, Random tick, Redstone mechanics, Conductivity, Redstone Dust, Redstone Torch, Redstone Repeater, Redstone Comparator, Observer, Piston, Sticky Piston, Tutorials/Quasi-connectivity, Redstone Lamp, Button |
+| `sim-light-vectors.md`, `sim-fluids-vectors.md`, `sim-ticks-updates-vectors.md`, `sim-growth-redstone-vectors.md` | Les pages de leur spec (les sondes en citent des passages pour leurs critères) |
 
 Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>`. Les vecteurs non listés ci-dessus, `data-registries-inventory.md` et `reference-binaries.md` ne citent aucune page du wiki.
 

@@ -1,6 +1,6 @@
 # Vecteurs et sondes : génération du Nether
 
-Complète `dim-nether-generation.md`. Les vecteurs DX sont des calculs sur les données extraites (preuve C), produits par `dim_ref.py` (annexe de [dim-definitions-portals-vectors.md](dim-definitions-portals-vectors.md), SHA-256 `9170d0b16e1ff59b8813b9799d61503a290621ce94ffbaac827322a141253ff6`). Les sondes DN sont des expériences sur l'oracle, **non exécutées** (EULA non acceptée) ; chacune dit la commande, l'entrée et la sortie attendue.
+Complète `dim-nether-generation.md`. Les vecteurs DX sont des calculs sur les données extraites (preuve C), produits par `dim_ref.py` (annexe de [dim-definitions-portals-vectors.md](dim-definitions-portals-vectors.md), SHA-256 `9e47732a125ced2b5b2ba026bce4d6a272cab1025ff97052b8d56dda2cc266ab`). Les sondes DN sont des expériences sur l'oracle, **non exécutées** (EULA non acceptée) ; chacune dit la commande, l'entrée et la sortie attendue.
 
 Les tableaux volumineux ne sont pas reproduits : la commande est donnée avec l'empreinte SHA-256 complète de la sortie et quelques lignes d'exemple. `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`.
 
@@ -16,7 +16,7 @@ Les tableaux volumineux ne sont pas reproduits : la commande est donnée avec l'
 | `order` | ordre partiel par étape dans les 5 biomes (R39) | `a2ade2d170aff7d8e640bac04dbbab9cbfc42891363ff278a337e9924ad4803b` |
 | `structures` | ensembles, structures, tags, gabarits, pièces (R26 à R36) | `121ff06ca97a0f9c6baaf6c4e3447e46e9ad3b5bba32f60f48b85b45a1ece1cd` |
 | `bastion` | 60 pools, 176 éléments, 167 gabarits (R32) | `a26b5ba8fda0e74cd86e4001f39f7dc9edfdef29102fa3fdbe78b2e6653671cf` |
-| `vectors` | profil du Nether (DX7), régions (DX9) | `303e51f3f85ea325ecdcf5d77594d02a71f0726a89ec2fd54868f70960914497` |
+| `vectors` | profil du Nether (DX7), régions (DX9) | `3b7d3d788cf5c14d7395cfa2a048e2b2e96b2ac4d6a005494e02043f7f1b5901` |
 
 ## DX : vecteurs calculés
 
@@ -77,7 +77,7 @@ Conventions de `worldgen-surface-carvers-vectors.md` (graine 12345 sauf indicati
 
 **DN1 (R5, R7).** MN4 : 200 chunks ; par Y de 0 à 127, fraction de blocs solides. Attendu : courbe `P(solide | Y) = P(n > seuil(Y))` avec les seuils de DX7 ; ajuster l'amplitude de n de notre implémentation. Critère de succès : fraction égale à la nôtre à 0,5 point près pour chaque Y. Variante : positions des blocs solides isolés (colonnes non connexes) et surface à Y 31/32 (lave).
 
-**DN2 (R8).** MRN(`noise_threshold` bruit B, minimum a, maximum +infini) pour B dans {`nether_state_selector`, `patch`, `netherrack`, `nether_wart`, `soul_sand_layer`, `gravel_layer`}, a parcourant 30 valeurs par bissection ; 64 colonnes ; les bruits en trois dimensions (aucun des six) ne sont pas employés. Valeurs reconstruites pour chaque colonne. Pour `nether/temperature` et `nether/vegetation`, lecture indirecte par BIOMES-N : biome de deux points `a` et `b` de température 0 et 0,4 et d'humidité 0 : le biome change quand la température du point franchit le milieu des deux températures (si la distance est monotone). Critère de succès : valeurs de B égales à celles de notre implémentation à 1e-6 près sur 64 colonnes pour 3 graines (dont -1 et `Long.MIN_VALUE`).
+**DN2 (R8).** MRN(`noise_threshold` bruit B, minimum a, maximum +infini) pour B dans {`nether_state_selector`, `patch`, `netherrack`, `nether_wart`, `soul_sand_layer`, `gravel_layer`}, a parcourant 30 valeurs par bissection ; 64 colonnes ; les bruits en trois dimensions (aucun des six) ne sont pas employés. Valeurs reconstruites pour chaque colonne. Pour `nether/temperature` et `nether/vegetation`, lecture indirecte par BIOMES-N : biome de deux points `a` et `b` de température 0 et 0,4 et d'humidité 0 : le biome change quand la température du point franchit le milieu des deux températures (si la distance est monotone). Variante égalité : `minimum` posé exactement à la valeur mesurée d'une colonne, borne haute à +infini et à cette valeur. Critère de succès : valeurs de B égales à celles de notre implémentation à 1e-6 près sur 64 colonnes pour 3 graines (dont -1 et `Long.MIN_VALUE`).
 
 **DN3 (R6, R23).** MN0 sur 200 chunks : (a) Y maximal de bedrock (attendu 127) et Y minimal de bedrock de plafond (attendu 122 ou 123) ; (b) Y maximal des minerais de quartz (attendu 117 sous H-NT1, 245 sous H-NT1b) et de pépites d'or ; (c) MN2 contre MN3 : Y maximal d'une cavité de carver (attendu 126) ; (d) Y minimal et maximal de la lave de source (`spring_open`, 4 à 123). Critère de succès : extrêmes égaux à la prédiction de H-NT1.
 
@@ -97,7 +97,7 @@ Conventions de `worldgen-surface-carvers-vectors.md` (graine 12345 sauf indicati
 
 **DN11 (R28, R33, R34, R37).** ONESTRUCT-N(`bastion_remnant`) : 100 bastions ; relever la variante (4 attendues de probabilité 1/4), le Y de la pièce de départ, le nombre de pièces, la boîte englobante, la présence de supports sous les pièces au-dessus de la lave. Variante : `/place template minecraft:bastion/units/air_base ... integrity ... seed ...` pour une pièce seule. Critère de succès : égalité exacte de la structure pour 5 graines (`/place structure` ne fixe pas la graine : comparaison par génération monde) ; fréquences à 3 écarts types.
 
-**DN12 (R35).** ONESTRUCT-N(`nether_fossil`) en `soul_sand_valley` : acceptation par candidat, histogramme de Y (32 à 126), fréquence des 14 gabarits, rotation, miroir, 500 fossiles. Critère de succès : conformité à R35.
+**DN12 (R35).** ONESTRUCT-N(`nether_fossil`) en `soul_sand_valley` : acceptation par candidat, histogramme de Y (32 à 125), fréquence des 14 gabarits, rotation, miroir, 500 fossiles. Critère de succès : conformité à R35.
 
 **DN13 (R36).** ONESTRUCT-N(`ruined_portal_nether`) : fréquence par région de 640 blocs, Y de pose, 13 gabarits, fraction de blocs de pierre remplacés par `blackstone` (R36 : `replace_with_blackstone`). Critère de succès : conformité à R36.
 

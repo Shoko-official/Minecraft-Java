@@ -6,7 +6,7 @@ Pour ne pas recopier les données de Mojang, les tableaux volumineux ne sont pas
 
 ## Outil et commandes
 
-L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF, 30 942 octets : `9170d0b16e1ff59b8813b9799d61503a290621ce94ffbaac827322a141253ff6`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3` (jeu 26.3, `serverSha256` de `state.json` : `d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64`). Toutes les commandes sont `python -I dim_ref.py REF <sous-commande>` ; la sortie est en ASCII, fins de ligne LF, indépendante du chemin de `REF` ; les empreintes sont les SHA-256 complets des sorties.
+L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF, 31 513 octets : `9e47732a125ced2b5b2ba026bce4d6a272cab1025ff97052b8d56dda2cc266ab`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3` (jeu 26.3, `serverSha256` de `state.json` : `d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64`). Toutes les commandes sont `python -I dim_ref.py REF <sous-commande>` ; la sortie est en ASCII, fins de ligne LF, indépendante du chemin de `REF` ; les empreintes sont les SHA-256 complets des sorties.
 
 | Sous-commande | Sortie | Lignes | SHA-256 de la sortie |
 |---|---|---|---|
@@ -22,7 +22,7 @@ L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du te
 | `structures` | ensembles, structures, tags, gabarits, pièces, butins | 22 | `121ff06ca97a0f9c6baaf6c4e3447e46e9ad3b5bba32f60f48b85b45a1ece1cd` |
 | `bastion` | statistiques des 60 pools et des 167 gabarits | 7 | `a26b5ba8fda0e74cd86e4001f39f7dc9edfdef29102fa3fdbe78b2e6653671cf` |
 | `portal` | tags, états de blocs, POI, tickets, règles, déclencheurs, features | 32 | `353052e5640516ccdfe336f7484eb8263167be86aaed6cb6a575e438d10de6fe` |
-| `vectors` | profils sans bruit (Nether DX7, End DX13), régions (DX9, DX14), conversion 8:1 (DX4), anneau (DX16), piliers (DX17) | 115 | `303e51f3f85ea325ecdcf5d77594d02a71f0726a89ec2fd54868f70960914497` |
+| `vectors` | profils sans bruit (Nether DX7, End DX13), régions (DX9, DX14), conversion 8:1 (DX4), anneau (DX16), piliers (DX17) | 120 | `3b7d3d788cf5c14d7395cfa2a048e2b2e96b2ac4d6a005494e02043f7f1b5901` |
 | `grids` | sections, positions, cellules de biomes (DX18), coins d'interpolation (DX19), indépendance en Y du climat du Nether (DX20), espérances par chunk des features de l'End (DX21), poids de `nether_complexes` (DX22) | 18 | `970d585eed8a376b172cced6a50250a0daa894be0e699cf672aff097626e9a0c` |
 | `portalvec` | tailles de cadre (DX3), yeux de l'End (DX5), longueurs de passerelle (DX6) | 26 | `ecdf50b4ef777993f12846e97668961aca96013e35a2fea5d6bd06dd5ffeee7d` |
 
@@ -57,8 +57,8 @@ triggers ['changed_dimension', 'nether_travel', 'used_ender_eye']
 
 Conventions de `worldgen-surface-carvers-vectors.md` (graine 12345 sauf indication, `forceload`, attente W, `save-all flush`, arrêt, lecture de `dimensions/minecraft/<dimension>/region/r.*.mca`) ; les datapacks de sonde sont produits à la volée par `tools/oracle` depuis `.cache/reference/26.3`, jamais commités.
 
-- **FLATALL** : monde créé avec le préréglage `flat_all_dimensions` (D, R1 de la spec : trois dimensions plates, sans bruit, sans feature, sans structure ; sable à Y 66 / basalte Y 1-3 sur bedrock / pierre d'End Y 1-3 sur bedrock). Réglage du préréglage à la création : propriété `level-type` (nom exact à confirmer par DP0).
-- **VOID** : dimension personnalisée `probe:void` : fichier `data/probe/dimension/void.json` de forme `{"type": "minecraft:the_nether", "generator": {"type": "minecraft:flat", "settings": {"biome": "minecraft:the_void", "features": false, "lakes": false, "layers": [{"block": "minecraft:air", "height": 1}], "structure_overrides": []}}}` (réglage du préréglage plat `the_void`, D). Aucun sol, aucune structure. Le champ `type` varie selon la sonde.
+- **FLATALL** : monde créé avec le préréglage `flat_all_dimensions` (D, R1 de la spec : trois dimensions plates, sans bruit, sans feature, sans structure ; Overworld : 1 couche de bedrock (Y -64) et 67 de grès (Y -63 à 3), biome désert ; Nether : bedrock Y 0 et basalte Y 1 à 3, biome `basalt_deltas` ; End : bedrock Y 0 et pierre d'End Y 1 à 3, biome `the_end` ; le dernier bloc plein est donc à Y 3 dans les trois dimensions, et un cadre de portail posé sur le sol a sa rangée basse à Y 4). Réglage du préréglage à la création : propriété `level-type` (nom exact à confirmer par DP0).
+- **VOID** : dimension personnalisée `probe:void` : fichier `data/probe/dimension/void.json` de forme `{"type": "minecraft:the_nether", "generator": {"type": "minecraft:flat", "settings": {"biome": "minecraft:the_void", "features": true, "lakes": false, "layers": [{"block": "minecraft:air", "height": 1}], "structure_overrides": []}}}` (réglage du préréglage plat `the_void`, D ; le biome `the_void` n'a aucune feature). Aucun sol, aucune structure. Le champ `type` varie selon la sonde.
 - **DIMX(champ, valeur)** : copie de `dimension_type/overworld.json` avec un champ modifié, référencée par une dimension plate `probe:x`.
 - **PORTAL(axe, w, h, coin)** : `fill` d'obsidienne pour un cadre de w x h intérieur (avec angles si `coin`), puis `setblock <x> <y> <z> minecraft:fire` à l'intérieur. Lecture : `execute if block`, `data get block`.
 - **OBS-DIM(étiquette)** : `execute as @e[tag=<T>,limit=1] if dimension <clé> run data get entity @s Pos` ; renvoie la position quand l'entité est dans la dimension demandée, aucun résultat sinon. Valide par DP0.
@@ -101,7 +101,7 @@ Conventions de `worldgen-surface-carvers-vectors.md` (graine 12345 sauf indicati
 
 Toutes en FLATALL sauf indication, avec SPAWN et OBS-DIM ; chaque transfert s'attend sous `tick freeze` / `tick step` ; les entités n'ont pas d'IA.
 
-**DV1 (R33, R34, R44).** Pour x = z parmi {-9, -8, -1, 0, 1, 7, 8, 15, 16, 100} (et séparément X seul), un objet (`item`) est posé dans un portail de l'Overworld construit autour de (x, 66, z) avec 20 chunks de dégagement ; relever la position du portail créé dans le Nether (liste des blocs `nether_portal` dans un cube de 64) ; comparer à DX4. Variante nombre de chunks nouveaux écrits sur disque (R44). Critère de succès : position du centre du portail créé égale à `floor(x / 8)` en X et Z (DX4), sinon H-PT1 est remplacée.
+**DV1 (R33, R34, R44).** Pour x = z parmi {-9, -8, -1, 0, 1, 7, 8, 15, 16, 100} (et séparément X seul), un objet (`item`) est posé dans un portail de l'Overworld construit autour de (x, 5, z) (rangée basse du cadre à Y 4, sol à Y 3) avec 20 chunks de dégagement ; relever la position du portail créé dans le Nether (liste des blocs `nether_portal` dans un cube de 64) ; comparer à DX4. Variante nombre de chunks nouveaux écrits sur disque (R44). Critère de succès : position du centre du portail créé égale à `floor(x / 8)` en X et Z (DX4), sinon H-PT1 est remplacée.
 
 **DV2 (R35).** Portails pré-construits dans le Nether à (4, 70, 4) + (d, 0, 0), (0, 0, d), (d, 0, d), (0, d, 0) pour d de 10 à 20 en pas de 1 ; objet entrant dans le portail de l'Overworld dont la cible est (4, y, 4) ; lien (arrivée dans le portail existant) ou création (nouveau portail à côté). Variante Nether vers Overworld pour d de 120 à 136. Critère de succès : seuil de lien (borne incluse ou exclue) égal à la prédiction de R35.
 
@@ -113,9 +113,9 @@ Toutes en FLATALL sauf indication, avec SPAWN et OBS-DIM ; chaque transfert s'at
 
 **DV6 (R36, R38).** Deux portails de destination équidistants (en X, en Z, en Y, en diagonale) et un plus proche d'un bloc ; 20 couples ; portail large de 21 x 5 : entrée par les deux extrémités. Critère de succès : portail choisi égal à la prédiction, ordre d'égalité relevé.
 
-**DV7 (R37).** Un bloc `nether_portal[axis=x]` posé par `setblock` sans cadre dans la cible, puis objet entrant ; variante : portail réel puis `setblock air` de l'obsidienne du cadre sans retirer les blocs de portail. Critère de succès : lien ou création conforme à R37.
+**DV7 (R37).** Un bloc `nether_portal[axis=x]` posé par `setblock` sans cadre dans la cible, (posé à Y 4) puis objet entrant ; variante : portail réel puis `setblock air` de l'obsidienne du cadre sans retirer les blocs de portail. Critère de succès : lien ou création conforme à R37.
 
-**DV8 (R7, R39, R40).** Création forcée : (a) FLATALL (zone libre) ; (b) zone étroite creusée par `fill` (couloir de 1 x 4) ; (c) VOID (type `the_nether`, sans sol) ; (d) demande à des Y source de 100, 110, 120, 128, 200, 250 ; (e) portail d'entrée selon X, puis selon Z. Pour chaque cas, liste des blocs écrits dans un volume de 7 x 9 x 7 autour du centre. Critère de succès : liste de blocs égale à R39 pour les 3 terrains, axe égal à celui du portail d'entrée, Y maximal de la plateforme pour (d) (H-PT4).
+**DV8 (R7, R39, R40).** Création forcée : (a) FLATALL (zone libre, sol à Y 3, demande à Y 4) ; (b) zone étroite creusée par `fill` (couloir de 1 x 4) ; (c) VOID (type `the_nether`, sans sol) ; (d) demande à des Y source de 100, 110, 120, 128, 200, 250 ; (e) portail d'entrée selon X, puis selon Z. Pour chaque cas, liste des blocs écrits dans un volume de 7 x 9 x 7 autour du centre. Critère de succès : liste de blocs égale à R39 pour les 3 terrains, axe égal à celui du portail d'entrée, Y maximal de la plateforme pour (d) (H-PT4).
 
 **DV9 (R41).** Un objet entre par chacun des 4 côtés horizontaux dans un portail d'axe x puis z avec `Motion` non nulle ; lecture de `Pos`, `Rotation`, `Motion` avant (au tick d'entrée) et après. Critère de succès : valeurs de R41 à 1e-3 près.
 
@@ -125,7 +125,7 @@ Toutes en FLATALL sauf indication, avec SPAWN et OBS-DIM ; chaque transfert s'at
 
 **DV12 (R48, R50).** Portail de l'End posé par `setblock minecraft:end_portal` (3 x 3) dans l'Overworld puis dans le Nether ; objet, vache et chariot entrant ; `Pos`, dimension. Critère de succès : (100.5, 49, 0.5) ou valeur relevée, identique des deux origines.
 
-**DV13 (R48).** Avant l'entrée : bloc de pierre en (100, 49, 0), de la terre à (98, 48, -2), de l'eau à (102, 50, 2) ; après : les 5 x 5 x 4 blocs ; entrée de la seconde entité : la plateforme est-elle recomposée ? Critère de succès : état des 100 blocs conforme à R48.
+**DV13 (R48).** Avant l'entrée : bloc de pierre en (100, 49, 0), de la terre à (98, 48, -2), de l'eau à (102, 50, 2) ; après : les 5 x 5 x 4 blocs ; entrée de la seconde entité : la plateforme est-elle recomposée ? Variantes : entrée d'un joueur (J) puis d'une entité ; obsidienne détruite avant l'entrée ; bloc posé sur les trois couches d'air (objets lâchés). Critère de succès : état des 100 blocs conforme à R48 (H-PT5).
 
 **DV14 (R49).** Un `end_portal` posé dans l'End par `setblock` ; objet et vache entrant ; `Pos` et dimension à l'arrivée ; puis `setworldspawn` en (50, 70, 50) dans le Nether (puis dans l'End) et nouvelle entrée. Critère de succès : arrivée égale à `spawn` de `level.dat` dans la dimension qu'il nomme (R49).
 
@@ -708,9 +708,10 @@ def cmd_vectors():
     for src, dst in [(1.0, 8.0), (8.0, 1.0)]:
         for x in [-9, -8, -1, 0, 1, 7, 8, 15, 16, 100, -100]:
             print("  scale %g -> %g : x=%4d -> %d" % (src, dst, x, math.floor(x * src / dst)))
-    print("== DX16 End gateway ring (wiki, 2026-10-28), 20 positions, radius 96, y 75, under two rounding hypotheses")
+    print("== DX16 End gateway ring (wiki End_gateway, 2026-10-29): 20 positions, radius 96, y 75; index k = 0..19 (gateway n = k + 1)")
     amb = []
-    for k in range(1, 21):
+    pos = {}
+    for k in range(0, 20):
         a = math.pi * k / 10.0
         x, z = 96 * math.cos(a), 96 * math.sin(a)
         fl = (math.floor(x), math.floor(z))
@@ -718,8 +719,13 @@ def cmd_vectors():
         flag = "" if fl == tr else " DIFFERS"
         if abs(x) < 1e-9 or abs(z) < 1e-9:
             amb.append(k)
-        print("  k=%2d floor=%s trunc=%s%s" % (k, fl, tr, flag))
+        pos[k] = fl
+        print("  k=%2d gateway %2d floor=%s trunc=%s%s" % (k, k + 1, fl, tr, flag))
     print("  axis-aligned k:", amb)
+    print("  alternative indexing k = 1..20 would give gateway 1 at", pos[1], "and a 20th gateway at", (math.floor(96 * math.cos(2 * math.pi)), math.floor(96 * math.sin(2 * math.pi))), "instead of", pos[0])
+    print("  page examples (End_gateway): gateway 1 (96,0), gateway 6 (-1,96), gateway 20 (91,-30)")
+    for n, ex in [(1, (96, 0)), (6, (-1, 96)), (20, (91, -30))]:
+        print("   gateway %2d computed floor %s page %s %s" % (n, pos[n - 1], ex, "match" if pos[n - 1] == ex else "MISMATCH"))
     print("== DX17 End spikes (wiki 'Obsidian Pillar', 2026-10-28): centres, top y, distance of centre to origin")
     centres = [(-42, -1), (-34, -25), (-34, 24), (-13, -40), (-13, 39), (12, -40), (12, 39), (33, -25), (33, 24), (42, 0)]
     for x, z in sorted(centres, key=lambda c: math.atan2(c[1], c[0])):

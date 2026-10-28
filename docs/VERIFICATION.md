@@ -11,7 +11,11 @@ Le jeu de référence 26.3 installé localement sert de boîte noire :
 
 Les sorties de l'oracle sont mises en cache dans `.cache/oracle/<version>/<seed>/<zone>/` et ne sont jamais commitées. L'oracle est observé et exécuté, pas lu (ADR 0002, qui fixe aussi l'interface admise pour chaque jalon).
 
+**Démarrage et EULA.** `tools/oracle` ne démarre le serveur que si l'appelant passe `acceptEula` (ligne de commande : `--i-accept-the-minecraft-eula`) : l'acceptation de l'EULA est un acte personnel du propriétaire. Le serveur écoute sur 127.0.0.1 avec un mot de passe RCON aléatoire par exécution, écrit dans `server.properties` en droits 0600 là où le système les gère, effacé à l'arrêt (y compris par le crochet de sortie de la JVM), et ses régions sont forcées en zlib (`region-file-compression=deflate`) car le lecteur indépendant refuse LZ4. Le jar est contrôlé (taille et SHA-256) contre l'état de `bootstrap` avant tout lancement. L'encodage des réponses RCON, leur ordre et la détection de fin de réponse par un paquet de type 0 sont des hypothèses S, à lever par des sondes au premier lancement réel.
+
 **Indépendance de l'instrument.** `tools/oracle` lit les fichiers de référence avec son propre lecteur minimal, sans importer `engine/*`. Sinon un bug symétrique de lecture (palette, bits par entrée) serait invisible. `tools/diff` est testé avec des fixtures contenant des défauts injectés : le comparateur doit les détecter avant d'être cru.
+
+**Lancer les tests marqués `oracle`.** Ils sont exclus de `./gradlew build` et tournent via `./gradlew oracleTest` (ou `./gradlew :engine:core:oracleTest` pour un seul module). Ils lisent le jeu de référence du cache (`.cache/` ou `MINECRAFT_CACHE_DIR`, préparé par `./gradlew :tools:bootstrap:run`) et s'ignorent eux-mêmes quand il manque. Pour qu'un lancement explicite ne réussisse pas sans rien prouver, `oracleTest` échoue avec un message clair si `reference/` est absent ou vide dans le cache, n'est jamais mis en cache ni considéré à jour. `./gradlew build` reste vert sans cache, comme sur la CI GitHub.
 
 ## Niveaux de preuve
 
@@ -31,6 +35,8 @@ Chaque sous-système définit un **état canonique** comparable : par exemple, p
 - au premier écart, la localisation exacte (chunk, section, coordonnées, valeur attendue, valeur obtenue) ;
 - pour la génération, l'étape fautive (bruit, surface, grottes, features, structures, lumière).
 
+Le comparateur classe chaque écart : MANQUANT (clé absente de notre état), EN TROP (clé absente de la référence), VALEUR (même clé, valeur différente) et ORDRE (clé présente des deux côtés mais déplacée). Pour l'ordre, la plus longue suite de clés communes qui garde le même ordre relatif dans les deux états reste en place ; chaque autre clé commune compte pour un écart ORDRE. Le nombre d'écarts d'ordre est donc le nombre minimal d'entrées à déplacer : une entrée déplacée du début à la fin compte 1, et le compte est le même quel que soit l'état pris comme référence. Les écarts sont donnés dans l'ordre du document de référence ; une entrée en trop est placée juste avant la clé suivante restée en place. Le « premier écart » est le premier de cette liste.
+
 Format d'un rapport (`reports/diff/<sujet>.md`, non commité, résumé collé dans la PR) :
 
 ```
@@ -41,6 +47,8 @@ Premier écart : chunk (2,-1) section 4 bloc (34,70,-12) attendu minecraft:stone
 Étape      : surface
 Hypothèses : aucune, ou étiquetées HYPOTHÈSE (l'opérateur décrit ; une cause supposée n'est jamais présentée comme un fait)
 ```
+
+Le verdict s'écrit `IDENTIQUE (N entrées)` ou `DIVERGENT (k écarts sur N entrées attendues[, M obtenues])`, au singulier pour 0 et 1. Le premier écart donne la clé complète, puis `attendu <valeur> obtenu <valeur>` avec `(absent)` pour le côté manquant, ou, pour un écart d'ordre, `<clé> hors d'ordre : position attendue i obtenue j`. Sujet, référence et étape tiennent sur une ligne (ni `\n` ni `\r`) ; les retours à la ligne dans les valeurs et les hypothèses sont échappés.
 
 ## Déterminisme de l'oracle
 
@@ -76,7 +84,7 @@ Une image n'est une preuve que si l'entrée (seed, zone, caméra, version) est �
 | Statut | Signification |
 |---|---|
 | `non-spécifié` | Connu, pas encore décrit |
-| `spécifié` | Spec écrite avec niveau de preuve (D, M, C ou S) |
+| `spécifié` | Spec écrite avec niveau de preuve (D, M, C, S ou S-arch pour une règle de conception, voir `docs/specs/README.md`) |
 | `implémenté` | Code présent, tests unitaires verts |
 | `vérifié-L2` | Identique à l'oracle sur le jeu d'échantillons nommé |
 | `vérifié-L3` | Identique visuellement, planche jointe |
@@ -95,7 +103,7 @@ Les scénarios de conformité de la référence sont stockés dans `tools/diff/s
 4. **Les écarts ne se contournent pas.** Un test rouge se corrige dans le code, pas dans le test, sauf test prouvé faux (raison écrite dans le commit).
 5. **Faits et hypothèses séparés.** Tout rapport distingue ce qui est mesuré de ce qui est supposé.
 6. **Pas de "vérifié" sans commande ni fichier.** Une affirmation non reproductible est ignorée.
-7. **Échantillonnage sans biais.** Les seeds et zones de test sont fixées dans `tools/diff/samples.json` (créé au jalon M0, puis figé) avant de coder, incluant coordonnées négatives, bordures de régions et biomes rares. Toute modification passe par une PR dédiée, jamais par l'agent qui vient d'essuyer un échec.
+7. **Échantillonnage sans biais.** Les seeds et zones de test sont fixées dans `tools/diff/src/main/resources/samples.json` (créé au jalon M0, puis figé ; son empreinte SHA-256 est épinglée dans `SamplesTest`, la PR dédiée met à jour le fichier et l'empreinte et rien d'autre ; les champs nuls des zones de relief sont renseignés de la même façon, à partir d'observations de l'oracle comme `/locate`, jamais devinés) avant de coder, incluant coordonnées négatives, bordures de régions et biomes rares. Toute modification passe par une PR dédiée, jamais par l'agent qui vient d'essuyer un échec.
 8. **Celui qui mesure ne construit pas l'instrument.** `oracle-differ` exécute et rapporte ; les comparateurs et scénarios sont écrits et testés par le `tooling-engineer`.
 
 ## Définition de "terminé" pour une tâche

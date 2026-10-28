@@ -18,7 +18,8 @@ python -I cmd_ref.py redirects              # redirections (R3)
 python -I cmd_ref.py parsers                # analyseurs utilisés (R1, R15)
 python -I cmd_ref.py usage NOM              # chemins exécutables d'une commande (R26 à R30)
 python -I cmd_ref.py gamerules              # règles de /gamerule (server-game-loop.md R40)
-python -I cmd_ref.py lang PREFIXE           # clés de traduction (R13, R16, R24, R26 à R30)
+python -I cmd_ref.py lang PREFIXE...        # clés de traduction : clé, nombre de %s, longueur (R13, R16, R24, R26 à R30)
+python -I cmd_ref.py langtext CLE           # texte anglais d'une clé, pour une vérification à la main
 python -I cmd_ref.py registry minecraft:command_argument_type   # identifiants des analyseurs
 python -X utf8 -I build_cmds.py             # tableaux du catalogue et des analyseurs de server-commands.md
 ```
@@ -549,353 +550,203 @@ water_source_conversion | bool |
 literal children: 118 (each rule appears with and without the minecraft: prefix)
 ```
 
-## Sélecteurs et erreurs d'analyse (R13, R16)
+## Clés des sélecteurs et des erreurs d'analyse (R13, R16)
+
+Sortie de `python -I cmd_ref.py lang argument.entity. command.context. command.exception command.expected. command.failed command.forkLimit command.trailing_data command.unknown. permissions.requires.` : clé, nombre de marqueurs `%s` ou `%d`, longueur du texte anglais en caractères. Les textes eux-mêmes ne sont pas recopiés : un test lit `resources/assets/minecraft/lang/en_us.json` du cache et compare clé, nombre d'arguments et longueur (`python -I cmd_ref.py langtext CLE` affiche un texte pour une vérification à la main). Les textes cités dans R13 et R16 le sont parce que les règles en dépendent.
 
 ```
-argument.entity.selector.allEntities = All entities
-argument.entity.selector.allPlayers = All players
-argument.entity.selector.missing = Missing selector type
-argument.entity.selector.nearestEntity = Nearest entity
-argument.entity.selector.nearestPlayer = Nearest player
-argument.entity.selector.not_allowed = Selector not allowed
-argument.entity.selector.randomPlayer = Random player
-argument.entity.selector.self = Current entity
-argument.entity.selector.unknown = Unknown selector type '%s'
+argument.entity.invalid | 0 | 20
+argument.entity.notfound.entity | 0 | 19
+argument.entity.notfound.player | 0 | 19
+argument.entity.options.advancements.description | 0 | 25
+argument.entity.options.distance.description | 0 | 18
+argument.entity.options.distance.negative | 0 | 27
+argument.entity.options.dx.description | 0 | 29
+argument.entity.options.dy.description | 0 | 29
+argument.entity.options.dz.description | 0 | 29
+argument.entity.options.gamemode.description | 0 | 22
+argument.entity.options.inapplicable | 1 | 33
+argument.entity.options.level.description | 0 | 16
+argument.entity.options.level.negative | 0 | 27
+argument.entity.options.limit.description | 0 | 36
+argument.entity.options.limit.toosmall | 0 | 24
+argument.entity.options.mode.invalid | 1 | 33
+argument.entity.options.name.description | 0 | 11
+argument.entity.options.nbt.description | 0 | 17
+argument.entity.options.predicate.description | 0 | 16
+argument.entity.options.scores.description | 0 | 20
+argument.entity.options.sort.description | 0 | 17
+argument.entity.options.sort.irreversible | 1 | 33
+argument.entity.options.tag.description | 0 | 17
+argument.entity.options.team.description | 0 | 16
+argument.entity.options.type.description | 0 | 16
+argument.entity.options.type.invalid | 1 | 35
+argument.entity.options.unknown | 1 | 19
+argument.entity.options.unterminated | 0 | 23
+argument.entity.options.valueless | 1 | 30
+argument.entity.options.x.description | 0 | 10
+argument.entity.options.x_rotation.description | 0 | 19
+argument.entity.options.y.description | 0 | 10
+argument.entity.options.y_rotation.description | 0 | 19
+argument.entity.options.z.description | 0 | 10
+argument.entity.selector.allEntities | 0 | 12
+argument.entity.selector.allPlayers | 0 | 11
+argument.entity.selector.missing | 0 | 21
+argument.entity.selector.nearestEntity | 0 | 14
+argument.entity.selector.nearestPlayer | 0 | 14
+argument.entity.selector.not_allowed | 0 | 20
+argument.entity.selector.randomPlayer | 0 | 13
+argument.entity.selector.self | 0 | 14
+argument.entity.selector.unknown | 1 | 26
+argument.entity.toomany | 0 | 74
+command.context.here | 0 | 9
+command.context.parse_error | 3 | 21
+command.exception | 1 | 27
+command.expected.separator | 0 | 64
+command.failed | 0 | 65
+command.forkLimit | 1 | 39
+command.trailing_data | 1 | 23
+command.unknown.argument | 0 | 30
+command.unknown.command | 0 | 50
+permissions.requires.entity | 0 | 46
+permissions.requires.player | 0 | 45
+keys: 55
 ```
 
-```
-argument.entity.options.advancements.description = Players with advancements
-argument.entity.options.distance.description = Distance to entity
-argument.entity.options.distance.negative = Distance cannot be negative
-argument.entity.options.dx.description = Entities between x and x + dx
-argument.entity.options.dy.description = Entities between y and y + dy
-argument.entity.options.dz.description = Entities between z and z + dz
-argument.entity.options.gamemode.description = Players with game mode
-argument.entity.options.inapplicable = Option '%s' isn't applicable here
-argument.entity.options.level.description = Experience level
-argument.entity.options.level.negative = Level shouldn't be negative
-argument.entity.options.limit.description = Maximum number of entities to return
-argument.entity.options.limit.toosmall = Limit must be at least 1
-argument.entity.options.mode.invalid = Invalid or unknown game mode '%s'
-argument.entity.options.name.description = Entity name
-argument.entity.options.nbt.description = Entities with NBT
-argument.entity.options.predicate.description = Custom predicate
-argument.entity.options.scores.description = Entities with scores
-argument.entity.options.sort.description = Sort the entities
-argument.entity.options.sort.irreversible = Invalid or unknown sort type '%s'
-argument.entity.options.tag.description = Entities with tag
-argument.entity.options.team.description = Entities on team
-argument.entity.options.type.description = Entities of type
-argument.entity.options.type.invalid = Invalid or unknown entity type '%s'
-argument.entity.options.unknown = Unknown option '%s'
-argument.entity.options.unterminated = Expected end of options
-argument.entity.options.valueless = Expected value for option '%s'
-argument.entity.options.x_rotation.description = Entity's x rotation
-argument.entity.options.x.description = x position
-argument.entity.options.y_rotation.description = Entity's y rotation
-argument.entity.options.y.description = y position
-argument.entity.options.z.description = z position
-```
+## Clés des commandes de rang A (R24, R26 à R30)
+
+Même forme, pour `python -I cmd_ref.py lang commands.help. commands.list. commands.message. commands.teammsg. chat.type.admin chat.type.announcement chat.type.emote chat.type.team. commands.op. commands.deop. commands.kick. commands.ban. commands.banip. commands.banlist. commands.pardon. commands.pardonip. commands.whitelist. commands.setidletimeout. commands.transfer. commands.version. commands.seed. commands.stop. commands.save. commands.tick. commands.time. commands.gamerule. commands.difficulty. commands.defaultgamemode. commands.gamemode. commands.teleport. commands.setworldspawn. commands.spawnpoint. commands.weather.`. Les messages `commands.message.*` n'apparaissent qu'une fois.
 
 ```
-argument.entity.invalid = Invalid name or UUID
-argument.entity.notfound.entity = No entity was found
-argument.entity.notfound.player = No player was found
-argument.entity.options.advancements.description = Players with advancements
-argument.entity.options.distance.description = Distance to entity
-argument.entity.options.distance.negative = Distance cannot be negative
-argument.entity.options.dx.description = Entities between x and x + dx
-argument.entity.options.dy.description = Entities between y and y + dy
-argument.entity.options.dz.description = Entities between z and z + dz
-argument.entity.options.gamemode.description = Players with game mode
-argument.entity.options.inapplicable = Option '%s' isn't applicable here
-argument.entity.options.level.description = Experience level
-argument.entity.options.level.negative = Level shouldn't be negative
-argument.entity.options.limit.description = Maximum number of entities to return
-argument.entity.options.limit.toosmall = Limit must be at least 1
-argument.entity.options.mode.invalid = Invalid or unknown game mode '%s'
-argument.entity.options.name.description = Entity name
-argument.entity.options.nbt.description = Entities with NBT
-argument.entity.options.predicate.description = Custom predicate
-argument.entity.options.scores.description = Entities with scores
-argument.entity.options.sort.description = Sort the entities
-argument.entity.options.sort.irreversible = Invalid or unknown sort type '%s'
-argument.entity.options.tag.description = Entities with tag
-argument.entity.options.team.description = Entities on team
-argument.entity.options.type.description = Entities of type
-argument.entity.options.type.invalid = Invalid or unknown entity type '%s'
-argument.entity.options.unknown = Unknown option '%s'
-argument.entity.options.unterminated = Expected end of options
-argument.entity.options.valueless = Expected value for option '%s'
-argument.entity.options.x_rotation.description = Entity's x rotation
-argument.entity.options.x.description = x position
-argument.entity.options.y_rotation.description = Entity's y rotation
-argument.entity.options.y.description = y position
-argument.entity.options.z.description = z position
-argument.entity.selector.allEntities = All entities
-argument.entity.selector.allPlayers = All players
-argument.entity.selector.missing = Missing selector type
-argument.entity.selector.nearestEntity = Nearest entity
-argument.entity.selector.nearestPlayer = Nearest player
-argument.entity.selector.not_allowed = Selector not allowed
-argument.entity.selector.randomPlayer = Random player
-argument.entity.selector.self = Current entity
-argument.entity.selector.unknown = Unknown selector type '%s'
-argument.entity.toomany = Only one entity is allowed, but the provided selector allows more than one
-```
-
-```
-command.compute.result.named.exact = %s returned value %s
-command.compute.result.named.invalid = %s returned invalid value (%s)
-command.compute.result.named.rounded = %s returned value %s (rounded to %s)
-command.compute.result.unnamed.exact = Number provider returned value %s
-command.compute.result.unnamed.invalid = Number provider returned invalid value (%s)
-command.compute.result.unnamed.rounded = Number provider returned value %s (rounded to %s)
-command.context.here = <--[HERE]
-command.context.parse_error = %s at position %s: %s
-command.exception = Could not parse command: %s
-command.expected.separator = Expected whitespace to end one argument, but found trailing data
-command.failed = An unexpected error occurred while trying to execute that command
-command.forkLimit = Maximum number of contexts (%s) reached
-command.trailing_data = Trailing data found: %s
-command.unknown.argument = Incorrect argument for command
-command.unknown.command = Unknown or incomplete command. See below for error
-```
-
-```
-permissions.requires.entity = An entity is required to run this command here
-permissions.requires.player = A player is required to run this command here
-```
-
-## Textes des commandes de rang A (R24, R26 à R30)
-
-```
-commands.help.failed = Unknown command or insufficient permissions
-```
-
-```
-commands.list.nameAndId = %s (%s)
-commands.list.players = There are %s of a max of %s players online: %s
-```
-
-```
-commands.message.display.incoming = %s whispers to you: %s
-commands.message.display.outgoing = You whisper to %s: %s
-```
-
-```
-commands.message.display.incoming = %s whispers to you: %s
-commands.message.display.outgoing = You whisper to %s: %s
-```
-
-```
-commands.teammsg.failed.noteam = You must be on a team to message your team
-```
-
-```
-chat.type.admin = [%s: %s]
-chat.type.advancement.challenge = %s has completed the challenge %s
-chat.type.advancement.goal = %s has reached the goal %s
-chat.type.advancement.task = %s has made the advancement %s
-chat.type.announcement = [%s] %s
-chat.type.emote = * %s %s
-chat.type.team.hover = Message Team
-chat.type.team.sent = -> %s <%s> %s
-chat.type.team.text = %s <%s> %s
-chat.type.text = <%s> %s
-chat.type.text.narrate = %s says %s
-```
-
-```
-commands.op.failed = Nothing changed. The player is already an operator
-commands.op.success = Made %s a server operator
-```
-
-```
-commands.deop.failed = Nothing changed. The player is not an operator
-commands.deop.success = Made %s no longer a server operator
-```
-
-```
-commands.kick.owner.failed = Cannot kick the server owner in a LAN game
-commands.kick.singleplayer.failed = Cannot kick in an offline singleplayer game
-commands.kick.success = Kicked %s: %s
-```
-
-```
-commands.ban.failed = Nothing changed. The player is already banned
-commands.ban.success = Banned %s: %s
-commands.banip.failed = Nothing changed. That IP is already banned
-commands.banip.info = This ban affects %s player(s): %s
-commands.banip.invalid = Invalid IP address or unknown player
-commands.banip.success = Banned IP %s: %s
-commands.banlist.entry = %s was banned by %s: %s
-commands.banlist.entry.unknown = (Unknown)
-commands.banlist.list = There are %s ban(s):
-commands.banlist.none = There are no bans
-```
-
-```
-commands.pardon.failed = Nothing changed. The player isn't banned
-commands.pardon.success = Unbanned %s
-commands.pardonip.failed = Nothing changed. That IP isn't banned
-commands.pardonip.invalid = Invalid IP address
-commands.pardonip.success = Unbanned IP %s
-```
-
-```
-commands.whitelist.add.failed = Player is already whitelisted
-commands.whitelist.add.success = Added %s to the whitelist
-commands.whitelist.alreadyOff = Whitelist is already turned off
-commands.whitelist.alreadyOn = Whitelist is already turned on
-commands.whitelist.disabled = Whitelist is now turned off
-commands.whitelist.enabled = Whitelist is now turned on
-commands.whitelist.list = There are %s whitelisted player(s): %s
-commands.whitelist.none = There are no whitelisted players
-commands.whitelist.reloaded = Reloaded the whitelist
-commands.whitelist.remove.failed = Player is not whitelisted
-commands.whitelist.remove.success = Removed %s from the whitelist
-```
-
-```
-commands.setidletimeout.success = The player idle timeout is now %s minute(s)
-commands.setidletimeout.success.disabled = The player idle timeout is now disabled
-```
-
-```
-commands.transfer.error.no_players = Must specify at least one player to transfer
-commands.transfer.success.multiple = Transferring %s players to %s:%s
-commands.transfer.success.single = Transferring %s to %s:%s
-```
-
-```
-commands.version.build_time = build_time = %s
-commands.version.data = data = %s
-commands.version.header = Server version info:
-commands.version.id = id = %s
-commands.version.name = name = %s
-commands.version.pack.data = pack_data = %s
-commands.version.pack.resource = pack_resource = %s
-commands.version.protocol = protocol = %s (%s)
-commands.version.series = series = %s
-commands.version.stable.no = stable = no
-commands.version.stable.yes = stable = yes
-```
-
-```
-commands.seed.success = Seed: %s
-```
-
-```
-commands.stop.stopping = Stopping the server
-commands.stopsound.success.source.any = Stopped all '%s' sounds
-commands.stopsound.success.source.sound = Stopped sound '%s' on source '%s'
-commands.stopsound.success.sourceless.any = Stopped all sounds
-commands.stopsound.success.sourceless.sound = Stopped sound '%s'
-commands.stopwatch.already_exists = Stopwatch '%s' already exists
-commands.stopwatch.create.success = Created stopwatch '%s'
-commands.stopwatch.does_not_exist = Stopwatch '%s' does not exist
-commands.stopwatch.query = Stopwatch '%s' has run for %ss
-commands.stopwatch.remove.success = Removed stopwatch '%s'
-commands.stopwatch.restart.success = Restarted stopwatch '%s'
-```
-
-```
-commands.save.alreadyOff = Saving is already turned off
-commands.save.alreadyOn = Saving is already turned on
-commands.save.disabled = Automatic saving is now disabled
-commands.save.enabled = Automatic saving is now enabled
-commands.save.failed = Unable to save the game (is there enough disk space?)
-commands.save.saving = Saving the game (this may take a moment!)
-commands.save.success = Saved the game
-```
-
-```
-commands.tick.query.percentiles = Percentiles: P50: %sms P95: %sms P99: %sms. Sample: %s
-commands.tick.query.rate.running = Target tick rate: %s per second. / Average time per tick: %sms (Target: %sms)
-commands.tick.query.rate.sprinting = Target tick rate: %s per second (ignored, reference only). / Average time per tick: %sms
-commands.tick.rate.success = Set the target tick rate to %s per second
-commands.tick.sprint.report = Sprint completed with %s ticks per second, or %s ms per tick
-commands.tick.sprint.stop.fail = No tick sprint in progress
-commands.tick.sprint.stop.success = Interrupted the current tick sprint
-commands.tick.status.frozen = The game is frozen
-commands.tick.status.lagging = The game is running, but can't keep up with the target tick rate
-commands.tick.status.running = The game is running normally
-commands.tick.status.sprinting = The game is sprinting
-commands.tick.step.fail = Unable to step the game - the game must be frozen first
-commands.tick.step.stop.fail = No tick step in progress
-commands.tick.step.stop.success = Interrupted the current tick step
-commands.tick.step.success = Stepping %s tick(s)
-```
-
-```
-commands.time.no_default_clock = There is no default clock in dimension %s
-commands.time.no_time_marker_found = Time marker %s does not exist for clock %s
-commands.time.pause = Paused clock %s
-commands.time.pause.already_paused = Clock %s is already paused
-commands.time.pause.already_running = Clock %s is already running
-commands.time.query = The time is %s
-commands.time.query.absolute = Clock %s is at %s tick(s)
-commands.time.query.gametime = The game time is %s tick(s)
-commands.time.query.timeline = Timeline %s is at %s tick(s)
-commands.time.query.timeline.repetitions = Timeline %s has passed %s repetition(s)
-commands.time.rate = Clock %s will now advance at %sx normal rate
-commands.time.rate.already_same = Clock %s is already advancing at %sx normal rate
-commands.time.resume = Resumed clock %s
-commands.time.set = Set the time to %s
-commands.time.set.absolute = Set %s to %s tick(s)
-commands.time.set.already_at_time = Clock %s is already set to %s tick(s)
-commands.time.set.already_at_time_marker = Clock %s is already at time marker %s
-commands.time.set.time_marker = Set %s to time marker %s
-commands.time.wrong_timeline_for_clock = Timeline %s is not valid for clock %s
-```
-
-```
-commands.gamerule.not_set = Game rule %s is already set to %s
-commands.gamerule.query = Game rule %s is currently set to %s
-commands.gamerule.set = Game rule %s is now set to %s
-```
-
-```
-commands.difficulty.failure = The difficulty did not change; it is already set to %s
-commands.difficulty.query = The difficulty is %s
-commands.difficulty.success = The difficulty has been set to %s
-```
-
-```
-commands.defaultgamemode.success = The default game mode is now %s
-```
-
-```
-commands.gamemode.success.other = Set %s's game mode to %s
-commands.gamemode.success.self = Set own game mode to %s
-```
-
-```
-commands.teleport.invalidPosition = Invalid position for teleport
-commands.teleport.success.entity.multiple = Teleported %s entities to %s
-commands.teleport.success.entity.single = Teleported %s to %s
-commands.teleport.success.location.multiple = Teleported %s entities to %s, %s, %s
-commands.teleport.success.location.single = Teleported %s to %s, %s, %s
-```
-
-```
-commands.setworldspawn.failure.not_overworld = Can only set the world spawn for the Overworld
-commands.setworldspawn.success = Set the world spawn point to %s, %s, %s [%s]
-commands.setworldspawn.success.new = Set the world spawn point to %s, %s, %s [%s, %s] in %s
-```
-
-```
-commands.spawnpoint.success.multiple = Set spawn point to %s, %s, %s [%s] in %s for %s players
-commands.spawnpoint.success.multiple.new = Set spawn point to %s, %s, %s [%s, %s] in %s for %s players
-commands.spawnpoint.success.single = Set spawn point to %s, %s, %s [%s] in %s for %s
-commands.spawnpoint.success.single.new = Set spawn point to %s, %s, %s [%s, %s] in %s for %s
-```
-
-```
-commands.weather.set.clear = Set the weather to clear
-commands.weather.set.rain = Set the weather to rain
-commands.weather.set.thunder = Set the weather to rain and thunder
+chat.type.admin | 2 | 8
+chat.type.announcement | 2 | 7
+chat.type.emote | 2 | 7
+chat.type.team.hover | 0 | 12
+chat.type.team.sent | 3 | 13
+chat.type.team.text | 3 | 10
+commands.ban.failed | 0 | 45
+commands.ban.success | 2 | 13
+commands.banip.failed | 0 | 42
+commands.banip.info | 2 | 33
+commands.banip.invalid | 0 | 36
+commands.banip.success | 2 | 16
+commands.banlist.entry | 3 | 23
+commands.banlist.entry.unknown | 0 | 9
+commands.banlist.list | 1 | 20
+commands.banlist.none | 0 | 17
+commands.defaultgamemode.success | 1 | 31
+commands.deop.failed | 0 | 46
+commands.deop.success | 1 | 35
+commands.difficulty.failure | 1 | 54
+commands.difficulty.query | 1 | 20
+commands.difficulty.success | 1 | 33
+commands.gamemode.success.other | 2 | 24
+commands.gamemode.success.self | 1 | 23
+commands.gamerule.not_set | 2 | 33
+commands.gamerule.query | 2 | 35
+commands.gamerule.set | 2 | 29
+commands.help.failed | 0 | 43
+commands.kick.owner.failed | 0 | 42
+commands.kick.singleplayer.failed | 0 | 43
+commands.kick.success | 2 | 13
+commands.list.nameAndId | 2 | 7
+commands.list.players | 3 | 46
+commands.message.display.incoming | 2 | 22
+commands.message.display.outgoing | 2 | 21
+commands.op.failed | 0 | 50
+commands.op.success | 1 | 25
+commands.pardon.failed | 0 | 40
+commands.pardon.success | 1 | 11
+commands.pardonip.failed | 0 | 37
+commands.pardonip.invalid | 0 | 18
+commands.pardonip.success | 1 | 14
+commands.save.alreadyOff | 0 | 28
+commands.save.alreadyOn | 0 | 27
+commands.save.disabled | 0 | 32
+commands.save.enabled | 0 | 31
+commands.save.failed | 0 | 53
+commands.save.saving | 0 | 41
+commands.save.success | 0 | 14
+commands.seed.success | 1 | 8
+commands.setidletimeout.success | 1 | 43
+commands.setidletimeout.success.disabled | 0 | 39
+commands.setworldspawn.failure.not_overworld | 0 | 46
+commands.setworldspawn.success | 4 | 44
+commands.setworldspawn.success.new | 6 | 54
+commands.spawnpoint.success.multiple | 6 | 55
+commands.spawnpoint.success.multiple.new | 7 | 59
+commands.spawnpoint.success.single | 6 | 47
+commands.spawnpoint.success.single.new | 7 | 51
+commands.stop.stopping | 0 | 19
+commands.teammsg.failed.noteam | 0 | 42
+commands.teleport.invalidPosition | 0 | 29
+commands.teleport.success.entity.multiple | 2 | 28
+commands.teleport.success.entity.single | 2 | 19
+commands.teleport.success.location.multiple | 4 | 36
+commands.teleport.success.location.single | 4 | 27
+commands.tick.query.percentiles | 4 | 54
+commands.tick.query.rate.running | 3 | 75
+commands.tick.query.rate.sprinting | 2 | 86
+commands.tick.rate.success | 1 | 41
+commands.tick.sprint.report | 2 | 60
+commands.tick.sprint.stop.fail | 0 | 26
+commands.tick.sprint.stop.success | 0 | 35
+commands.tick.status.frozen | 0 | 18
+commands.tick.status.lagging | 0 | 64
+commands.tick.status.running | 0 | 28
+commands.tick.status.sprinting | 0 | 21
+commands.tick.step.fail | 0 | 55
+commands.tick.step.stop.fail | 0 | 24
+commands.tick.step.stop.success | 0 | 33
+commands.tick.step.success | 1 | 19
+commands.time.no_default_clock | 1 | 41
+commands.time.no_time_marker_found | 2 | 42
+commands.time.pause | 1 | 15
+commands.time.pause.already_paused | 1 | 26
+commands.time.pause.already_running | 1 | 27
+commands.time.query | 1 | 14
+commands.time.query.absolute | 2 | 25
+commands.time.query.gametime | 1 | 27
+commands.time.query.timeline | 2 | 28
+commands.time.query.timeline.repetitions | 2 | 39
+commands.time.rate | 2 | 44
+commands.time.rate.already_same | 2 | 48
+commands.time.resume | 1 | 16
+commands.time.set | 1 | 18
+commands.time.set.absolute | 2 | 20
+commands.time.set.already_at_time | 2 | 37
+commands.time.set.already_at_time_marker | 2 | 37
+commands.time.set.time_marker | 2 | 24
+commands.time.wrong_timeline_for_clock | 2 | 37
+commands.transfer.error.no_players | 0 | 44
+commands.transfer.success.multiple | 3 | 32
+commands.transfer.success.single | 3 | 24
+commands.version.build_time | 1 | 15
+commands.version.data | 1 | 9
+commands.version.header | 0 | 20
+commands.version.id | 1 | 7
+commands.version.name | 1 | 9
+commands.version.pack.data | 1 | 14
+commands.version.pack.resource | 1 | 18
+commands.version.protocol | 2 | 18
+commands.version.series | 1 | 11
+commands.version.stable.no | 0 | 11
+commands.version.stable.yes | 0 | 12
+commands.weather.set.clear | 0 | 24
+commands.weather.set.rain | 0 | 23
+commands.weather.set.thunder | 0 | 35
+commands.whitelist.add.failed | 0 | 29
+commands.whitelist.add.success | 1 | 25
+commands.whitelist.alreadyOff | 0 | 31
+commands.whitelist.alreadyOn | 0 | 30
+commands.whitelist.disabled | 0 | 27
+commands.whitelist.enabled | 0 | 26
+commands.whitelist.list | 2 | 38
+commands.whitelist.none | 0 | 32
+commands.whitelist.reloaded | 0 | 22
+commands.whitelist.remove.failed | 0 | 25
+commands.whitelist.remove.success | 1 | 29
+keys: 128
 ```
 
 ## Sondes
@@ -932,12 +783,15 @@ Sub-commands:
   levels                root commands grouped by permission
   nested                permission requirements carried by nodes below a root command
   redirects             redirections by target
-  lang PREFIX           translation keys (en_us) that start with PREFIX
+  lang PREFIX...        translation keys (en_us) that start with one of the prefixes: key, number of
+                        placeholders, length of the English text (the text itself is not printed)
+  langtext KEY          the English text of one key, for a manual check
   registry NAME         protocol ids of a registry (registries.json)
 """
 import collections
 import json
 import os
+import re
 import sys
 
 REF = os.environ.get("REF", ".cache/reference/26.3")
@@ -1050,12 +904,21 @@ def cmd_redirects():
         print(n, "->", target)
 
 
-def cmd_lang(prefix):
+def lang():
     with open(os.path.join(REF, "resources", "assets", "minecraft", "lang", "en_us.json"), encoding="utf-8") as f:
-        d = json.load(f)
-    for k, v in d.items():
-        if k.startswith(prefix):
-            print(k, "=", v.replace("\n", " / "))
+        return json.load(f)
+
+
+def cmd_lang(*prefixes):
+    d = lang()
+    keys = sorted(k for k in d if k.startswith(prefixes))
+    for k in keys:
+        print("%s | %d | %d" % (k, len(re.findall(r"%(?:\d+\$)?[sd]", d[k])), len(d[k])))
+    print("keys:", len(keys))
+
+
+def cmd_langtext(key):
+    print(lang()[key].replace("\n", " / "))
 
 
 def cmd_registry(name):

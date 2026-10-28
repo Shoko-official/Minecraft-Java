@@ -31,6 +31,7 @@ Ne couvre pas :
 
 - **Données extraites** (`.cache/reference/26.3/`) : `version.json` (protocole 777, data version 5023) ; `generated/reports/packets.json` (états, sens, noms et identifiants des 260 paquets) ; `registries.json` (95 registres avec leurs identifiants de protocole : `command_argument_type`, `data_component_type`, `game_event`, `menu`, `mob_effect`, `entity_type`...) ; `blocks.json` (35 723 états de blocs) ; `datapack.json` (registres pilotés par les données) ; `commands.json` ; `resources/data/minecraft/dimension_type/*.json` ; `resources/data/minecraft/**` pour les décomptes de fichiers ; `resources/assets/minecraft/lang/en_us.json` (clés de traduction des messages de déconnexion).
 - **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki, pages "Java Edition protocol/Packets" (annoncée pour 26.3, protocole 777), "Java Edition protocol/FAQ" (séquence de connexion), "Java Edition protocol/Encryption", "Java Edition protocol/Server List Ping", "Java Edition protocol/Registry data", "Java Edition protocol/Command data", "Java Edition protocol/Slot data", "Java Edition protocol/Chunk format", "Java Edition protocol/Entity metadata", "Java Edition protocol/Data types", "Server.properties". L'extraction des pages a été faite par un outil de lecture automatique qui résume : une valeur lue ainsi peut être mal recopiée. C'est une raison de plus de les garder à S et de les confronter à la transcription PN4/PN5.
+- **Licence et attribution des champs de paquets.** La colonne « Champs » des 260 paquets (§ Paquets) reprend la structure (types et ordre des champs) de la page « Java Edition protocol/Packets » du Minecraft Wiki (`https://minecraft.wiki/w/Java_Edition_protocol/Packets`), consultée le 2026-10-28. Le texte de ce wiki est publié sous licence Creative Commons Attribution - NonCommercial - ShareAlike 3.0 (CC BY-NC-SA 3.0, `https://minecraft.wiki/w/Minecraft_Wiki:Copyrights`, vérifié le 2026-10-28) ; la même licence vaut pour les autres pages du wiki citées ci-dessus. Cette spec n'en garde que la structure, reformulée et sans les explications de la page ; cette partie reste sous les conditions de la licence (attribution, partage dans les mêmes conditions, usage non commercial). Seuls les identifiants et les noms de paquets sont des données extraites (`packets.json`, D). Sur les étiquettes de type, la page publique emploie `LpVec3`, `Teleport Flags`, `ID or`, `ID Set` et `Light Data` (relevé le 2026-10-28) ; `PositionStep` et `DebugSubscriptionUpdate` n'y figurent que sous la forme `Position Step` et `Debug Subscription Update` et n'ont pas été retenus : elles sont remplacées par une notation neutre de la spec.
 - **Rapports locaux** : `rapport_architecture_minecraft.md`, chapitre 12 (serveur intégré, suivi des entités par joueur, positions calculées côté client, paquets de deltas). Indice seulement : aucune règle n'en vient seule ; il ne donne aucun octet. Les autres rapports ne décrivent pas le protocole. Le rapport Overworld embarque des copies de rapports du générateur de données (liste de paquets, arbre de commandes, registres) : non utilisées, les fichiers extraits font foi.
 - **Calculs** : `net_ref.py` (annexe de `net-protocol-777-vectors.md`), sous-commandes `varint`, `frames`, `invalid`, `lpvec`, `position`, `palette`, `hash`, `uuid`, `cfb8`, `commands`, `dims`.
 - **Sondes de l'oracle** : aucune exécutée (EULA du serveur de référence non acceptée à ce jour). PN1 à PN13 et PA1 à PA4 sont décrites dans `net-protocol-777-vectors.md`.
@@ -217,7 +218,7 @@ La page "Packets" se présente comme celle de 26.3, mais plusieurs pages voisine
 
 ## Paquets
 
-Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et le nom sont D (`packets.json`, R2). Les champs sont S (R3). Notation : `Type` simple ; `Tableau<T>` = tableau préfixé ; `Optionnel<T>` = optionnel préfixé ; `(n)` = maximum ; `UByte`/`UShort` non signés ; `Varies` = forme dépendant d'un type annoncé plus tôt.
+Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et le nom sont D (`packets.json`, R2). Les champs sont S (R3). Notation : `Type` simple ; `PrefixedArray<T>` = tableau préfixé (R14) ; `PrefixedOptional<T>` = optionnel préfixé ; `X(n)` = X avec le maximum n écrit entre parenthèses (R14) ; `UByte`/`UShort` non signés ; `Varies` = forme dépendant d'un type annoncé plus tôt. Les étiquettes de type `TextComponent`, `Slot`, `NBT`, `Position`, `Angle`, `LpVec3`, `GameProfile`, `Identifier`, `BitSet` sont celles de la page publique citée dans les Sources ; les notations françaises (`ID ou ...`, `Ensemble d'ID`, `drapeaux de téléportation`, `lumière`, `charge d'abonnement`, `pas de déplacement`) sont de l'auteur de la spec et renvoient à une règle, ce ne sont pas des identifiants internes du jeu.
 
 #### handshake, serverbound (1 paquet)
 
@@ -331,17 +332,17 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 23 | 0x17 | `custom_chat_completions` | action:VarInt (0 add, 1 remove, 2 set); entries:PrefixedArray<String> |
 | 24 | 0x18 | `custom_payload` | channel:Identifier; data:ByteArray |
 | 25 | 0x19 | `damage_event` | entity_id:VarInt; source_type:VarInt; cause_id:VarInt (id+1, 0 aucun); direct_id:VarInt (id+1, 0 aucun); source_pos:PrefixedOptional<{x:Double; y:Double; z:Double}> |
-| 26 | 0x1A | `debug/block_value` | pos:Position; update:DebugSubscriptionUpdate |
-| 27 | 0x1B | `debug/chunk_value` | chunk_z:Int; chunk_x:Int; update:DebugSubscriptionUpdate |
-| 28 | 0x1C | `debug/entity_value` | entity_id:VarInt; update:DebugSubscriptionUpdate |
+| 26 | 0x1A | `debug/block_value` | pos:Position; update:charge d'abonnement (forme non relevée, R101) |
+| 27 | 0x1B | `debug/chunk_value` | chunk_z:Int; chunk_x:Int; update:charge d'abonnement (forme non relevée, R101) |
+| 28 | 0x1C | `debug/entity_value` | entity_id:VarInt; update:charge d'abonnement (forme non relevée, R101) |
 | 29 | 0x1D | `debug/event` | event:DebugSubscriptionEvent |
 | 30 | 0x1E | `debug_sample` | sample:PrefixedArray<Long>; type:VarInt (0 tick time) |
 | 31 | 0x1F | `delete_chat` | message_id:VarInt (id+1); signature:Optional<ByteArray(256)> (si message_id = 0) |
 | 32 | 0x20 | `disconnect` | reason:TextComponent |
-| 33 | 0x21 | `disguised_chat` | message:TextComponent; chat_type:IdOr<ChatType>; sender_name:TextComponent; target_name:PrefixedOptional<TextComponent> |
+| 33 | 0x21 | `disguised_chat` | message:TextComponent; chat_type:ID ou valeur du registre chat_type (R15); sender_name:TextComponent; target_name:PrefixedOptional<TextComponent> |
 | 34 | 0x22 | `entity_event` | entity_id:Int; status:Byte |
-| 35 | 0x23 | `entity_position_sync` | entity_id:VarInt; path_type:VarInt (0 linear: x:Double, y:Double, z:Double; 1 stepped: steps:PrefixedArray<PositionStep>); yaw:Float; pitch:Float; on_ground:Boolean |
-| 36 | 0x24 | `explode` | x:Double; y:Double; z:Double; radius:Float; block_count:Int; player_delta:PrefixedOptional<{x:Double; y:Double; z:Double}>; particle_id:VarInt; particle_data:Varies; sound:IdOr<SoundEvent>; block_particle_alternatives:{particle_ids:PrefixedArray<VarInt>; data:Varies; scaling:Float; speed:Float; weight:VarInt}; play_sound:Boolean |
+| 35 | 0x23 | `entity_position_sync` | entity_id:VarInt; path_type:VarInt (0 linear: x:Double, y:Double, z:Double; 1 stepped: steps:PrefixedArray<pas de déplacement (forme non relevée, R102)>); yaw:Float; pitch:Float; on_ground:Boolean |
+| 36 | 0x24 | `explode` | x:Double; y:Double; z:Double; radius:Float; block_count:Int; player_delta:PrefixedOptional<{x:Double; y:Double; z:Double}>; particle_id:VarInt; particle_data:Varies; sound:ID ou valeur du registre sound_event (R15); block_particle_alternatives:{particle_ids:PrefixedArray<VarInt>; data:Varies; scaling:Float; speed:Float; weight:VarInt}; play_sound:Boolean |
 | 37 | 0x25 | `add_transient_block` | pos:Position; state:VarInt |
 | 38 | 0x26 | `forget_level_chunk` | chunk_z:Int; chunk_x:Int |
 | 39 | 0x27 | `game_event` | event:UByte; value:Float |
@@ -351,10 +352,10 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 43 | 0x2B | `hurt_animation` | entity_id:VarInt; yaw:Float |
 | 44 | 0x2C | `initialize_border` | center_x:Double; center_z:Double; old_diameter:Double; new_diameter:Double; speed:VarLong (ms); portal_boundary:VarInt; warning_blocks:VarInt; warning_time:VarInt |
 | 45 | 0x2D | `keep_alive` | id:Long |
-| 46 | 0x2E | `level_chunk_with_light` | chunk_x:Int; chunk_z:Int; heightmaps:PrefixedArray<{type:VarInt; data:PrefixedArray<Long>}>; data:PrefixedArray<Byte>; block_entities:PrefixedArray<{packed_xz:UByte; y:Short; type:VarInt; nbt:NBT}>; light:LightData |
+| 46 | 0x2E | `level_chunk_with_light` | chunk_x:Int; chunk_z:Int; heightmaps:PrefixedArray<{type:VarInt; data:PrefixedArray<Long>}>; data:PrefixedArray<Byte>; block_entities:PrefixedArray<{packed_xz:UByte; y:Short; type:VarInt; nbt:NBT}>; light:lumière (R24) |
 | 47 | 0x2F | `level_event` | event:Int; pos:Position; data:Int; disable_relative_volume:Boolean |
 | 48 | 0x30 | `level_particles` | particle_id:VarInt; data:Varies; override_limiter:Boolean; always_visible:Boolean; x:Double; y:Double; z:Double; dx:Float; dy:Float; dz:Float; max_speed:Float; count:VarInt; randomization:VarInt (0..2) |
-| 49 | 0x31 | `light_update` | chunk_x:VarInt; chunk_z:VarInt; light:LightData |
+| 49 | 0x31 | `light_update` | chunk_x:VarInt; chunk_z:VarInt; light:lumière (R24) |
 | 50 | 0x32 | `login` | entity_id:Int; hardcore:Boolean; dimensions:PrefixedArray<Identifier>; max_players:VarInt; view_distance:VarInt; simulation_distance:VarInt; reduced_debug_info:Boolean; respawn_screen:Boolean; limited_crafting:Boolean; dimension_type:VarInt; dimension:Identifier; hashed_seed:Long; game_mode:VarInt; previous_game_mode:VarInt (0 indefini, sinon id+1); is_debug:Boolean; is_flat:Boolean; death_location:PrefixedOptional<{dimension:Identifier; pos:Position}>; portal_cooldown:VarInt; sea_level:VarInt; online_mode:Boolean; enforces_secure_chat:Boolean |
 | 51 | 0x33 | `low_disk_space_warning` | (aucun) |
 | 52 | 0x34 | `map_item_data` | map_id:VarInt; scale:Byte; locked:Boolean; icons:PrefixedOptional<PrefixedArray<{type:VarInt; x:Byte; z:Byte; direction:Byte; name:PrefixedOptional<TextComponent>}>>; patch:{columns:UByte; [columns>0] rows:UByte, x:UByte, z:UByte, data:PrefixedArray<UByte>} |
@@ -371,14 +372,14 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 63 | 0x3F | `pong_response` | payload:Long (non releve sur la page publique ; suppose identique a status) |
 | 64 | 0x40 | `place_ghost_recipe` | window_id:VarInt; display:RecipeDisplay |
 | 65 | 0x41 | `player_abilities` | flags:Byte (0x01 invulnerable, 0x02 flying, 0x04 allow flying, 0x08 instabuild); fly_speed:Float; fov_modifier:Float |
-| 66 | 0x42 | `player_chat` | global_index:VarInt; sender:UUID; index:VarInt; signature:PrefixedOptional<ByteArray(256)>; message:String(256); timestamp:Long; salt:Long; previous:PrefixedArray(20)<{id_plus_1:VarInt; [id_plus_1=0] signature:ByteArray(256)}>; unsigned_content:PrefixedOptional<TextComponent>; filter_type:VarInt (0 pass, 1 fully, 2 partially; [2] bits:BitSet); chat_type:IdOr<ChatType>; sender_name:TextComponent; target_name:PrefixedOptional<TextComponent> |
+| 66 | 0x42 | `player_chat` | global_index:VarInt; sender:UUID; index:VarInt; signature:PrefixedOptional<ByteArray(256)>; message:String(256); timestamp:Long; salt:Long; previous:PrefixedArray(20)<{id_plus_1:VarInt; [id_plus_1=0] signature:ByteArray(256)}>; unsigned_content:PrefixedOptional<TextComponent>; filter_type:VarInt (0 pass, 1 fully, 2 partially; [2] bits:BitSet); chat_type:ID ou valeur du registre chat_type (R15); sender_name:TextComponent; target_name:PrefixedOptional<TextComponent> |
 | 67 | 0x43 | `player_combat_end` | duration:VarInt |
 | 68 | 0x44 | `player_combat_enter` | (aucun) |
 | 69 | 0x45 | `player_combat_kill` | player_id:VarInt; message:TextComponent |
 | 70 | 0x46 | `player_info_remove` | uuids:PrefixedArray<UUID> |
 | 71 | 0x47 | `player_info_update` | actions:UByte (0x01 add player, 0x02 init chat, 0x04 game mode, 0x08 listed, 0x10 latency, 0x20 display name, 0x40 list priority, 0x80 hat); entries:PrefixedArray<{uuid:UUID; une charge par bit actif}> (add: name:String(16), properties:PrefixedArray(16); chat: session:PrefixedOptional<UUID>, expiry:Long, key:PrefixedArray(512), sig:PrefixedArray(4096); game mode:VarInt; listed:Boolean; latency:VarInt; display name:PrefixedOptional<TextComponent>; priority:VarInt; hat:Boolean) |
 | 72 | 0x48 | `player_look_at` | from:VarInt (0 feet, 1 eyes); x:Double; y:Double; z:Double; is_entity:Boolean; [is_entity] entity_id:VarInt, entity_from:VarInt |
-| 73 | 0x49 | `player_position` | teleport_id:VarInt; x:Double; y:Double; z:Double; vx:Double; vy:Double; vz:Double; yaw:Float; pitch:Float; flags:Int (TeleportFlags) |
+| 73 | 0x49 | `player_position` | teleport_id:VarInt; x:Double; y:Double; z:Double; vx:Double; vy:Double; vz:Double; yaw:Float; pitch:Float; flags:Int (drapeaux de téléportation, R19) |
 | 74 | 0x4A | `player_rotation` | yaw:Float; yaw_relative:Boolean; pitch:Float; pitch_relative:Boolean |
 | 75 | 0x4B | `recipe_book_add` | recipes:PrefixedArray<{id:VarInt; display:RecipeDisplay; group:VarInt; category:VarInt; ingredients:PrefixedOptional<PrefixedArray<IdSet>>; flags:Byte}> ; replace:Boolean (position exacte du champ flags S) |
 | 76 | 0x4C | `recipe_book_remove` | recipes:PrefixedArray<VarInt> |
@@ -423,8 +424,8 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 115 | 0x73 | `set_time` | world_age:Long; clocks:PrefixedArray<{clock:VarInt; time:VarLong; fractional:Float; rate:Float}> |
 | 116 | 0x74 | `set_title_text` | text:TextComponent |
 | 117 | 0x75 | `set_titles_animation` | fade_in:Int; stay:Int; fade_out:Int |
-| 118 | 0x76 | `sound_entity` | sound:IdOr<SoundEvent>; category:VarInt; entity_id:VarInt; volume:Float; pitch:Float; seed:Long |
-| 119 | 0x77 | `sound` | sound:IdOr<SoundEvent>; category:VarInt; x:Int; y:Int; z:Int (x8); volume:Float; pitch:Float; seed:Long |
+| 118 | 0x76 | `sound_entity` | sound:ID ou valeur du registre sound_event (R15); category:VarInt; entity_id:VarInt; volume:Float; pitch:Float; seed:Long |
+| 119 | 0x77 | `sound` | sound:ID ou valeur du registre sound_event (R15); category:VarInt; x:Int; y:Int; z:Int (x8); volume:Float; pitch:Float; seed:Long |
 | 120 | 0x78 | `start_configuration` | (aucun) |
 | 121 | 0x79 | `stop_sound` | flags:Byte (0x01 source, 0x02 sound); [0x01] source:VarInt; [0x02] sound:Identifier |
 | 122 | 0x7A | `store_cookie` | key:Identifier; payload:PrefixedArray<Byte>(5120) |
@@ -433,7 +434,7 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 125 | 0x7D | `tab_list` | header:TextComponent; footer:TextComponent |
 | 126 | 0x7E | `tag_query` | transaction_id:VarInt; nbt:NBT |
 | 127 | 0x7F | `take_item_entity` | collected_id:VarInt; collector_id:VarInt; count:VarInt |
-| 128 | 0x80 | `teleport_entity` | entity_id:VarInt; x:Double; y:Double; z:Double; vx:Double; vy:Double; vz:Double; yaw:Float; pitch:Float; flags:Int (TeleportFlags); on_ground:Boolean |
+| 128 | 0x80 | `teleport_entity` | entity_id:VarInt; x:Double; y:Double; z:Double; vx:Double; vy:Double; vz:Double; yaw:Float; pitch:Float; flags:Int (drapeaux de téléportation, R19); on_ground:Boolean |
 | 129 | 0x81 | `test_instance_block_status` | status:TextComponent; has_size:Boolean; [has_size] x:Double, y:Double, z:Double |
 | 130 | 0x82 | `ticking_state` | tick_rate:Float; is_frozen:Boolean |
 | 131 | 0x83 | `ticking_step` | steps:VarInt |
@@ -441,14 +442,14 @@ Colonnes : identifiant décimal et hexadécimal, nom, champs. L'identifiant et l
 | 133 | 0x85 | `update_advancements` | reset:Boolean; added:PrefixedArray<{id:Identifier; advancement:Advancement}>; removed:PrefixedArray<Identifier>; progress:PrefixedArray<{id:Identifier; progress:PrefixedArray<{criterion:Identifier; achieved:PrefixedOptional<Long>}>}>; show:Boolean |
 | 134 | 0x86 | `update_attributes` | entity_id:VarInt; attributes:PrefixedArray<{id:VarInt; value:Double; modifiers:PrefixedArray<{id:Identifier; amount:Double; operation:Byte}>}> |
 | 135 | 0x87 | `update_mob_effect` | entity_id:VarInt; effect:VarInt; amplifier:VarInt; duration:VarInt (-1 infini); flags:Byte (0x01 ambient, 0x02 particles, 0x04 icon, 0x08 blend) |
-| 136 | 0x88 | `update_recipes` | property_sets:PrefixedArray<{id:Identifier; items:PrefixedArray<VarInt>}>; stonecutter:PrefixedArray<{ingredients:IdSet; display:SlotDisplay}> |
+| 136 | 0x88 | `update_recipes` | property_sets:PrefixedArray<{id:Identifier; items:PrefixedArray<VarInt>}>; stonecutter:PrefixedArray<{ingredients:Ensemble d'ID (R15); display:SlotDisplay}> |
 | 137 | 0x89 | `update_tags` | registries:PrefixedArray<{registry:Identifier; tags:PrefixedArray<{name:Identifier; entries:PrefixedArray<VarInt>}>}> |
 | 138 | 0x8A | `projectile_power` | entity_id:VarInt; power:Double |
 | 139 | 0x8B | `custom_report_details` | details:PrefixedArray(32)<{title:String(128); description:String(4096)}> |
 | 140 | 0x8C | `server_links` | links:PrefixedArray<{label:Either<VarInt, TextComponent>; url:String(32767)}> |
 | 141 | 0x8D | `waypoint` | operation:VarInt (0 track, 1 untrack, 2 update); id:Either<UUID, String>; icon_style:Identifier; color:PrefixedOptional<{r:UByte; g:UByte; b:UByte}>; type:VarInt (0 empty; 1 vec3i x,y,z:VarInt; 2 chunk x,z:VarInt; 3 azimuth angle:Float) |
 | 142 | 0x8E | `clear_dialog` | (aucun) |
-| 143 | 0x8F | `show_dialog` | dialog:IdOr<NBT> |
+| 143 | 0x8F | `show_dialog` | dialog:ID ou NBT (R15) |
 
 #### play, serverbound (69 paquets)
 

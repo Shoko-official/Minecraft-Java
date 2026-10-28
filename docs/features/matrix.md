@@ -13,7 +13,11 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | Chargement des datapacks et registres | M2 | B | non-spécifié | |
 | Stockage Anvil (lecture et écriture) | M3 | B | non-spécifié | |
 | Génération Overworld : bruit et densité | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S, bloquant B1) |
-| Génération Overworld : biomes | M4 | A | non-spécifié | |
+| Génération Overworld : biomes | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S, bloquant B3 levable par sonde ; R41 à R47) |
+| Interpréteur de fonctions de densité | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S ; R5, R12 à R35, R52) |
+| Bruits nommés | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S, bloquant B1 ; R8, R36 à R40) |
+| Splines de relief | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S ; R27, R28) |
+| Source de biomes multi-bruit | M4 | A | spécifié | `docs/specs/worldgen-noise-density.md` (brouillon, règles S, bloquant B3 levable par sonde ; R41 à R47) |
 | Génération Overworld : surfaces | M4 | A | spécifié | `docs/specs/worldgen-surface-carvers.md` (brouillon, règles S) |
 | Génération Overworld : grottes et aquifères | M4 | A | spécifié | `docs/specs/worldgen-surface-carvers.md` (brouillon, règles S) |
 | Génération Overworld : features et minerais | M4 | A | spécifié | `docs/specs/worldgen-features-structures.md` (brouillon, règles S) |

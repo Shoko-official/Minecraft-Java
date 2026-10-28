@@ -5,6 +5,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -25,6 +27,27 @@ class StateStoreTest {
     assertThat(store.read()).contains(STATE);
     assertThat(dir).isDirectoryContaining(path -> path.endsWith("state.json"));
     assertThat(dir.resolve("state.json.tmp")).doesNotExist();
+  }
+
+  /**
+   * tools/oracle reads this file as text with these two patterns, without depending on this module
+   * (ReferenceJar): the layout below is the contract between the tools, keep both sides in sync.
+   */
+  @Test
+  void writtenStateKeepsTheTextLayoutThatTheOracleReads(@TempDir Path dir) throws IOException {
+    StateStore store = new StateStore(dir.resolve("state.json"));
+    String sha = "a".repeat(64);
+
+    store.write(new StateStore.State("26.3", sha, "b".repeat(64), TREE, TREE));
+
+    String text = Files.readString(dir.resolve("state.json"));
+    Matcher version = Pattern.compile("\"gameVersion\"\\s*:\\s*\"([^\"]*)\"").matcher(text);
+    Matcher digest = Pattern.compile("\"serverSha256\"\\s*:\\s*\"([0-9a-f]{64})\"").matcher(text);
+    assertThat(version.find()).isTrue();
+    assertThat(version.group(1)).isEqualTo("26.3");
+    assertThat(digest.find()).isTrue();
+    assertThat(digest.group(1)).isEqualTo(sha);
+    assertThat(digest.find()).as("the inner digest has another name").isFalse();
   }
 
   @Test

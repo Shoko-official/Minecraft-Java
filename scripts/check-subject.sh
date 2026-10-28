@@ -26,7 +26,8 @@ dashes=$'\xe2\x80\x93|\xe2\x80\x94'
 fail() { echo "invalid subject: \"$subject\" ($1)" >&2; exit 1; }
 
 [[ "$subject" =~ $pattern ]] || fail "expected [KEYWORD] : Description, KEYWORD in ${keywords//|/, }, description starting with an uppercase letter"
-[[ "$subject" =~ [[:space:]]$ ]] && fail "trailing whitespace"
+nbsp="$(printf '\302\240')"
+[[ "$subject" =~ [[:space:]]$ || "$subject" == *"$nbsp" ]] && fail "trailing whitespace"
 [[ "$subject" == *$'\t'* ]] && fail "tab character"
 [[ "$subject" == *"." ]] && fail "must not end with a period"
 LC_ALL=C grep -qE -- "$dashes" <<<"$subject" && fail "en dash or em dash (use '-')"

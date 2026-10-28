@@ -24,8 +24,13 @@ parent="$(cd "$(dirname "$1")" 2>/dev/null && pwd -P)" || { echo "parent directo
 dir="$parent/$(basename "$1")"
 
 # Ask git rather than comparing path strings, which differ by case and by mount point on Windows.
-if git -C "$parent" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+inside_work_tree() { env -u GIT_CEILING_DIRECTORIES -u GIT_DIR -u GIT_WORK_TREE git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1; }
+if inside_work_tree "$parent" || { [ -e "$dir" ] && inside_work_tree "$(cd "$dir" && pwd -P)"; }; then
   echo "refusing a target inside a git work tree: $dir" >&2
+  exit 2
+fi
+if [ -L "$dir" ]; then
+  echo "refusing a symbolic link as target: $dir" >&2
   exit 2
 fi
 if [ -e "$dir" ] && [ -n "$(ls -A "$dir")" ]; then

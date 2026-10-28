@@ -96,7 +96,7 @@ Les sondes W** supposent la sonde WP0 (`worldgen-pipeline.md`) acquise : le remp
 
 ## Sondes de surface (WS)
 
-**WS1 (R22, R23).** MR0, FLAT puis monde normal, CLEAN. Sortie attendue : le ou les ensembles de positions en or. Lecture : l'air est-il évalué ? l'eau ? la pierre ? Critère : liste de types de blocs présents autour d'une côte (océan). Résultat attendu provisoire : or partout où la densité était solide, rien dans l'air ni l'eau.
+**WS1 (R22, R23).** MR0, FLAT puis monde normal, CLEAN. Sortie attendue : le ou les ensembles de positions en or. Lecture : l'air est-il évalué ? l'eau ? la pierre ? Critère : liste de types de blocs présents autour d'une côte (océan). Résultat attendu provisoire : or partout où la densité était solide, rien dans l'air ni l'eau. Variante (R74) : `result_state` écrit en objet `{Name, Properties}` (bloc à propriété, par exemple une bûche d'axe x) : l'état relevé porte la propriété. Critère de succès : égalité exacte du tableau de vérité avec la prédiction sur 4 096 colonnes.
 
 **WS2 (R24, R26).** MR(`stone_depth` floor, décalage k, `add_surface_depth` faux, plage 0) pour k de -1 à 4 ; MR avec `ceiling` sur une grotte de FLAT carvers (CLEAN sans carvers : utiliser le monde normal). Sortie : épaisseur d'or par colonne = 1 + k attendue. Comparer sur 1024 colonnes.
 
@@ -118,7 +118,7 @@ Les sondes W** supposent la sonde WP0 (`worldgen-pipeline.md`) acquise : le remp
 
 **WS11 (R32).** MR(`above_preliminary_surface`), océan, plaine, montagne : relever la hauteur de transition par colonne et la comparer à notre `overworld/preliminary_surface_level`. Vérifier l'inclusivité à la transition.
 
-**WS12 (R21).** MR sur séquences contrôlées : `sequence[condition(C1)->block(or), condition(C2)->block(diamant)]` pour C1 et C2 se recouvrant. Attendu : un bloc par position, premier résultat prioritaire ; position où C1 est vrai et `then_run` ne produit rien (condition imbriquée fausse) doit passer à l'élément suivant.
+**WS12 (R21).** MR sur séquences contrôlées : `sequence[condition(C1)->block(or), condition(C2)->block(diamant)]` pour C1 et C2 se recouvrant. Attendu : un bloc par position, premier résultat prioritaire ; position où C1 est vrai et `then_run` ne produit rien (condition imbriquée fausse) doit passer à l'élément suivant. Variante (R73) : la même séquence écrite en ligne puis par référence à un fichier. Critère de succès : un seul bloc par position, égal à la prédiction sur 1 024 colonnes ; sorties identiques pour les deux écritures.
 
 **WS13 (R18, R37).** Règle réelle de `overworld` sans bedrock puis sans veines : isoler l'effet de chaque élément sur Y -64..-59 et sur les bandes de veines.
 
@@ -148,7 +148,7 @@ Montage commun : FLAT avec `final_density` creusant des cavités simples (foncti
 
 **WA4 (R41).** `exclusion` remplacé par une constante positive puis négative : aucun aquifère / aquifères partout.
 
-**WA5 (R49).** Deux cellules adjacentes à états forcés (via `floodedness` constant, `lava`, constants par zones d'une fonction de densité en escalier) : relever l'épaisseur de pierre au-dessus du niveau supérieur (attendu <= 5) et sous le niveau inférieur (<= 23) ; courbe de pression en fonction de la distance.
+**WA5 (R49).** Deux cellules adjacentes à états forcés (via `floodedness` constant, `lava`, constants par zones d'une fonction de densité en escalier) : relever l'épaisseur de pierre au-dessus du niveau supérieur (attendu <= 5) et sous le niveau inférieur (<= 23) ; courbe de pression en fonction de la distance. Critère de succès : épaisseur de pierre au-dessus du niveau supérieur inférieure ou égale à 5 et sous le niveau inférieur inférieure ou égale à 23 pour 100 % des paires de cellules relevées, et courbe de pression reproduite à 1 bloc près.
 
 **WA6 (R51).** Lire `fluid_ticks` du chunk écrit : positions planifiées, priorité, délai. Comparer au voisinage des frontières relevées en WA1.
 
@@ -156,21 +156,21 @@ Montage commun : FLAT avec `final_density` creusant des cavités simples (foncti
 
 Montage commun FLAT + CLEAN sauf carvers (donc pas de grotte de bruit ; FLAT pose une plaque de pierre pleine jusqu'à Y 127) ; aquifères retirés sauf indication.
 
-**WK1 (R65).** Un seul carver actif (`cave`) avec `probability` 1.0 et `count` constant 1, `y` constant : chaque chunk reçoit exactement une tentative. Relever la forme (salle, troncs, branches), les dimensions, les positions de départ en fonction du chunk source (le chunk le plus proche d'un départ, par minimisation). Comparer avec les valeurs publiques de R65.
+**WK1 (R65).** Un seul carver actif (`cave`) avec `probability` 1.0 et `count` constant 1, `y` constant : chaque chunk reçoit exactement une tentative. Relever la forme (salle, troncs, branches), les dimensions, les positions de départ en fonction du chunk source (le chunk le plus proche d'un départ, par minimisation). Comparer avec les valeurs publiques de R65. Critère de succès : sur 1 000 tentatives, hauteur et diamètre de salle, tailles de tronc et de branche relevés inclus dans les plages publiques de R65 pour 95 % des tentatives ou plus ; les écarts sont consignés.
 
 **WK2 (R60, R61).** Même montage, `probability` 1.0 sur un seul chunk source (rendre les autres chunks sources sans tentative : `count` constant 0 par datapack ne distingue pas un chunk ; utiliser une zone où seul un chunk est forcé et vérifier le voisinage par comparaison de deux ensembles de chunks forcés). Mesure : étendue maximale du creusement autour du chunk source -> portée de R61.
 
-**WK3 (R63).** Monde en couches : `material_rule` posant une couche de 4 blocs d'un type candidat tous les 4 Y (terre, herbe, sable, sable rouge, gravier, neige, glace, grès, terracotta, minerais, deepslate, tuff, bedrock, eau, lave, obsidienne, béton ...) dans un tube creusé de façon constante (probabilité 1.0). Sortie : liste des blocs creusés et non creusés.
+**WK3 (R63).** Monde en couches : `material_rule` posant une couche de 4 blocs d'un type candidat tous les 4 Y (terre, herbe, sable, sable rouge, gravier, neige, glace, grès, terracotta, minerais, deepslate, tuff, bedrock, eau, lave, obsidienne, béton ...) dans un tube creusé de façon constante (probabilité 1.0). Sortie : liste des blocs creusés et non creusés. Critère de succès : chaque type candidat est classé creusé ou non creusé sans ambiguïté sur 10 tubes, et la liste est stable entre deux graines.
 
 **WK4 (R62).** Tunnel traversant Y -64 à -50 : relever la lave et son niveau (Y -56 ?), avec et sans aquifères.
 
-**WK5 (R64).** Océan (FLAT avec 40 blocs d'eau) : tunnel qui touche le fond : est-il rempli d'eau ? Le fond sableux est-il creusé ? Relever la règle sur la colonne d'eau au-dessus d'une position creusée.
+**WK5 (R64).** Océan (FLAT avec 40 blocs d'eau) : tunnel qui touche le fond : est-il rempli d'eau ? Le fond sableux est-il creusé ? Relever la règle sur la colonne d'eau au-dessus d'une position creusée. Critère de succès : pour chaque épaisseur d'eau de 1 à 40, l'état creusé ou non de la position est consigné et la règle de R64 reproduit 100 % des cas.
 
 **WK6 (R24, R52, R70).** Avec aquifères et surface normale : positions creusées au niveau de la surface (blocs de dessus). Les blocs de dessus (herbe) sont-ils retirés sans modification du bloc dessous ? Cavités sous Y 63 : eau, air ou lave selon l'aquifère ? Comparer WK6 avec et sans aquifères.
 
 **WK7 (R60).** Statistique : sur 10 000 chunks sans montage de probabilité (probabilité vanilla, `count` vanilla), proportion de chunks ayant au moins un départ visible (via WK1). Comparer à 0.2174 (SV7).
 
-**WK8 (R66).** Canyon seul (`probability` 1.0) : forme, direction, largeur le long de la trajectoire ; vérifier `width_smoothness`, `y_scale`, rotation verticale.
+**WK8 (R66).** Canyon seul (`probability` 1.0) : forme, direction, largeur le long de la trajectoire ; vérifier `width_smoothness`, `y_scale`, rotation verticale. Critère de succès : longueur, largeur maximale et hauteur maximale de 100 ravins relevées et comparées aux plages de R66 ; les écarts sont consignés.
 
 ## Correspondance règle -> sonde
 

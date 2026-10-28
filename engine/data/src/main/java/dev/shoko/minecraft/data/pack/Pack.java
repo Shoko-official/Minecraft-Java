@@ -1,14 +1,38 @@
 package dev.shoko.minecraft.data.pack;
 
+import dev.shoko.minecraft.data.diag.Diagnostic;
+import dev.shoko.minecraft.data.diag.DiagnosticCode;
+import dev.shoko.minecraft.data.diag.FileOrigin;
+import dev.shoko.minecraft.data.diag.JsonPath;
 import dev.shoko.minecraft.data.diag.Outcome;
+import dev.shoko.minecraft.data.json.JsonNode;
+import dev.shoko.minecraft.data.json.JsonReader;
 import dev.shoko.minecraft.data.pack.meta.PackMeta;
+import dev.shoko.minecraft.data.pack.meta.PackMetaReader;
 import dev.shoko.minecraft.data.pack.meta.PackType;
 import java.io.IOException;
+import java.nio.file.NoSuchFileException;
+import java.util.ArrayList;
+import java.util.List;
 
 /** One pack: an identifier, an origin, its files and its metadata. Immutable. */
 public final class Pack {
 
-  private Pack() {}
+  static final String META_FILE = "pack.mcmeta";
+
+  private final String id;
+  private final PackOrigin origin;
+  private final PackType type;
+  private final PackMeta meta;
+  private final PackFiles files;
+
+  private Pack(String id, PackOrigin origin, PackType type, PackMeta meta, PackFiles files) {
+    this.id = id;
+    this.origin = origin;
+    this.type = type;
+    this.meta = meta;
+    this.files = files;
+  }
 
   /**
    * Opens a pack by reading its {@code pack.mcmeta} (R4, R7).
@@ -26,7 +50,24 @@ public final class Pack {
    */
   public static Outcome<Pack> open(String id, PackOrigin origin, PackType type, PackFiles files)
       throws IOException {
-    return Skeleton.throwNotImplemented();
+    FileOrigin metaOrigin = new FileOrigin(id, META_FILE);
+    byte[] bytes;
+    try {
+      bytes = files.read(META_FILE);
+    } catch (NoSuchFileException e) {
+      return notAPack(metaOrigin, List.of(), "no pack.mcmeta");
+    }
+    Outcome<JsonNode> json = JsonReader.read(bytes, metaOrigin);
+    if (json.value().isEmpty()) {
+      return notAPack(metaOrigin, json.diagnostics(), "pack.mcmeta is not valid JSON");
+    }
+    Outcome<PackMeta> meta = PackMetaReader.read(json.value().get());
+    List<Diagnostic> diagnostics = new ArrayList<>(json.diagnostics());
+    diagnostics.addAll(meta.diagnostics());
+    if (meta.value().isEmpty()) {
+      return Outcome.failure(diagnostics);
+    }
+    return Outcome.success(new Pack(id, origin, type, meta.value().get(), files), diagnostics);
   }
 
   /**
@@ -40,7 +81,15 @@ public final class Pack {
    * @return the pack
    */
   public static Pack implicit(String id, PackOrigin origin, PackType type, PackFiles files) {
-    return Skeleton.throwNotImplemented();
+    return new Pack(id, origin, type, PackMeta.implicit(id, type), files);
+  }
+
+  private static Outcome<Pack> notAPack(
+      FileOrigin metaOrigin, List<Diagnostic> found, String reason) {
+    List<Diagnostic> diagnostics = new ArrayList<>(found);
+    diagnostics.add(
+        new Diagnostic(DiagnosticCode.PACK_INVALID, metaOrigin, JsonPath.root(), reason));
+    return Outcome.failure(diagnostics);
   }
 
   /**
@@ -49,7 +98,7 @@ public final class Pack {
    * @return the identifier
    */
   public String id() {
-    return Skeleton.throwNotImplemented();
+    return id;
   }
 
   /**
@@ -58,7 +107,7 @@ public final class Pack {
    * @return the origin
    */
   public PackOrigin origin() {
-    return Skeleton.throwNotImplemented();
+    return origin;
   }
 
   /**
@@ -67,7 +116,7 @@ public final class Pack {
    * @return the type
    */
   public PackType type() {
-    return Skeleton.throwNotImplemented();
+    return type;
   }
 
   /**
@@ -76,7 +125,7 @@ public final class Pack {
    * @return the content of {@code pack.mcmeta}, or the implicit metadata
    */
   public PackMeta meta() {
-    return Skeleton.throwNotImplemented();
+    return meta;
   }
 
   /**
@@ -85,6 +134,6 @@ public final class Pack {
    * @return the file access
    */
   public PackFiles files() {
-    return Skeleton.throwNotImplemented();
+    return files;
   }
 }

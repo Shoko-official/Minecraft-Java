@@ -15,6 +15,10 @@ public enum PackOrigin {
    * @return {@code built-in}, {@code feature} or {@code world}
    */
   public String label() {
-    return Skeleton.throwNotImplemented();
+    return switch (this) {
+      case BUILT_IN -> "built-in";
+      case FEATURE -> "feature";
+      case WORLD -> "world";
+    };
   }
 }

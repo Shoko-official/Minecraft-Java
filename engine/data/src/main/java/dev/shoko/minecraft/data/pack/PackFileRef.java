@@ -6,7 +6,17 @@ import java.io.IOException;
 /** A file seen through a {@link PackStack}: where it lives, and the path it has once stacked. */
 public final class PackFileRef {
 
-  private PackFileRef() {}
+  private final String pack;
+  private final String path;
+  private final String physicalPath;
+  private final PackFiles files;
+
+  PackFileRef(String pack, String path, String physicalPath, PackFiles files) {
+    this.pack = pack;
+    this.path = path;
+    this.physicalPath = physicalPath;
+    this.files = files;
+  }
 
   /**
    * Returns the pack that holds the file.
@@ -14,7 +24,7 @@ public final class PackFileRef {
    * @return the pack identifier
    */
   public String pack() {
-    return Skeleton.throwNotImplemented();
+    return pack;
   }
 
   /**
@@ -24,7 +34,7 @@ public final class PackFileRef {
    * @return the path, such as {@code data/minecraft/loot_table/blocks/dirt.json}
    */
   public String path() {
-    return Skeleton.throwNotImplemented();
+    return path;
   }
 
   /**
@@ -33,7 +43,7 @@ public final class PackFileRef {
    * @return the pack and the physical path, overlay directory included
    */
   public FileOrigin origin() {
-    return Skeleton.throwNotImplemented();
+    return new FileOrigin(pack, physicalPath);
   }
 
   /**
@@ -43,6 +53,6 @@ public final class PackFileRef {
    * @throws IOException when the file cannot be read
    */
   public byte[] read() throws IOException {
-    return Skeleton.throwNotImplemented();
+    return files.read(physicalPath);
   }
 }

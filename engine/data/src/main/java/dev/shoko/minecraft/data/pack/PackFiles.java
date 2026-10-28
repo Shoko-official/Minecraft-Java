@@ -19,7 +19,7 @@ public interface PackFiles {
    * @return the files below {@code root}, symbolic links not followed
    */
   static PackFiles directory(Path root) {
-    return Skeleton.throwNotImplemented();
+    return new DirectoryFiles(root);
   }
 
   /**
@@ -29,7 +29,7 @@ public interface PackFiles {
    * @return the files of the archive
    */
   static PackFiles archive(Path archive) {
-    return Skeleton.throwNotImplemented();
+    return new ArchiveFiles(archive);
   }
 
   /**
@@ -39,7 +39,7 @@ public interface PackFiles {
    * @return the files; later changes to {@code files} do not affect it
    */
   static PackFiles inMemory(Map<String, byte[]> files) {
-    return Skeleton.throwNotImplemented();
+    return new MemoryFiles(files);
   }
 
   /**

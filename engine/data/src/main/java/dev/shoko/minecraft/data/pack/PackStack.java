@@ -1,9 +1,15 @@
 package dev.shoko.minecraft.data.pack;
 
+import dev.shoko.minecraft.data.pack.meta.PackFormat;
 import dev.shoko.minecraft.data.pack.meta.PackType;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Packs of one kind in priority order, from the lowest priority (vanilla first) to the highest
@@ -18,7 +24,15 @@ import java.util.Optional;
  */
 public final class PackStack {
 
-  private PackStack() {}
+  private final PackType type;
+  private final List<Pack> packs;
+  // Built on first use: listing the files can fail, and of() cannot throw an IOException.
+  private Map<String, List<PackFileRef>> index;
+
+  private PackStack(PackType type, List<Pack> packs) {
+    this.type = type;
+    this.packs = packs;
+  }
 
   /**
    * Builds a stack.
@@ -30,7 +44,16 @@ public final class PackStack {
    *     kind
    */
   public static PackStack of(PackType type, List<Pack> packsLowestFirst) {
-    return Skeleton.throwNotImplemented();
+    Set<String> ids = new HashSet<>();
+    for (Pack pack : packsLowestFirst) {
+      if (pack.type() != type) {
+        throw new IllegalArgumentException("pack " + pack.id() + " is not a " + type + " pack");
+      }
+      if (!ids.add(pack.id())) {
+        throw new IllegalArgumentException("duplicate pack identifier: " + pack.id());
+      }
+    }
+    return new PackStack(type, List.copyOf(packsLowestFirst));
   }
 
   /**
@@ -39,7 +62,7 @@ public final class PackStack {
    * @return the packs from the lowest to the highest priority
    */
   public List<Pack> packs() {
-    return Skeleton.throwNotImplemented();
+    return packs;
   }
 
   /**
@@ -49,7 +72,7 @@ public final class PackStack {
    * @throws IOException when a pack cannot be listed
    */
   public List<String> paths() throws IOException {
-    return Skeleton.throwNotImplemented();
+    return new ArrayList<>(index().keySet());
   }
 
   /**
@@ -60,7 +83,7 @@ public final class PackStack {
    * @throws IOException when a pack cannot be listed
    */
   public List<PackFileRef> layers(String path) throws IOException {
-    return Skeleton.throwNotImplemented();
+    return index().getOrDefault(path, List.of());
   }
 
   /**
@@ -71,6 +94,39 @@ public final class PackStack {
    * @throws IOException when a pack cannot be listed
    */
   public Optional<PackFileRef> winner(String path) throws IOException {
-    return Skeleton.throwNotImplemented();
+    List<PackFileRef> versions = layers(path);
+    return versions.isEmpty() ? Optional.empty() : Optional.of(versions.getLast());
+  }
+
+  private synchronized Map<String, List<PackFileRef>> index() throws IOException {
+    if (index == null) {
+      index = build();
+    }
+    return index;
+  }
+
+  private Map<String, List<PackFileRef>> build() throws IOException {
+    PackFormat target = type.targetFormat();
+    List<Map<String, String>> views = new ArrayList<>();
+    for (Pack pack : packs) {
+      views.add(PackView.of(pack, target));
+    }
+    for (int higher = 1; higher < packs.size(); higher++) {
+      if (!packs.get(higher).meta().filters().isEmpty()) {
+        for (int lower = 0; lower < higher; lower++) {
+          PackView.hide(views.get(lower), packs.get(higher).meta().filters());
+        }
+      }
+    }
+    Map<String, List<PackFileRef>> built = new TreeMap<>(PathOrder.BY_CODE_POINT);
+    for (int i = 0; i < packs.size(); i++) {
+      Pack pack = packs.get(i);
+      for (Map.Entry<String, String> file : views.get(i).entrySet()) {
+        PackFileRef ref = new PackFileRef(pack.id(), file.getKey(), file.getValue(), pack.files());
+        built.computeIfAbsent(file.getKey(), key -> new ArrayList<>()).add(ref);
+      }
+    }
+    built.replaceAll((path, refs) -> List.copyOf(refs));
+    return built;
   }
 }

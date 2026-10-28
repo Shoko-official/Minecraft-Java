@@ -21,7 +21,7 @@ public record JsonArray(FileOrigin origin, JsonPath path, List<JsonNode> element
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.ARRAY;
   }
 
   /**
@@ -32,6 +32,14 @@ public record JsonArray(FileOrigin origin, JsonPath path, List<JsonNode> element
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    if (!(other instanceof JsonArray that) || elements.size() != that.elements.size()) {
+      return false;
+    }
+    for (int i = 0; i < elements.size(); i++) {
+      if (!elements.get(i).sameValueAs(that.elements.get(i))) {
+        return false;
+      }
+    }
+    return true;
   }
 }

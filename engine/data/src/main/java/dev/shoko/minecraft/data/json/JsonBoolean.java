@@ -19,7 +19,7 @@ public record JsonBoolean(FileOrigin origin, JsonPath path, boolean value) imple
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.BOOLEAN;
   }
 
   /**
@@ -30,6 +30,6 @@ public record JsonBoolean(FileOrigin origin, JsonPath path, boolean value) imple
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof JsonBoolean that && value == that.value;
   }
 }

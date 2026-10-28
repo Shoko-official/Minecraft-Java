@@ -21,7 +21,7 @@ public record JsonString(FileOrigin origin, JsonPath path, String value) impleme
    */
   @Override
   public JsonType type() {
-    return Skeleton.throwNotImplemented();
+    return JsonType.STRING;
   }
 
   /**
@@ -32,6 +32,6 @@ public record JsonString(FileOrigin origin, JsonPath path, String value) impleme
    */
   @Override
   public boolean sameValueAs(JsonNode other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof JsonString that && value.equals(that.value);
   }
 }

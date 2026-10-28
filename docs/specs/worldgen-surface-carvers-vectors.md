@@ -7,7 +7,7 @@ Complète `worldgen-surface-carvers.md`. Les vecteurs SV sont des calculs sur le
 `wg_ref.py` (annexe de `worldgen-features-structures-vectors.md`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`.
 
 ```
-python -I wg_ref.py REF ruletypes        # SV3 (types, compteurs, conditions nommées)
+python -I wg_ref.py REF ruletypes        # SV3 (types, compteurs, conditions nommees)
 python -I wg_ref.py REF surface overworld overworld/surface overworld/biome_surface
 python -I wg_ref.py REF carvers          # SV7
 python -I wg_ref.py REF inventory        # liste de carvers par biome (R55)

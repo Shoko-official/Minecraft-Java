@@ -12,8 +12,9 @@ Ce fichier contient les calculs de la spec `worldgen-noise-density`, les scripts
 
 | Famille | Niveau | Ce qui fait foi |
 |---|---|---|
-| V-W1 (comptes du graphe), V-W9 (recouvrements de la table), V-W10 (typage des constantes) | C sur D | Lecture des fichiers extraits ; aucune hypothèse sur le jeu |
-| V-W2 (rampe de profondeur, plateaux de bord, grilles) | C sur D | Arithmétique sur les constantes des fichiers ; l'hypothèse « float32 par nœud » ne change pas les signes |
+| V-W1 (comptes du graphe), V-W10 (typage des constantes) | C sur D | Lecture des fichiers extraits ; aucune hypothèse sur le jeu |
+| V-W9 (recouvrements de la table) | C sous H-Q1 | Comptes sur les valeurs quantifiées de R41 : **S** tant que WN15 n'a pas répondu |
+| V-W2 (rampe de profondeur, plateaux de bord, grilles) | C sur D pour la rampe, C sur S pour les plateaux et les grilles | Arithmétique sur les constantes des fichiers ; l'hypothèse « float32 par nœud » ne change pas les signes ; les plateaux supposent R32 et les grilles R24 |
 | V-W3 (relief des splines) | C **sous H-Sp1, H-Sp2 et H-Bl** | Hermite cubique, extrapolation par la dérivée, `blend_alpha` = 1 (R27, R29) ; tolérance 1e-6 ; **S** tant que WN12 et WN6 n'ont pas répondu |
 | V-W4 (weirdness repliée), V-W7 (discriminants float32) | C | Émulation float32 par nœud (R11) ; **S** pour l'égalité avec le jeu |
 | V-W5 (quantification) | C | Trois définitions concurrentes H-Q1, H-Q2, H-Q3 (R41) ; laquelle est celle du jeu est **S** (WN15) |

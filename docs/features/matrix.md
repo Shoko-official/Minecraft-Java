@@ -10,7 +10,7 @@ Colonnes : fonctionnalité, jalon, risque, statut, preuve (commande, scénario o
 | RNG xoroshiro et positionnels | M1 | A | implémenté | PR #8 ; `./gradlew :engine:core:test` (tests unitaires ; règles de niveau S provisoires dans la spec, aucun diff oracle) |
 | NBT binaire et SNBT | M1 | B | implémenté | PR #7 ; `./gradlew :engine:core:test` (tests unitaires, aucun diff oracle) |
 | Maths et coordonnées | M1 | A | implémenté | PR #9 ; `./gradlew :engine:core:test` (tests unitaires, aucun diff oracle) |
-| Chargement des datapacks et registres | M2 | B | non-spécifié | |
+| Chargement des datapacks et registres | M2 | A | non-spécifié | |
 | Stockage Anvil (lecture et écriture) | M3 | B | non-spécifié | |
 | Génération Overworld : bruit et densité | M4 | A | non-spécifié | |
 | Génération Overworld : biomes | M4 | A | non-spécifié | |

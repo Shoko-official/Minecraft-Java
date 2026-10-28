@@ -4,11 +4,11 @@ Statut : brouillon
 Jalon : M1
 Risque : A
 
-Compagnon de `core-math.md`. Tous les vecteurs ci-dessous sont de niveau C : calculés en Java 21.0.10 (OpenJDK, x64, Windows) avec les seuls opérateurs du langage et `java.lang.Math`, recoupés en Python 3.14.7 pour V11. Ils fixent notre contrat ; un vecteur qui illustre une règle S ne devient une référence qu'après la sonde indiquée. Notation hexadécimale : bits IEEE 754 bruts.
+Compagnon de `core-math.md`. Tous les vecteurs ci-dessous sont de niveau C : calculés en Java 21.0.10 (OpenJDK, x64, Windows) avec les opérateurs du langage et `java.lang.StrictMath` (R3), recoupés en Python 3.14.7 pour V11. Ils fixent notre contrat ; quand une règle est S, la colonne du candidat **provisoire** est la cible des tests en aveugle, et elle ne devient une référence qu'après la sonde indiquée. Les identifiants sont ceux, neutres, de `core-math.md`. Notation hexadécimale : bits IEEE 754 bruts.
 
-## V1. `floor` et `ceil` sur `double` (R4, R6)
+## V1. `floorToInt` et `ceilToInt` sur `double` (R4, R6)
 
-Candidat F1 : plancher mathématique puis conversion saturante. Candidat F2 : troncature saturante puis correction de -1 si la valeur est strictement inférieure au tronqué, sans saturation de la correction. Même construction pour `ceil` (C1, C2).
+Candidat F1 (provisoire) : plancher mathématique puis conversion saturante. Candidat F2 : troncature saturante puis correction de -1 si la valeur est strictement inférieure au tronqué, sans saturation de la correction. Même construction pour `ceilToInt` (C1 provisoire, C2).
 
 | x | floor F1 | floor F2 | ceil C1 | ceil C2 |
 |---|---:|---:|---:|---:|
@@ -32,9 +32,9 @@ Candidat F1 : plancher mathématique puis conversion saturante. Candidat F2 : tr
 
 Les lignes à partir de `2147483647.5` sont hors domaine (S, interdit, R4). Commande oracle : aucune en M1 (Q4) ; P4 couvre les lignes du domaine.
 
-## V2. `floor` sur `float` (R5)
+## V2. `floorToInt` sur `float` (R5)
 
-| x (float) | bits | floor |
+| x (float) | bits | floorToInt |
 |---|---|---:|
 | -0.0f | 0x80000000 | 0 |
 | -0.5f | 0xbf000000 | -1 |
@@ -43,10 +43,10 @@ Les lignes à partir de `2147483647.5` sont hors domaine (S, interdit, R4). Comm
 | -0.99999994f | 0xbf7fffff | -1 |
 | 1.6777216E7f | 0x4b800000 | 16777216 |
 | -1.6777216E7f | 0xcb800000 | -16777216 |
-| NaNf | 0x7fc00000 | 0 (S) |
-| -3.0E9f | 0xcf32d05e | S : -2147483648 (F1) ou 2147483647 (F2) |
+| NaNf | 0x7fc00000 | 0 (provisoire) |
+| -3.0E9f | 0xcf32d05e | provisoire -2147483648 (F1) ; F2 donnerait 2147483647 |
 
-`floor((double) 0.99999999) = 0`, mais `(float) 0.99999999 = 1.0f`, donc `floor` en `float` = 1.
+`floorToInt((double) 0.99999999) = 0`, mais `(float) 0.99999999 = 1.0f`, donc la variante `float` donne 1.
 
 ## V3. Division, modulo et décalages (R8, R9, R28)
 
@@ -159,9 +159,9 @@ La première ligne recoupe l'exemple publié [W-RF]. Commande oracle : P30.
 
 Lacet vers direction (candidat R36) : 44.999 -> south, 45 -> west, -45 -> south, -45.001 -> east, 135 -> north, 180 -> north. Commandes oracle : P35, P36.
 
-## V10. Modulo positif réel (R10)
+## V10. Modulo réel (R10, deux fonctions distinctes, aucune provisoire unique)
 
-| (a, b) | `a - floor(a/b)*b` | `((a % b) + b) % b` |
+| (a, b) | `realModFloor` = `a - floor(a/b)*b` | `realModWrap` = `((a % b) + b) % b` |
 |---|---:|---:|
 | (-1e-20, 360) | 360.0 | 0.0 |
 | (-1, 360) | 359.0 | 359.0 |
@@ -171,11 +171,11 @@ Lacet vers direction (candidat R36) : 44.999 -> south, 45 -> west, -45 -> south,
 | (5.5, -2) | -0.5 | -0.5 |
 | (-1e-14, 1) | 0.99999999999999 | 0.99999999999999 |
 
-`frac(x) = x - floor(x)` : `frac(-0.25) = 0.75`, `frac(2.75) = 0.75`, `frac(-1e-20) = 1.0`.
+`fractionalPart(x) = x - floorToLong(x)` : `fractionalPart(-0.25) = 0.75`, `fractionalPart(2.75) = 0.75`, `fractionalPart(-1e-20) = 1.0`.
 
-## V11. Interpolation linéaire (R11)
+## V11. Interpolation linéaire `interpolate` (R11 à R14)
 
-Forme A `a + t*(b-a)`, forme B `(1-t)*a + t*b`.
+Forme A `a + t*(b-a)` (provisoire), forme B `(1-t)*a + t*b`.
 
 | (t, a, b) | précision | A | B |
 |---|---|---|---|
@@ -194,13 +194,13 @@ Forme A `a + t*(b-a)`, forme B `(1-t)*a + t*b`.
 
 La ligne `(0.3, -1.5, 3.5)` sert à P11 : densité nulle (air) en forme A, positive (pierre) en forme B, dans les deux précisions.
 
-Bilinéaire, forme A, x d'abord : `lerp2(0.3, 0.7 ; 0.1, -0.9, 0.35, 0.77) = 0.2731999999999999` (identique ici quel que soit l'ordre ; l'ordre diffère sur 55 % d'un échantillon aléatoire). Trilinéaire : `lerp3(0.25, 0.5, 0.75 ; 1, 2, 3, 4, 5, 6, 7, 8) = 5.25` (coins dans l'ordre 000, 100, 010, 110, 001, 101, 011, 111).
+Bilinéaire, forme A, x d'abord (provisoire) : `bilinear(0.3, 0.7 ; 0.1, -0.9, 0.35, 0.77) = 0.2731999999999999` (0x3fd17c1bda5119cc ; identique ici quel que soit l'ordre ; l'ordre diffère sur 55,1 % de l'échantillon décrit en R12). Trilinéaire : `trilinear(0.25, 0.5, 0.75 ; 1, 2, 3, 4, 5, 6, 7, 8) = 5.25` (coins dans l'ordre 000, 100, 010, 110, 001, 101, 011, 111).
 
-Inverse et correspondance : `inverseLerp(5, 0, 10) = 0.5`, `inverseLerp(-5, 0, 10) = -0.5`, `inverseLerp(5, 10, 0) = 0.5`, `inverseLerp(1, 1, 1) = NaN`, `inverseLerp(2, 1, 1) = Infinity` ; `map(0.5 ; 0, 1 -> -64, 320) = 128.0`, `map(25 ; 10, 20 -> 0, 100) = 150.0` (non borné).
+Inverse et correspondance : `inverseInterpolate(5, 0, 10) = 0.5`, `inverseInterpolate(-5, 0, 10) = -0.5`, `inverseInterpolate(5, 10, 0) = 0.5`, `inverseInterpolate(1, 1, 1) = NaN`, `inverseInterpolate(2, 1, 1) = Infinity` ; `remap(0.5 ; 0, 1 -> -64, 320) = 128.0`, `remap(25 ; 10, 20 -> 0, 100) = 150.0` (non borné), `remapClamped(25 ; 10, 20 -> 0, 100) = 100.0` ; `clampedInterpolate(-0.5, 0, 10) = 0.0`, `clampedInterpolate(1.5, 0, 10) = 10.0`, `clampedInterpolate(0.5, 0, 10) = 5.0`.
 
 ## V12. Bornage (R15)
 
-Formes : MM = `max(lo, min(v, hi))` ; CMP = `v < lo ? lo : (v > hi ? hi : v)` ; MIX = `v < lo ? lo : min(v, hi)`.
+Formes : MM = `max(lo, min(v, hi))` ; CMP = `v < lo ? lo : (v > hi ? hi : v)` ; MIX = `v < lo ? lo : min(v, hi)` (provisoire).
 
 | (v, lo, hi) | MM | CMP | MIX |
 |---|---:|---:|---:|
@@ -219,27 +219,29 @@ Formes : MM = `max(lo, min(v, hi))` ; CMP = `v < lo ? lo : (v > hi ? hi : v)` ; 
 
 `Math.clamp(5, 10, 0)` de Java lève `IllegalArgumentException`.
 
-## V13. Fondu quintique (R16)
+## V13. Fondu quintique `quinticFade` (R16)
 
-| t | Horner `t*t*t*(t*(t*6-15)+10)` | développé `6t^5-15t^4+10t^3` |
-|---:|---|---|
-| 0 | 0.0 | 0.0 |
-| 0.1 | 0.008560000000000003 (0x3f8187e7c06e19bb) | 0.008560000000000002 (0x3f8187e7c06e19ba) |
-| 0.25 | 0.103515625 | 0.103515625 |
-| 0.5 | 0.5 | 0.5 |
-| 0.75 | 0.896484375 | 0.896484375 |
-| 0.9 | 0.9914399999999998 (0x3fefb9e060fe4797) | 0.9914400000000017 (0x3fefb9e060fe47a8) |
-| 1 | 1.0 | 1.0 |
-| -0.5 | -2.375 | -2.375 |
-| 1.5 | 3.375 | 3.375 |
+Trois écritures en `double`, évaluées de gauche à droite : Horner (provisoire) `t*t*t*(t*(t*6-15)+10)` ; produits `6*t*t*t*t*t - 15*t*t*t*t + 10*t*t*t` ; puissances strictes `6*StrictMath.pow(t,5) - 15*StrictMath.pow(t,4) + 10*StrictMath.pow(t,3)`.
 
-## V14. Table de sinus (R17)
+| t | Horner (provisoire) | produits | puissances strictes |
+|---:|---|---|---|
+| 0 | 0.0 | 0.0 | 0.0 |
+| 0.1 | 0.008560000000000003 (0x3f8187e7c06e19bb) | 0.008560000000000002 (0x3f8187e7c06e19ba) | 0.008560000000000002 |
+| 0.25 | 0.103515625 | 0.103515625 | 0.103515625 |
+| 0.5 | 0.5 | 0.5 | 0.5 |
+| 0.75 | 0.896484375 | 0.896484375 | 0.896484375 |
+| 0.9 | 0.9914399999999998 (0x3fefb9e060fe4797) | 0.9914400000000008 | 0.9914399999999999 |
+| 1 | 1.0 | 1.0 | 1.0 |
+| -0.5 | -2.375 | -2.375 | -2.375 |
+| 1.5 | 3.375 | 3.375 | 3.375 |
+
+## V14. Sinus par table `tableSin`, `tableCos` (R17)
 
 Entrées : `table[0] = 0.0f`, `table[1] = 9.58738E-5f (0x38c90fdb)`, `table[8192] = 0.70710677f (0x3f3504f3)`, `table[16384] = 1.0f`, `table[32768] = 1.2246469E-16f (0x250d3132)`, `table[49152] = -1.0f`. Facteur : `65536 / (2*pi) = 10430.378350470453` ; `10430.378f = 10430.3779296875`. Seuil de saturation de l'indice via `int` : |x| > 205887.41614566068.
 
-Candidats : FI = entrée `float`, indice `(int)(x * 10430.378f) & 65535`, cosinus `(int)(x * 10430.378f + 16384f) & 65535` ; DL = entrée `double`, indice via `long` puis masque ; DI = entrée `double`, indice via `int`.
+Candidats : FI = entrée `float`, indice `(int)(x * 10430.378f) & 65535`, cosinus `(int)(x * 10430.378f + 16384f) & 65535` ; DL (provisoire) = entrée `double`, indice `(int)((long)(x * 10430.378350470453) & 65535)`, cosinus avec `+ 16384.0` avant la conversion ; DI = entrée `double`, indice via `int`. Colonnes "exact" : `StrictMath.sin` et `StrictMath.cos` (R3). Erreur maximale mesurée (R17) : 9,59e-5 pour DL et DI, 9,68e-5 pour FI.
 
-| x | sin exact | sin FI | sin DL | sin DI | cos exact | cos FI | cos DL |
+| x | sin exact | sin FI | sin DL (provisoire) | sin DI | cos exact | cos FI | cos DL (provisoire) |
 |---|---|---|---|---|---|---|---|
 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 1.0 | 1.0 | 1.0 |
 | -0.0 | -0.0 | 0.0 | 0.0 | 0.0 | 1.0 | 1.0 | 1.0 |
@@ -250,16 +252,16 @@ Candidats : FI = entrée `float`, indice `(int)(x * 10430.378f) & 65535`, cosinu
 | -1.0 | -0.8414709848078965 | -0.8414514 | -0.8414514 | -0.8414514 | 0.5403023058681398 | 0.54025215 | 0.54025215 |
 | 0.5 | 0.479425538604203 | 0.47940964 | 0.47940964 | 0.47940964 | 0.8775825618903728 | 0.87759125 | 0.87759125 |
 | -0.5 | -0.479425538604203 | -0.47940964 | -0.47940964 | -0.47940964 | 0.8775825618903728 | 0.8775453 | 0.8775453 |
-| 205887.0 | -0.40423807835004383 | -0.41642955 | -0.40427697 | -0.40427697 | 0.9146538011793663 | -9.58738E-5 | 0.9146366 |
+| 205887.0 | -0.4042380783500439 | -0.41642955 | -0.40427697 | -0.40427697 | 0.9146538011793663 | -9.58738E-5 | 0.9146366 |
 | 205888.0 | 0.551243868984453 | -9.58738E-5 | 0.55117816 | -9.58738E-5 | 0.8343441717343337 | -9.58738E-5 | 0.8343876 |
 | -205888.0 | -0.551243868984453 | 0.0 | -0.55117816 | 0.0 | 0.8343441717343337 | 0.8448536 | 0.8343876 |
 | 1e6 | -0.34999350217129294 | -9.58738E-5 | -0.35003576 | -9.58738E-5 | 0.9367521275331447 | -9.58738E-5 | 0.93673635 |
 | 1e10 | -0.4875060250875107 | -9.58738E-5 | -0.48755017 | -9.58738E-5 | 0.873119622676856 | -9.58738E-5 | 0.873095 |
 | NaN | NaN | 0.0 | 0.0 | 0.0 | NaN | 0.0 | 0.0 |
 
-Sonde P17, lacet 37° (radians `0.6457718232379019` en `double`, `0.6457718f` en `float`) : sinus exact `0.6018150231520483`, cosinus exact `0.7986355100472928` ; table (tous candidats) `0.6017657` et `0.7986727` ; sinus exact arrondi en `float` `0.60181504` et `0.7986355`.
+Sonde P17, lacet 37° (radians `0.6457718232379019` en `double`, `0.6457718f` en `float`) : `StrictMath.sin` `0.6018150231520483`, `StrictMath.cos` `0.7986355100472928` ; table (tous candidats) `0.6017657` et `0.7986727` ; valeurs strictes arrondies en `float` `0.60181504` et `0.7986355`.
 
-## V15. Normalisation d'angle (R20, candidat, `double`)
+## V15. Normalisation d'angle `normalizeDegrees` (R20, provisoire, `double`)
 
 | v | résultat |
 |---:|---:|
@@ -280,7 +282,7 @@ Commande oracle : P10.
 
 ## V16. Puissances de deux (R21)
 
-| v | plus petite puissance de deux >= v | ceilLog2 |
+| v | `ceilingPowerOfTwo` | `ceilingLog2` |
 |---:|---:|---:|
 | 1 | 1 | 0 |
 | 2 | 2 | 1 |
@@ -295,11 +297,11 @@ Commande oracle : P10.
 | 2^30 | 2^30 | 30 |
 | 2^30 + 1 | hors domaine (le calcul naïf déborde en -2^31) | 31 |
 
-## V17. Sélection pondérée (R23)
+## V17. Sélection pondérée `weightedPick` (R23, provisoire)
 
-Poids `[3, 0, 5, 2]`, total 10 : `r = 0, 1, 2 -> 0` ; `r = 3..7 -> 2` ; `r = 8, 9 -> 3`. L'entrée de poids 0 n'est jamais retenue. Liste `[7]` : entrée 0 sans tirage. Liste `[0, 0]` : aucun résultat, aucun tirage.
+`r` est le résultat du tirage borné de `core-random` ; les vecteurs ci-dessous fixent seulement le parcours. Poids `[3, 0, 5, 2]`, total 10 : `r = 0, 1, 2 -> 0` ; `r = 3..7 -> 2` ; `r = 8, 9 -> 3`. L'entrée de poids 0 n'est jamais retenue. Liste `[7]` : entrée 0 sans tirage. Liste `[0, 0]` : aucun résultat, aucun tirage.
 
-## V18. Boîtes alignées (R40 à R42, S jusqu'à P41)
+## V18. Boîtes alignées (R40 à R42, provisoires jusqu'à P41)
 
 | Cas | Boîte a | Boîte b | intersecte |
 |---|---|---|---|
@@ -317,4 +319,4 @@ Opérations sur `[0, 1]^3` : déplacement de `(-16, 0, 16)` -> `[-16, -15] x [0,
 
 ## V19. Longueur de vecteur (R39)
 
-`(dx*dx + dy*dy) + dz*dz` et `dx*dx + (dy*dy + dz*dz)` diffèrent sur 23,7 % d'un échantillon aléatoire de 10^6 triplets dans `[0, 100)^3` ; pour `(0.1, 0.2, 0.3)` les deux donnent `0.14 (0x3fc1eb851eb851ec)`.
+`(dx*dx + dy*dy) + dz*dz` et `dx*dx + (dy*dy + dz*dz)` diffèrent sur 23,8 % de 10^6 triplets uniformes dans `[0, 100)^3` tirés par `java.util.Random(3)` (composantes dans l'ordre dx, dy, dz) ; la première forme est provisoire ; pour `(0.1, 0.2, 0.3)` les deux donnent `0.14 (0x3fc1eb851eb851ec)`.

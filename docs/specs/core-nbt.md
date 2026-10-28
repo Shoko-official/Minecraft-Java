@@ -25,8 +25,8 @@ Ne couvre pas :
 ## Sources
 
 - **Données extraites** (`.cache/reference/26.3/`) : les 1511 fichiers `resources/data/minecraft/structure/**/*.nbt` ; `generated/reports/commands.json` (types d'arguments des commandes) ; `version.json` (data version 5023).
-- **Calculs** : lecteur et écrivain NBT minimal écrit pour cette spec, indépendant du jeu (`nbt_ref.py`, texte intégral et commandes dans `core-nbt-vectors.md`). Sous-commandes `scan`, `order`, `dump`, `vectors`, `probes`.
-- **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki, page "NBT format" (https://minecraft.wiki/w/NBT_format ; sa section SNBT est marquée comme incomplète par le wiki) ; wiki.vg, page "NBT" (https://wiki.vg/NBT) pour la racine réseau ; définition du "modified UTF-8" dans la documentation de l'API Java SE (`java.io.DataInput`) ; RFC 1950 (zlib) et RFC 1952 (gzip).
+- **Calculs** : lecteur et écrivain NBT minimal écrit pour cette spec, indépendant du jeu (`nbt_ref.py`, texte intégral et commandes dans `core-nbt-vectors.md`). Sous-commandes `scan`, `order`, `dump`, `ftable`, `tree`, `hex`, `vectors`, `probes`.
+- **Documentation publique**, consultée le 2026-10-28 : Minecraft Wiki, page "NBT format" (https://minecraft.wiki/w/NBT_format ; sa section SNBT est marquée comme incomplète par le wiki) ; Minecraft Wiki, page "Minecraft Wiki:Projects/wiki.vg merge/NBT" (https://minecraft.wiki/w/Minecraft_Wiki:Projects/wiki.vg_merge/NBT, reprise de l'ancienne page NBT de wiki.vg) pour la racine réseau, les listes de longueur nulle ou négative et la mesure de profondeur ; définition du "modified UTF-8" dans la documentation de l'API Java SE (`java.io.DataInput`) ; RFC 1950 (zlib) et RFC 1952 (gzip).
 - **Rapports locaux** : aucun ne décrit le format NBT ni le SNBT (recherche des mots-clés nbt, snbt, utf, gzip, zlib, deflate, endian, level.dat dans les cinq rapports). Le rapport Overworld (chapitre 8.2) cite seulement l'existence des gabarits de structures `.nbt`. Aucune règle ci-dessous n'en vient.
 - **Sondes de l'oracle** : aucune exécutée à ce jour. Les sondes proposées sont décrites dans `core-nbt-vectors.md`.
 
@@ -42,7 +42,7 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R2 | Identifiants 7 Byte_Array et 12 Long_Array. Absents des fichiers de référence. | S |
 | R3 | Tous les nombres, longueurs comprises, sont gros-boutistes. Entiers signés en complément à deux ; Float et Double au format IEEE 754 binary32 et binary64. Exemple : `DataVersion` vaut `00 00 13 9f` = 5023. | C |
 | R4 | Tailles des charges : Byte 1, Short 2, Int 4, Long 8, Float 4, Double 8 octets. | C |
-| R5 | Balise nommée = type (1 octet) + nom (codé comme une String, R9) + charge. End est un octet `00` seul, sans nom ni charge. | C |
+| R5 | Balise nommée = type (1 octet) + nom (codé comme une String, R10) + charge. End est un octet `00` seul, sans nom ni charge. | C |
 | R6 | Compound = suite de balises nommées terminée par `00`. Compound vide = `00`. | C |
 | R7 | List = type des éléments (1 octet) + longueur (Int signé) + charges des éléments, sans type ni nom. Dans une liste de listes, chaque sous-liste porte son propre type d'élément. | C |
 | R8 | Int_Array = longueur (Int signé, en éléments) + éléments de 4 octets. Un UUID est un Int_Array de 4 éléments, poids fort en premier (exemple : `[895037032, -995736946, -1319125422, -1224629455]` = `35592e68-c4a6-428e-b15f-be52b701a331`, UUID version 4 valide). | C |
@@ -62,7 +62,7 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R17 | Les fichiers de sauvegarde du monde (level.dat, données de joueurs, stockage des commandes) utilisent le même conteneur gzip et une racine nommée comme R14. | S |
 | R18 | Les données d'un chunk dans un fichier région sont par défaut en zlib (RFC 1950). Le core fournit le décodage zlib ; le choix par chunk relève de la spec région. | S |
 | R19 | Certains fichiers sont stockés sans compression (exemples cités par la documentation : servers.dat, hotbar.nbt, côté client). | S |
-| R20 | Réseau, protocole 764 et suivants (777 en 26.3) : racine sans nom, soit le type (1 octet) puis directement la charge. Une valeur absente est un octet `00` seul. | S |
+| R20 | Réseau, protocole 764 et suivants (777 en 26.3) : racine sans nom, soit le type (1 octet) puis directement la charge ; la documentation précise que ce changement ne concerne que le réseau. Hypothèse non documentée par la page consultée : une valeur absente est un octet `00` seul. | S |
 
 ### Listes vides et longueurs
 
@@ -72,7 +72,7 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R22 | Écriture : une liste vide s'écrit avec le type End (`00 00 00 00 00`), quel que soit le type de liste attendu par le schéma. Établi pour les fichiers de référence ; à confirmer pour les sauvegardes du serveur. | S |
 | R23 | Lecture d'une liste vide d'un autre type que End : acceptée, liste vide. | S |
 | R24 | Lecture d'une liste de type End de longueur strictement positive : provisoire, échec de lecture. | S |
-| R25 | Longueur négative d'une liste ou d'un tableau : provisoire, échec de lecture. | S |
+| R25 | Longueur négative d'une List : provisoire, lue comme une liste vide, quel que soit le type d'élément (la documentation publique admet le type End pour une longueur nulle ou négative et recommande d'accepter tout type quand la longueur est inférieure ou égale à 0). Longueur négative d'un Byte_Array, Int_Array ou Long_Array : provisoire, échec de lecture. | S |
 
 ### Compounds et ordre des clés
 
@@ -81,15 +81,15 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R26 | Les clés sont uniques dans chaque Compound des fichiers de référence (1 222 451 compounds). | C |
 | R27 | Lecture d'une clé en double : provisoire, la dernière valeur lue remplace la précédente. | S |
 | R28 | L'ordre des clés n'a pas de sens : deux compounds qui ne diffèrent que par l'ordre sont égaux (R37), et la lecture n'en dépend pas. | S |
-| R29 | Ordre observé à l'écriture dans les fichiers de référence : il n'est pas lexicographique (18 856 compounds non triés sur 1 208 339 ayant au moins 2 clés). 1 208 302 d'entre eux (99,997 %) suivent l'ordre non décroissant de `bucket_order_key` (hachage de chaîne défini par l'API Java SE, mélangé `h ^ (h >>> 16)`, table de taille puissance de deux au moins 16 et facteur de charge 0,75). Les 37 exceptions sont toutes dans des données d'objets, de pancartes ou d'échanges de villageois. | C |
+| R29 | Ordre observé à l'écriture dans les fichiers de référence : il n'est pas lexicographique (18 856 compounds non triés sur 1 208 339 ayant au moins 2 clés). 1 208 302 d'entre eux (99,997 %) suivent l'ordre non décroissant de `bucket_order_key` (annexe de `core-nbt-vectors.md`) : hachage de chaîne tel que le spécifie l'API Java SE, puis mélange `h ^ (h >>> 16)` et réduction à une table de taille puissance de deux au moins 16 avec un facteur de charge 0,75. Ce mélange et cette réduction reprennent l'implémentation OpenJDK d'une table de hachage ; l'API Java SE, elle, ne spécifie pas l'ordre d'itération. Il s'agit d'une fonction qui reproduit l'ordre observé, pas d'une affirmation sur la façon dont le jeu le produit. Les 37 exceptions sont toutes dans des données d'objets, de pancartes ou d'échanges de villageois. | C |
 | R30 | Notre lecteur conserve l'ordre de lecture des clés et notre écrivain le restitue : décoder puis réécrire un fichier de référence redonne exactement ses octets décompressés (vérifié sur les 1511 fichiers). Pour un compound créé par notre moteur, l'ordre d'écriture est l'ordre d'insertion. Reproduire l'ordre de R29 n'est pas exigé en M1 ; les comparaisons avec l'oracle portent sur l'arbre décodé, pas sur les octets. | C |
 
 ### Profondeur, taille, erreurs
 
 | Réf | Règle | Preuve |
 |---|---|---|
-| R31 | Profondeur maximale : 512 niveaux de List et Compound imbriqués. Provisoire : la racine compte comme un niveau ; 512 conteneurs imbriqués sont acceptés, 513 sont refusés. Profondeur maximale observée dans les fichiers de référence : 8 conteneurs imbriqués racine comprise. | S |
-| R32 | Taille maximale lue : aucune source consultée ne donne de valeur pour 26.3. Provisoire : pas de limite pour les fichiers ; limite configurable pour le réseau, valeur à relever au jalon M8. Plus gros fichier de référence : 1 078 387 octets décompressés. | S |
+| R31 | Profondeur maximale : 512 niveaux de List et Compound imbriqués. Provisoire : la racine compte comme un niveau (comme dans l'exemple de la documentation, où `{one:{two:{three:{four:{}}}}}` a une profondeur de 5) ; 512 conteneurs imbriqués sont acceptés, 513 sont refusés. La valeur 512 vient de la page "NBT format" ; la page réseau ne donne pas de valeur. Profondeur maximale observée dans les fichiers de référence : 8 conteneurs imbriqués racine comprise. | S |
+| R32 | Taille maximale lue : aucune source consultée ne donne de valeur pour 26.3 ; la documentation réseau décrit un quota exprimé en mémoire estimée après décodage, et non en octets lus, sans en donner la valeur. Provisoire : pas de limite pour les fichiers ; limite configurable pour le réseau, valeur à relever au jalon M8. Plus gros fichier de référence : 1 078 387 octets décompressés. | S |
 | R33 | Type inconnu (13 ou plus), fin de flux prématurée, Compound sans `00` final : échec de lecture du document entier, sans résultat partiel. | S |
 | R34 | Octets après la racine d'un fichier : provisoire, ignorés. | S |
 
@@ -100,7 +100,7 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R35 | Float et Double gardent leur motif de bits exact en lecture et en réécriture : -0.0 (`80000000`, `8000000000000000`), infinis, NaN avec leur charge. Aucun NaN ni -0.0 dans les fichiers de référence. Provisoire : un NaN produit par calcul s'écrit `7fc00000` (Float) ou `7ff8000000000000` (Double). | S |
 | R36 | Pas de type booléen : un booléen est un Byte 0 ou 1. Les champs booléens des fichiers de référence (`OnGround`, `Invulnerable`, `CanPickUpLoot`...) sont des Byte. Provisoire en lecture : toute valeur non nulle vaut vrai. | C (stockage) ; S (lecture) |
 | R37 | Égalité de deux balises : même type exigé (Int 1 différent de Byte 1) ; Compound : mêmes clés, valeurs égales, ordre indifférent ; List : mêmes éléments dans le même ordre ; tableaux : élément par élément ; Float et Double comparés par motif de bits (0.0 différent de -0.0, un NaN égal au même motif NaN). Deux listes vides sont égales quel que soit leur type d'élément. | S |
-| R38 | Lecture typée tolérante : lire un nombre sous un autre type numérique le convertit ; lire une clé absente ou d'un type incompatible donne la valeur par défaut (0, chaîne vide, liste ou compound vide). La règle de conversion d'un flottant vers un entier (troncature ou arrondi) et le dépassement (saturation ou troncature binaire) restent à relever. | S |
+| R38 | Lecture typée tolérante : lire un nombre sous un autre type numérique le convertit ; lire une clé absente ou d'un type incompatible donne la valeur par défaut (0, chaîne vide, liste ou compound vide). Conversion provisoire, alignée sur les conversions primitives du langage Java (spécification publique) : entier vers entier plus large, exact ; entier vers entier plus étroit, on garde les bits de poids faible (Long 3000000000 lu en Int donne -1294967296) ; Float ou Double vers Int ou Long, troncature vers zéro, NaN donne 0, saturation aux bornes ; Float ou Double vers Byte ou Short, d'abord vers Int comme ci-dessus, puis bits de poids faible ; entier vers Float ou Double, valeur la plus proche ; Double vers Float, arrondi IEEE au plus proche. | S |
 
 ### SNBT : lecture
 
@@ -113,9 +113,9 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | R43 | Chaîne non citée : uniquement `0-9 A-Z a-z _ - . +`. Une valeur non citée ne commence ni par un chiffre, ni par `-`, `.` ou `+` (elle est alors lue comme un nombre, ou refusée). Pour une clé, cette restriction du premier caractère n'est pas documentée. Le `:` n'est jamais permis sans guillemets (`minecraft:stone` doit être cité). | S |
 | R44 | `true` et `false` non cités donnent Byte 1 et Byte 0 ; cités, ce sont des chaînes. Les autres mots non cités (`NaN`, `Infinity`) sont des chaînes. | S |
 | R45 | Chaîne citée par `"` ou `'`. Échappements : `\\`, `\"`, `\'`, `\n`, `\s` (espace), `\t`, `\b`, `\f`, `\r`, `\xhh`, `\uhhhh`, `\Uhhhhhhhh` (au plus U+10FFFF), `\N{nom Unicode}`. Échappement inconnu : erreur. | S |
-| R46 | Nombres : entier sans suffixe = Int ; avec `.` ou exposant et sans suffixe = Double. Suffixes de type insensibles à la casse : `b` Byte, `s` Short, `i` Int, `l` Long, `f` Float, `d` Double. Suffixe de signe `s` (signé) ou `u` (non signé) avant le suffixe de type, entiers seulement (`240ub` = Byte -16). Préfixes `0x` et `0b`, entiers seulement. `_` permis entre deux chiffres seulement. Formes `.5`, `5.`, `1e3`, `1.2E-3`. Valeur hors de la plage du type : erreur. Refus documentés : `82u`, `-87uI`, `30bu`, `253sb`. Un hexadécimal de type Byte exige un suffixe de signe (`0x11sb`), `b` étant un chiffre hexadécimal. | S |
-| R47 | List : `[]` ou `[v, ...]`. Éléments de même type : List de ce type. Types différents : acceptée ; en binaire, chaque élément est enveloppé dans un Compound à clé vide (`[1,"a"]` devient List de Compound `[{"":1}, {"":"a"}]`). Non documentés : `[1b, 2]` (promotion ou liste hétérogène) et l'enveloppe des éléments déjà Compound dans une liste mixte. | S |
-| R48 | Tableaux typés `[B; ...]`, `[I; ...]`, `[L; ...]` : `B` accepte des Byte (pas de booléen), `I` des Byte, Short, Int, `L` des Byte, Short, Int, Long. `[1,2]` est une List d'Int, `[I;1,2]` un Int_Array. Tableau vide `[I;]` : provisoire, accepté. | S |
+| R46 | Nombres : entier sans suffixe = Int ; avec `.` ou exposant et sans suffixe = Double. Suffixes de type insensibles à la casse : `b` Byte, `s` Short, `i` Int, `l` Long, `f` Float, `d` Double. Suffixe de signe `s` (signé) ou `u` (non signé) avant le suffixe de type, entiers seulement (`240ub` = Byte -16). Préfixes `0x` et `0b`, entiers seulement. `_` permis entre deux chiffres seulement. Formes `.5`, `5.`, `1e3`, `1.2E-3`. Valeur hors de la plage du type : erreur ; provisoire, un décimal qui déborde vers l'infini (`1.0e400`, `3.5e38f`) est aussi une erreur. Refus documentés : `82u`, `-87uI`, `30bu`, `253sb`. Un hexadécimal de type Byte exige un suffixe de signe (`0x11sb`), `b` étant un chiffre hexadécimal. | S |
+| R47 | List : `[]` ou `[v, ...]`. Éléments de même type : List de ce type. Types différents : acceptée ; en binaire, chaque élément est enveloppé dans un Compound à clé vide (`[1,"a"]` devient List de Compound `[{"":1}, {"":"a"}]`). Non documentés, provisoire : `[1b, 2]` n'est pas promu, c'est une liste hétérogène (Byte 1, Int 2) ; dans une liste mixte, les éléments Compound sont enveloppés comme les autres (`[{a:1}, 2]` devient `[{"":{a:1}}, {"":2}]`). | S |
+| R48 | Tableaux typés `[B; ...]`, `[I; ...]`, `[L; ...]` : `B` accepte des Byte (pas de booléen), `I` des Byte, Short, Int, `L` des Byte, Short, Int, Long. `[1,2]` est une List d'Int, `[I;1,2]` un Int_Array. Tableau vide `[I;]` : provisoire, accepté (Int_Array de 0 élément). | S |
 | R49 | Virgule finale permise dans les compounds, listes et tableaux (`{a:1,}`, `[1,2,]`). | S |
 | R50 | Opérations : `bool(x)` (nombre ou booléen vers Byte 0 ou 1 ; chaîne : erreur) ; `uuid("...")` vers Int_Array de 4 (R8). | S |
 | R51 | Une entrée invalide fait échouer la commande sans rien modifier. Le texte du message d'erreur n'est pas spécifié en M1. | S |
@@ -125,10 +125,10 @@ Convention de preuve dans cette spec : **D** = valeur lue telle quelle dans un f
 | Réf | Règle | Preuve |
 |---|---|---|
 | R52 | Nombres : Byte `1b`, Short `1s`, Int `1`, Long `1L`, Float `1.5f`, Double `1.5d` (suffixes minuscules sauf `L`). Jamais `true` ni `false`. | S |
-| R53 | Décimale des Float et Double : écriture la plus courte qui relit la même valeur ; forme des grands et petits nombres (exposant), de -0.0, des infinis et des NaN à relever. | S |
-| R54 | Chaînes toujours citées. `"` par défaut. Si la chaîne contient un guillemet, le délimiteur est l'autre guillemet que le premier rencontré dans la chaîne. Sont échappés `\` et le délimiteur choisi. | S |
+| R53 | Décimale des Float et Double, provisoire : la forme de `Float.toString` et `Double.toString` de Java SE (chiffres les plus courts qui relisent la même valeur), puis le suffixe. Pour 10^-3 <= \|x\| < 10^7, écriture décimale avec au moins un chiffre après le point (`1000.0d`, `0.5d`, `5.0f`) ; sinon une mantisse entre 1 et 10 et `E` suivi de l'exposant (`1.0E10f`, `1.0E-4d`, `1.2345678E7d`) ; `-0.0d` ; `NaNd`, `Infinityd`, `-Infinityd` (et `f` pour Float). | S |
+| R54 | Chaînes toujours citées. `"` par défaut. Si la chaîne contient un guillemet, le délimiteur est l'autre guillemet que le premier rencontré dans la chaîne. Sont échappés `\` et le délimiteur choisi. Provisoire : tous les autres caractères, non ASCII et contrôles compris, sont écrits tels quels (`"Aé☃"`). | S |
 | R55 | Clé non citée si elle n'est faite que de `0-9 A-Z a-z _ - . +`, sinon citée comme R54. | S |
-| R56 | Séparateurs : `{a: 1b, b: "x"}`, `[1, 2]`, `[I; 1, 2]` (espace après `:`, `,` et `;`), `{}` et `[]` pour les vides. Clés dans l'ordre du stockage. | S |
+| R56 | Séparateurs : `{a: 1b, b: "x"}`, `[1, 2]`, `[I; 1, 2]` (espace après `:`, `,` et `;`), `{}` et `[]` pour les vides. Clés dans l'ordre du stockage. Provisoire : tableau vide `[I;]` (de même `[B;]`, `[L;]`) ; une liste hétérogène s'affiche sans enveloppe (`[1, "a"]`, `[1b, 2]`). | S |
 
 ## Entrées / sorties
 
@@ -176,4 +176,4 @@ Chaque règle S est levée par une sonde de l'oracle, décrite avec ses commande
 
 R19 (fichiers client non compressés) n'a pas de sonde avant le travail sur le client ; elle ne bloque pas le jalon M1.
 
-Points sans contradiction mais à surveiller : la documentation publique dit que le jeu a pu écrire des listes vides de type Byte ou End selon les versions, alors que les 1511 fichiers 26.3 n'en contiennent que de type End (R21, R22) ; elle décrit les compounds comme non ordonnés, alors que les fichiers ont un ordre déterministe non lexicographique (R29).
+Points sans contradiction mais à surveiller : la documentation publique dit que le jeu a pu écrire des listes vides de type Byte ou End selon les versions (la page réseau précise qu'une implémentation de référence de Mojang utilise le type 1 et le jeu le type End), alors que les 1511 fichiers 26.3 n'en contiennent que de type End (R21, R22) ; elle décrit les compounds comme non ordonnés, alors que les fichiers ont un ordre déterministe non lexicographique (R29).

@@ -13,12 +13,15 @@ Tous les calculs viennent de `nbt_ref.py`, lecteur et écrivain NBT minimal sans
 ```bash
 python -I nbt_ref.py scan    "$REF/resources"                                      # corpus (R1, R14, R16, R21, R26, R30)
 python -I nbt_ref.py order   "$REF/resources/data/minecraft/structure"             # ordre des clés (R29)
-python -I nbt_ref.py dump    "$REF/resources/data/minecraft/structure/empty.nbt"   # F1 à F4, un fichier par argument
+python -I nbt_ref.py ftable  "$REF/resources/data/minecraft/structure/"{empty,igloo/top,village/plains/villagers/baby,bastion/hoglin_stable/air_base}.nbt   # tableau F
+python -I nbt_ref.py hex     "$REF/resources/data/minecraft/structure/empty.nbt"   # octets de F1
+python -I nbt_ref.py tree    "$REF/resources/data/minecraft/structure/village/plains/villagers/baby.nbt"   # détails de F3
+python -I nbt_ref.py dump    FICHIER.nbt                                         # résumé d'un fichier quelconque
 python -I nbt_ref.py vectors                                                       # V01 à V24, E01 à E09
 python -I nbt_ref.py probes  "$REF/resources/data/minecraft/structure/empty.nbt" probe_out   # fichiers p00 à p19 de PB1
 ```
 
-Octets d'un fichier décompressé : `python -I -c "import gzip,sys;print(gzip.decompress(open(sys.argv[1],'rb').read()).hex())" FICHIER`.
+Les sorties de `nbt_ref.py` sont en anglais ; les tableaux ci-dessous les reprennent en français.
 
 Statut des valeurs attendues : les octets de V01 à V24 sont C (calculés à partir de R1 à R11) ; leur décodage en Byte_Array, Long_Array et chaînes non ASCII dépend de règles S. Les résultats attendus de E01 à E09, PB1 à PS2 et T1 à T52 sont **provisoires** (S) tant que la sonde n'a pas été exécutée.
 
@@ -65,7 +68,7 @@ Résultat attendu provisoire, à confirmer par PB1 (S).
 | E02 | type 13 | `0d 00 00` | échec (R33) |
 | E03 | List de type End, longueur 1 | `09 00 00 00 00 00 00 01` | échec (R24) |
 | E04 | Byte_Array de longueur -1 | `07 00 00 ff ff ff ff` | échec (R25) |
-| E05 | List de Byte de longueur -1 | `09 00 00 01 ff ff ff ff` | échec (R25) |
+| E05 | List de Byte de longueur -1 | `09 00 00 01 ff ff ff ff` | accepté, List vide (R25) |
 | E06 | String contenant l'octet `00` | `08 00 00 00 01 00` | échec (R12) |
 | E07 | String en UTF-8 standard sur 4 octets | `08 00 00 00 04 f0 9f 98 80` | échec (R12) |
 | E08 | Compound sans End final | `0a 00 00 01 00 01 61 01` | échec (R33) |
@@ -74,7 +77,7 @@ Résultat attendu provisoire, à confirmer par PB1 (S).
 
 ## F : fichiers réels
 
-Fichiers de `resources/data/minecraft/structure/`, décodés par `nbt_ref.py dump` (C). Tous : conteneur gzip, en-tête de R16, racine Compound de nom vide, clés racines dans l'ordre `size`, `entities`, `blocks`, `palette`, `DataVersion` (Int 5023).
+Fichiers de `resources/data/minecraft/structure/` (C). Chaque valeur du tableau (empreintes, tailles, en-tête, racine, ordre des clés, contenu de `size`, nombre et type d'éléments des listes) est imprimée par `nbt_ref.py ftable` sur ces quatre fichiers ; les octets de F1 par `nbt_ref.py hex` ; les détails de F3 par `nbt_ref.py tree`. Tous : conteneur gzip, en-tête de R16, racine Compound de nom vide, clés racines dans l'ordre `size`, `entities`, `blocks`, `palette`, `DataVersion` (Int 5023).
 
 | Fichier | SHA-256 du fichier compressé | Octets compressés / décompressés | SHA-256 des octets décompressés | Éléments des listes racines |
 |---|---|---|---|---|
@@ -83,7 +86,7 @@ Fichiers de `resources/data/minecraft/structure/`, décodés par `nbt_ref.py dum
 | F3 `village/plains/villagers/baby.nbt` | `6fe50097ea5a52d9f1b6b083b6427dca33c084be1f9351f39888483c5571947f` | 712 / 1134 | `1de0d5f67910dfae108852eb3bf91ece28ec115136700613893513989679d251` | size 3 Int [1,2,1] ; entities 1 Compound ; blocks 2 ; palette 2 |
 | F4 `bastion/hoglin_stable/air_base.nbt` | `784dd30d618243b1f7713f33a6a49b87fc677fd80c61740c94e956b81e085aa9` | 80375 / 1078387 | `2e28eafc83c37d958453de50ad9e3b76cd78ed91c1f5509ca3827e5ed846132d` | size 3 Int [30,24,48] ; entities 0 (type End) ; blocks 29938 ; palette 3 |
 
-F1 en entier (octets décompressés, 148 octets), vecteur de lecture et de réécriture complet :
+F1 en entier (octets décompressés, 148 octets, sortie de `nbt_ref.py hex`), vecteur de lecture et de réécriture complet :
 
 ```
 0a000009000473697a650300000003000000010000000100000001090008656e7469746965730000000000090006626c6f636b730a00000001090003706f7303000000030000000000000000000000000300057374617465000000000009000770616c657474650a000000010800026964000d6d696e6563726166743a6169720003000b4461746156657273696f6e0000139f00
@@ -91,7 +94,7 @@ F1 en entier (octets décompressés, 148 octets), vecteur de lecture et de réé
 
 Arbre attendu de F1 : `{size: List<Int>[1,1,1], entities: List<End>[], blocks: List<Compound>[{pos: List<Int>[0,0,0], state: Int 0}], palette: List<Compound>[{id: String "minecraft:air"}], DataVersion: Int 5023}`, clés dans cet ordre.
 
-Détails de F3 utiles aux tests de valeurs (premier élément de `entities`, sous-clé `nbt`, 32 clés) : `UUID` Int_Array `[895037032, -995736946, -1319125422, -1224629455]` ; `Health` Float 20.0 ; `Age` Int -21359 ; `Fire` Short -1 ; `Air` Short 300 ; `LastRestock` Long 0 ; `OnGround` Byte 1 ; `Motion` List<Double> `[0.0, -0.0784000015258789, 0.0]` ; `Rotation` List<Float> `[0.0, -25.82771110534668]` ; `Gossips`, `attributes`, `Inventory` : List vides de type End ; `HandItems` : 2 Compound vides ; `ArmorItems` : 4 Compound vides ; `VillagerData` : Compound de 3 clés.
+Détails de F3 utiles aux tests de valeurs (sortie de `nbt_ref.py tree` ; premier élément de `entities`, sous-clé `nbt`, 32 clés) : `UUID` Int_Array `[895037032, -995736946, -1319125422, -1224629455]` ; `Health` Float 20.0 ; `Age` Int -21359 ; `Fire` Short -1 ; `Air` Short 300 ; `LastRestock` Long 0 ; `OnGround` Byte 1 ; `Motion` List<Double> `[0.0, -0.0784000015258789, 0.0]` ; `Rotation` List<Float> `[0.0, -25.82771110534668]` ; `Gossips`, `attributes`, `Inventory` : List vides de type End ; `HandItems` : 2 Compound vides ; `ArmorItems` : 4 Compound vides ; `VillagerData` : Compound de 3 clés.
 
 ## Corpus : 1511 fichiers de structures
 
@@ -101,7 +104,7 @@ Sortie de `scan` et `order` (C) :
 - Taille décompressée : de 148 à 1 078 387 octets.
 - Occurrences par type : voir R1 ; aucun Byte_Array ni Long_Array.
 - Types d'éléments de listes : Int 1 172 463, Compound 3569, End 2021, Double 862, Float 291, List 20. Toutes les listes vides (2021) sont de type End.
-- Profondeur maximale : 8 conteneurs imbriqués, racine comprise (`lava_basin.nbt`).
+- Profondeur maximale : 8 conteneurs imbriqués, racine comprise (premier fichier qui l'atteint : `lava_basin.nbt`).
 - Compounds d'au moins 2 clés : 1 208 339 ; en ordre lexicographique : 1 189 483 ; en ordre de `bucket_order_key` : 1 208 302 (R29).
 - Aucune chaîne non ASCII, aucun NaN, aucun -0.0.
 
@@ -125,8 +128,8 @@ Profondeurs exprimées en conteneurs imbriqués, racine comprise. Décalages dan
 |---|---|---|---|---|
 | p00_base | aucune | 148 | `ea73f15eba7e75a69fc179de24b07781b1db2a5637af0cc9b50bbf029a24ea3f` | accepté |
 | p01_root_name_x | nom de racine `x` | 149 | `646f136e7e92fbe2182c4d09387b104fe9e8685f70c0a129a30aaf77501c62ec` | accepté (R15) |
-| p02_entities_end_len_minus1 | `entities` : `00 ff ff ff ff` | 148 | `f6442a15cc52fb643ae565398436d5596261e7018fa91d1f336aee435bee8642` | refusé (R25) |
-| p03_entities_byte_len_minus1 | `entities` : `01 ff ff ff ff` | 148 | `d8e8cf2856b6d735891a4a9f700c3b6dda58fff9d0d5cb983de8faaac977b818` | refusé (R25) |
+| p02_entities_end_len_minus1 | `entities` : `00 ff ff ff ff` | 148 | `f6442a15cc52fb643ae565398436d5596261e7018fa91d1f336aee435bee8642` | accepté, `entities` vide (R25) |
+| p03_entities_byte_len_minus1 | `entities` : `01 ff ff ff ff` | 148 | `d8e8cf2856b6d735891a4a9f700c3b6dda58fff9d0d5cb983de8faaac977b818` | accepté, `entities` vide (R25) |
 | p04_entities_end_len_1 | `entities` : `00 00 00 00 01` | 148 | `700d0952ef84b800980ef05a95049aa40977f08bc61a23aba51eb3c0d32f599e` | refusé (R24) |
 | p05_entities_byte_len_0 | `entities` : `01 00 00 00 00` | 148 | `60663135c381b4e48a734b7210362d1158d03747ff3eb6198f020e469c828db0` | accepté (R23) |
 | p06_trailing_byte | octet `00` ajouté à la fin | 149 | `ce63e07bbc061f31939ce2ea19478983bdb2467aaa68a1604a71d0c421e19337` | accepté (R34) |
@@ -156,8 +159,8 @@ data modify storage probe:nbt w.empty set value []
 data modify storage probe:nbt w.nz set value -0.0d
 data modify storage probe:nbt w.nzf set value -0.0f
 data modify storage probe:nbt w.s0 set value "\u0000"
-data modify storage probe:nbt w.s1 set value "é"
-data modify storage probe:nbt w.s2 set value "€"
+data modify storage probe:nbt w.s1 set value "\u00e9"
+data modify storage probe:nbt w.s2 set value "\u20ac"
 data modify storage probe:nbt w.s3 set value "\U0001F600"
 data modify storage probe:nbt w.het set value [1,"a"]
 data modify storage probe:nbt w.ba set value [B;1b,-1b]
@@ -227,7 +230,7 @@ summon minecraft:armor_stand 0 100 0 {Tags:["pN"],NoGravity:1b,PortalCooldown:V}
 data get entity @e[tag=pN,limit=1] PortalCooldown
 ```
 
-Relever la valeur (ou le refus de `summon`). Candidats à départager (R38) : troncature (7, -7) ou arrondi (8, -8) ; 3000000000L donne 2147483647 (saturation), -1294967296 (troncature binaire) ou 0 ; `"5"` donne 0 selon la documentation publique.
+Relever la valeur (ou le refus de `summon`). Attendu provisoire (R38) : 7, -7, 7, -1294967296, 0. Autres candidats à départager : arrondi (8, -8) au lieu de la troncature ; 2147483647 (saturation) ou 0 au lieu de -1294967296 ; `"5"` donne 0 selon la documentation publique.
 
 Booléen (R36) : `summon minecraft:armor_stand 0 100 0 {Tags:["pb"],NoGravity:2b}` puis `data get entity @e[tag=pb,limit=1] NoGravity`. Attendu provisoire : `1b` (toute valeur non nulle vaut vrai, réécrite en 1).
 
@@ -269,25 +272,25 @@ Pour chaque entrée : `data modify storage probe:nbt t set value <entrée>`, pui
 | T30 | `'it\'s'` | String `it's` | `"it's"` | R45, R54 |
 | T31 | `"a'b\"c"` | String `a'b"c` | `"a'b\"c"` | R54 |
 | T32 | `'a"b\'c'` | String `a"b'c` | `'a"b\'c'` | R54 |
-| T33 | `"\x41é\N{Snowman}"` | String U+0041 U+00E9 U+2603 (octets `41 c3 a9 e2 98 83`) | à relever (échappement des non ASCII) | R45, R54 |
+| T33 | `"\x41\u00e9\N{Snowman}"` | String U+0041 U+00E9 U+2603 (octets `41 c3 a9 e2 98 83`) | provisoire : `"Aé☃"` (non ASCII écrit tel quel) | R45, R54 |
 | T34 | `"\q"` | erreur | | R45 |
 | T35 | `[]` | List vide | `[]` | R47, R56 |
 | T36 | `[1,2,]` | List d'Int [1, 2] | `[1, 2]` | R49, R56 |
-| T37 | `[1,"a"]` | List de Compound `[{"":1}, {"":"a"}]` | à relever | R47 |
-| T38 | `[1b,2]` | à relever | à relever | R47 |
+| T37 | `[1,"a"]` | liste hétérogène (Int 1, String `a`) ; en binaire List de Compound `[{"":1}, {"":"a"}]` | provisoire : `[1, "a"]` | R47, R56 |
+| T38 | `[1b,2]` | provisoire : liste hétérogène (Byte 1, Int 2), sans promotion ; en binaire `[{"":1b}, {"":2}]` | provisoire : `[1b, 2]` | R47, R56 |
 | T39 | `[B;1b,-1b]` | Byte_Array [1, -1] | `[B; 1b, -1b]` | R48, R56 |
 | T40 | `[B;true]` | erreur | | R48 |
 | T41 | `[I;1b,2s,3]` | Int_Array [1, 2, 3] | `[I; 1, 2, 3]` | R48 |
 | T42 | `[I;1L]` | erreur | | R48 |
 | T43 | `[L;1,2L]` | Long_Array [1, 2] | `[L; 1L, 2L]` | R48 |
-| T44 | `[I;]` | Int_Array vide | à relever | R48 |
+| T44 | `[I;]` | Int_Array vide | provisoire : `[I;]` | R48, R56 |
 | T45 | `{a:1,}` | Compound {a: Int 1} | `{a: 1}` | R49, R56 |
 | T46 | `{"a b":1,'k':2b}` | Compound {`a b`: Int 1, k: Byte 2} | `{"a b": 1, k: 2b}` (ordre à relever) | R42, R55 |
 | T47 | `{a:1,a:2}` | Compound {a: Int 2} | `{a: 2}` | R42 |
 | T48 | `bool(5)` | Byte 1 | `1b` | R50 |
 | T49 | `bool("x")` | erreur | | R50 |
 | T50 | `uuid("f81d4fae-7dec-11d0-a765-00a0c91e6bf6")` | Int_Array [-132296786, 2112623056, -1486552928, -920753162] | `[I; -132296786, 2112623056, -1486552928, -920753162]` | R50, R8 |
-| T51 | `1.0e400` | à relever (erreur ou infini) | | R46, R53 |
+| T51 | `1.0e400` | provisoire : erreur (débordement vers l'infini) | | R46 |
 | T52 | `{ a : 1 }` | Compound {a: Int 1} | `{a: 1}` | R41 |
 
 T50 : les quatre entiers sont calculés (C) depuis les 16 octets de l'UUID, poids fort en premier ; les deux premiers coïncident avec l'exemple de la documentation publique.
@@ -299,6 +302,9 @@ T50 : les quatre entiers sont calculés (C) depuis les 16 octets de l'UUID, poid
 
 Usage:
   python -I nbt_ref.py dump FILE.nbt          # summary of one file
+  python -I nbt_ref.py ftable FILE.nbt...     # hashes, sizes, header, root keys and list contents
+  python -I nbt_ref.py tree FILE.nbt          # whole decoded tree, long lists cut after 6 elements
+  python -I nbt_ref.py hex FILE.nbt           # decompressed bytes in hexadecimal
   python -I nbt_ref.py scan DIR               # statistics over all *.nbt under DIR
   python -I nbt_ref.py order DIR              # compound key order statistics over all *.nbt under DIR
   python -I nbt_ref.py vectors                # print hand-built binary vectors
@@ -407,8 +413,8 @@ class Reader:
         if t == LIST:
             et, n = self.u8(), self.num("i")
             if et > 12: raise ValueError("unknown list element type %d" % et)
-            if n < 0: raise ValueError("negative list length %d" % n)
             if et == END and n > 0: raise ValueError("non-empty list of End")
+            n = max(n, 0)  # provisional rule R25: a negative list length reads as an empty list
             st.list_elem[et] = st.list_elem.get(et, 0) + 1
             if n == 0: st.empty_lists[et] = st.empty_lists.get(et, 0) + 1
             return (LIST, et, [self.payload(et, depth + 1) for _ in range(n)])
@@ -496,8 +502,61 @@ def dump(path):
     print("first 32 bytes:", data[:32].hex(" "))
 
 
+def ftable(path):
+    """One line per file with every value of the spec's F table."""
+    raw, kind, data, t, name, v = load(path)
+    parts = []
+    for k, ct, cv in v[1]:
+        if ct == LIST:
+            items = cv[2]
+            shown = " %r" % items if cv[1] in (BYTE, SHORT, INT, LONG) and len(items) <= 8 else ""
+            parts.append("%s=List<%s>(%d)%s" % (k, NAMES[cv[1]], len(items), shown))
+        elif ct in (BYTE, SHORT, INT, LONG, STRING):
+            parts.append("%s=%s %r" % (k, NAMES[ct], cv))
+        else:
+            parts.append("%s=%s" % (k, NAMES[ct]))
+    print(path.replace("\\", "/").split("/structure/", 1)[-1])
+    print("  sha256 compressed  :", hashlib.sha256(raw).hexdigest())
+    print("  bytes              : %d compressed, %d decompressed" % (len(raw), len(data)))
+    print("  sha256 decompressed:", hashlib.sha256(data).hexdigest())
+    print("  container          : %s, header %s" % (kind, h(raw[:10])))
+    print("  root               : %s, name %r" % (NAMES[t], name))
+    print("  root keys in order :", "; ".join(parts))
+
+
+def tree(path, max_items=6):
+    """Print the whole decoded tree; long lists are cut after max_items elements (count always shown)."""
+    raw, kind, data, t, name, v = load(path)
+    def show(t, v, ind, k):
+        if t == COMPOUND:
+            print("%s%s: Compound(%d)" % (ind, k, len(v[1])))
+            for kk, ct, cv in v[1]: show(ct, cv, ind + "  ", kk)
+        elif t == LIST:
+            print("%s%s: List<%s>(%d)" % (ind, k, NAMES[v[1]], len(v[2])))
+            if v[1] in (COMPOUND, LIST, BYTE_ARRAY, INT_ARRAY, LONG_ARRAY):
+                for i, x in enumerate(v[2][:max_items]): show(v[1], x, ind + "  ", "[%d]" % i)
+            elif v[2]:
+                print("%s  %r" % (ind, v[2][:max_items]))
+        elif t in (BYTE_ARRAY, INT_ARRAY, LONG_ARRAY):
+            print("%s%s: %s %r" % (ind, k, NAMES[t], v[1]))
+        else:
+            print("%s%s: %s %r" % (ind, k, NAMES[t], v))
+    show(t, v, "", "root %r" % name)
+
+
+def hexdump(path):
+    print(unwrap(open(path, "rb").read())[1].hex())
+
+
+def container_depth(t, v):
+    if t == COMPOUND: return 1 + max([container_depth(ct, cv) for _, ct, cv in v[1]] + [0])
+    if t == LIST: return 1 + max([container_depth(v[1], x) for x in v[2]] + [0])
+    return 0
+
+
 def scan(root):
     st, files, kinds, roots, versions, sizes = Stats(), 0, {}, {}, {}, []
+    deepest = (0, None)
     for dp, _, fns in os.walk(root):
         for fn in fns:
             if not fn.endswith(".nbt"): continue
@@ -508,6 +567,8 @@ def scan(root):
             dv = [cv for k, ct, cv in v[1] if k == "DataVersion"]
             versions[dv[0] if dv else None] = versions.get(dv[0] if dv else None, 0) + 1
             sizes.append(len(data))
+            d = container_depth(t, v)
+            if d > deepest[0]: deepest = (d, fn)
     print("files decoded and re-encoded byte-identically:", files)
     print("containers:", kinds)
     print("roots (type,name):", {(NAMES[t], n): c for (t, n), c in roots.items()})
@@ -516,14 +577,16 @@ def scan(root):
     print("tag counts:", {NAMES[i]: c for i, c in enumerate(st.tags) if c})
     print("list element types:", {NAMES[k]: c for k, c in st.list_elem.items()})
     print("empty lists by element type:", {NAMES[k]: c for k, c in st.empty_lists.items()})
-    print("max depth (root payload = 0):", st.max_depth)
+    print("max nested containers, root included: %d (first file: %s)" % deepest)
     print("compounds:", st.compounds, "| with >1 key:", st.multi_key_compounds,
           "| of which keys in ascending order:", st.sorted_compounds)
     print("non-ASCII strings:", st.non_ascii_strings, "| NaN:", st.nan, "| -0.0:", st.neg_zero)
 
 
 def java_string_hash(s):
-    # String hash as specified by the Java SE API: s[0]*31^(n-1) + ... + s[n-1] over UTF-16 units, 32-bit
+    # String hash as specified by the Java SE API (String.hashCode): s[0]*31^(n-1) + ... + s[n-1]
+    # over UTF-16 units, 32-bit. The spreading and bucket reduction in bucket_order_key follow the
+    # OpenJDK hash table implementation; the Java SE API itself leaves iteration order unspecified.
     be = s.encode("utf-16-be", "surrogatepass")
     hv = 0
     for i in range(0, len(be), 2):
@@ -569,60 +632,60 @@ def h(b): return b.hex(" ")
 def vectors():
     C = lambda items: (COMPOUND, items)
     V = [
-        ("V01 End seul", bytes([0])),
-        ("V02 Byte -1 nomme 'b'", write_root(BYTE, "b", -1)),
-        ("V03 Short -2 nom vide", write_root(SHORT, "", -2)),
-        ("V04 Int 0x01020304 nom vide", write_root(INT, "", 0x01020304)),
+        ("V01 End alone", bytes([0])),
+        ("V02 Byte -1 named 'b'", write_root(BYTE, "b", -1)),
+        ("V03 Short -2 empty name", write_root(SHORT, "", -2)),
+        ("V04 Int 0x01020304 empty name", write_root(INT, "", 0x01020304)),
         ("V05 Long -9223372036854775808", write_root(LONG, "", -2 ** 63)),
         ("V06 Float 1.5", write_root(FLOAT, "", 1.5)),
         ("V07 Double -0.0", write_root(DOUBLE, "", -0.0)),
         ("V08 ByteArray [1,-1]", write_root(BYTE_ARRAY, "", (BYTE_ARRAY, [1, -1]))),
         ("V09 String 'hi'", write_root(STRING, "", "hi")),
-        ("V10 List vide de type End", write_root(LIST, "", (LIST, END, []))),
+        ("V10 empty List of End", write_root(LIST, "", (LIST, END, []))),
         ("V11 List Int [7,8]", write_root(LIST, "", (LIST, INT, [7, 8]))),
         ("V12 Compound {a:1b}", write_root(COMPOUND, "", C([("a", BYTE, 1)]))),
         ("V13 IntArray [1,2]", write_root(INT_ARRAY, "", (INT_ARRAY, [1, 2]))),
         ("V14 LongArray [1]", write_root(LONG_ARRAY, "", (LONG_ARRAY, [1]))),
         ("V15 String U+0000", write_root(STRING, "", "\x00")),
-        ("V16 String 'e' accent U+00E9", write_root(STRING, "", "é")),
-        ("V17 String U+20AC", write_root(STRING, "", "€")),
+        ("V16 String U+00E9", write_root(STRING, "", "\u00e9")),
+        ("V17 String U+20AC", write_root(STRING, "", "\u20ac")),
         ("V18 String U+1F600", write_root(STRING, "", "\U0001F600")),
-        ("V19 Compound vide racine nommee vide", write_root(COMPOUND, "", C([]))),
-        ("V20 Compound vide racine sans nom (reseau)", write_root(COMPOUND, "", C([]), named=False)),
-        ("V21 Compound {z:1b,a:2b} ordre z puis a", write_root(COMPOUND, "", C([("z", BYTE, 1), ("a", BYTE, 2)]))),
-        ("V22 Float NaN canonique 0x7FC00000", bytes([5, 0, 0]) + bytes.fromhex("7fc00000")),
+        ("V19 empty Compound, named root, empty name", write_root(COMPOUND, "", C([]))),
+        ("V20 empty Compound, unnamed network root", write_root(COMPOUND, "", C([]), named=False)),
+        ("V21 Compound {z:1b,a:2b} order z then a", write_root(COMPOUND, "", C([("z", BYTE, 1), ("a", BYTE, 2)]))),
+        ("V22 Float canonical NaN 0x7FC00000", bytes([5, 0, 0]) + bytes.fromhex("7fc00000")),
         ("V23 Double +inf", write_root(DOUBLE, "", math.inf)),
-        ("V24 List vide de type Byte", write_root(LIST, "", (LIST, BYTE, []))),
+        ("V24 empty List of Byte", write_root(LIST, "", (LIST, BYTE, []))),
     ]
     for label, b in V:
         print("%-45s %s" % (label, h(b)))
         if b != bytes([0]):
-            r = Reader(b); r.root(named="sans nom" not in label); assert r.p == len(b), label
+            r = Reader(b); r.root(named="unnamed" not in label); assert r.p == len(b), label
     print()
     bad = [
-        ("E01 tronque (Int sans 4e octet)", bytes.fromhex("03 00 00 01 02 03")),
-        ("E02 type inconnu 13", bytes.fromhex("0d 00 00")),
-        ("E03 List End longueur 1", bytes.fromhex("09 00 00 00 00 00 00 01")),
-        ("E04 ByteArray longueur -1", bytes.fromhex("07 00 00 ff ff ff ff")),
-        ("E05 List Byte longueur -1", bytes.fromhex("09 00 00 01 ff ff ff ff")),
-        ("E06 String octet 0x00 brut", bytes.fromhex("08 00 00 00 01 00")),
-        ("E07 String UTF-8 4 octets F0 9F 98 80", bytes.fromhex("08 00 00 00 04 f0 9f 98 80")),
-        ("E08 Compound sans End final", bytes.fromhex("0a 00 00 01 00 01 61 01")),
+        ("E01 truncated Int (3 of 4 bytes)", bytes.fromhex("03 00 00 01 02 03")),
+        ("E02 unknown type 13", bytes.fromhex("0d 00 00")),
+        ("E03 List of End, length 1", bytes.fromhex("09 00 00 00 00 00 00 01")),
+        ("E04 ByteArray length -1", bytes.fromhex("07 00 00 ff ff ff ff")),
+        ("E05 List of Byte, length -1", bytes.fromhex("09 00 00 01 ff ff ff ff")),
+        ("E06 String with raw 0x00 byte", bytes.fromhex("08 00 00 00 01 00")),
+        ("E07 String with 4-byte UTF-8 F0 9F 98 80", bytes.fromhex("08 00 00 00 04 f0 9f 98 80")),
+        ("E08 Compound without final End", bytes.fromhex("0a 00 00 01 00 01 61 01")),
     ]
     for label, b in bad:
         try:
-            r = Reader(b); r.root(); res = "accepte"
+            r = Reader(b); v = r.root(); res = "accepted: %r" % (v[2],)
         except Exception as e:
-            res = "REJET: %s" % e
+            res = "REJECTED: %s" % e
         print("%-45s %-40s %s" % (label, h(b), res))
     for n in (512, 513):
         # n nested lists: root header, (n-1) times "List of List, length 1", innermost empty End list
         deep = bytes([LIST, 0, 0]) + (bytes([LIST]) + struct.pack(">i", 1)) * (n - 1) + bytes([END]) + struct.pack(">i", 0)
         try:
-            Reader(deep, max_depth=512).root(); res = "accepte"
+            Reader(deep, max_depth=512).root(); res = "accepted"
         except Exception as e:
-            res = "rejet (%s)" % e
-        print("E09 %d listes imbriquees (%d octets, sha256 %s) avec la limite du lecteur de reference 512 : %s"
+            res = "rejected (%s)" % e
+        print("E09 %d nested lists (%d bytes, sha256 %s), reader limit 512: %s"
               % (n, len(deep), hashlib.sha256(deep).hexdigest(), res))
 
 
@@ -680,5 +743,9 @@ if __name__ == "__main__":
         for p in sys.argv[2:]: dump(p); print()
     elif cmd == "scan": scan(sys.argv[2])
     elif cmd == "order": order(sys.argv[2])
+    elif cmd == "ftable":
+        for p in sys.argv[2:]: ftable(p)
+    elif cmd == "tree": tree(sys.argv[2])
+    elif cmd == "hex": hexdump(sys.argv[2])
     elif cmd == "vectors": vectors()
 ```

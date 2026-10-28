@@ -2,6 +2,7 @@ package dev.shoko.minecraft.tools.oracle;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -10,6 +11,7 @@ import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -172,7 +174,8 @@ class OracleServerTest {
 
   @Test
   @Timeout(90)
-  void destroysTheServerWhenTheJvmExitsWithoutStoppingIt(@TempDir Path dir) throws Exception {
+  void destroysTheServerAndEmptiesThePasswordWhenTheJvmExitsWithoutStoppingIt(@TempDir Path dir)
+      throws Exception {
     Process host =
         new ProcessBuilder(javaCommand(HostMain.class, dir.resolve("run-host").toString()))
             .redirectErrorStream(true)
@@ -197,10 +200,42 @@ class OracleServerTest {
         server.get().onExit().get(20, TimeUnit.SECONDS);
       }
       assertThat(server.map(ProcessHandle::isAlive)).isNotEqualTo(Optional.of(true));
+      assertThat(runPassword(dir.resolve("run-host"))).isEmpty();
     } catch (java.util.concurrent.TimeoutException e) {
       throw new AssertionError("server " + pid + " survived its JVM\n" + output, e);
     } finally {
       server.ifPresent(ProcessHandle::destroyForcibly);
+    }
+  }
+
+  @Test
+  @Timeout(60)
+  void killsTheServerAndEmptiesThePasswordWhenCloseIsInterrupted(@TempDir Path dir)
+      throws Exception {
+    Path runDir = dir.resolve("run-test");
+    OracleServer server =
+        OracleServer.start(fake(runDir, "stubborn", true, STARTUP, STOP), log::add);
+    ProcessHandle process = ProcessHandle.of(server.pid()).orElseThrow();
+    assertThat(runPassword(runDir)).matches("[0-9a-f]{48}");
+
+    Thread.currentThread().interrupt();
+    server.close();
+
+    assertThat(Thread.interrupted()).as("interruption is passed on").isTrue();
+    process.onExit().get(20, TimeUnit.SECONDS);
+    assertThat(process.isAlive()).isFalse();
+    assertThat(runPassword(runDir)).isEmpty();
+  }
+
+  @Test
+  void keepsThePropertiesFileOwnerOnlyWhileTheServerRuns(@TempDir Path dir) throws Exception {
+    assumeTrue(dir.getFileSystem().supportedFileAttributeViews().contains("posix"));
+    Path runDir = dir.resolve("run-test");
+    try (OracleServer server =
+        OracleServer.start(fake(runDir, "ready", true, STARTUP, STOP), log::add)) {
+      assertThat(server.command("seed")).isEqualTo("ran: seed");
+      assertThat(Files.getPosixFilePermissions(runDir.resolve("server.properties")))
+          .isEqualTo(PosixFilePermissions.fromString("rw-------"));
     }
   }
 

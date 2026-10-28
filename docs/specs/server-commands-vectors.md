@@ -488,65 +488,65 @@ weather thunder <duration:time>
 ## Règles de `/gamerule` (R5)
 
 ```
-advance_time | bool | 
-advance_weather | bool | 
-allow_entering_nether_using_portals | bool | 
-block_drops | bool | 
-block_explosion_drop_decay | bool | 
-command_block_output | bool | 
-command_blocks_work | bool | 
-drowning_damage | bool | 
-elytra_movement_check | bool | 
-ender_pearls_vanish_on_death | bool | 
-entity_drops | bool | 
-fall_damage | bool | 
-fire_damage | bool | 
+advance_time | bool |
+advance_weather | bool |
+allow_entering_nether_using_portals | bool |
+block_drops | bool |
+block_explosion_drop_decay | bool |
+command_block_output | bool |
+command_blocks_work | bool |
+drowning_damage | bool |
+elytra_movement_check | bool |
+ender_pearls_vanish_on_death | bool |
+entity_drops | bool |
+fall_damage | bool |
+fire_damage | bool |
 fire_spread_radius_around_player | integer | {"min": -1}
-forgive_dead_players | bool | 
-freeze_damage | bool | 
-global_sound_events | bool | 
-immediate_respawn | bool | 
-keep_inventory | bool | 
-lava_source_conversion | bool | 
-limited_crafting | bool | 
-locator_bar | bool | 
-log_admin_commands | bool | 
+forgive_dead_players | bool |
+freeze_damage | bool |
+global_sound_events | bool |
+immediate_respawn | bool |
+keep_inventory | bool |
+lava_source_conversion | bool |
+limited_crafting | bool |
+locator_bar | bool |
+log_admin_commands | bool |
 max_block_modifications | integer | {"min": 1}
 max_command_forks | integer | {"min": 0}
 max_command_sequence_length | integer | {"min": 0}
 max_entity_cramming | integer | {"min": 0}
 max_minecart_speed | integer | {"max": 1000, "min": 1}
 max_snow_accumulation_height | integer | {"max": 8, "min": 0}
-mob_drops | bool | 
-mob_explosion_drop_decay | bool | 
-mob_griefing | bool | 
-natural_health_regeneration | bool | 
-player_movement_check | bool | 
+mob_drops | bool |
+mob_explosion_drop_decay | bool |
+mob_griefing | bool |
+natural_health_regeneration | bool |
+player_movement_check | bool |
 players_nether_portal_creative_delay | integer | {"min": 0}
 players_nether_portal_default_delay | integer | {"min": 0}
 players_sleeping_percentage | integer | {"min": 0}
-projectiles_can_break_blocks | bool | 
-pvp | bool | 
-raids | bool | 
+projectiles_can_break_blocks | bool |
+pvp | bool |
+raids | bool |
 random_tick_speed | integer | {"min": 0}
-reduced_debug_info | bool | 
+reduced_debug_info | bool |
 respawn_radius | integer | {"min": 0}
-send_command_feedback | bool | 
-show_advancement_messages | bool | 
-show_death_messages | bool | 
-spawn_mobs | bool | 
-spawn_monsters | bool | 
-spawn_patrols | bool | 
-spawn_phantoms | bool | 
-spawn_wandering_traders | bool | 
-spawn_wardens | bool | 
-spawner_blocks_work | bool | 
-spectators_generate_chunks | bool | 
-spread_vines | bool | 
-tnt_explodes | bool | 
-tnt_explosion_drop_decay | bool | 
-universal_anger | bool | 
-water_source_conversion | bool | 
+send_command_feedback | bool |
+show_advancement_messages | bool |
+show_death_messages | bool |
+spawn_mobs | bool |
+spawn_monsters | bool |
+spawn_patrols | bool |
+spawn_phantoms | bool |
+spawn_wandering_traders | bool |
+spawn_wardens | bool |
+spawner_blocks_work | bool |
+spectators_generate_chunks | bool |
+spread_vines | bool |
+tnt_explodes | bool |
+tnt_explosion_drop_decay | bool |
+universal_anger | bool |
+water_source_conversion | bool |
 literal children: 118 (each rule appears with and without the minecraft: prefix)
 ```
 

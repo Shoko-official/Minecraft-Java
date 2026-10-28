@@ -2,8 +2,11 @@ package dev.shoko.minecraft.data.diag;
 
 /**
  * A path inside a JSON document: the root, then object keys and array indices. Immutable. Its text
- * form starts with {@code $}, then {@code .key} for a key and {@code [n]} for an index, such as
- * {@code $.values[2]}.
+ * form (R61) is {@code $} for the root, {@code .name} for an object member and {@code [i]} for an
+ * array element, {@code i} counting from 0, such as {@code $}, {@code $.a.b} or {@code
+ * $.values[2].id}. A member name is written as decoded, without quotes or escaping, so a name that
+ * contains {@code .} or {@code [} gives a text that several paths share; {@link #equals(Object)}
+ * compares the steps, not the text.
  */
 public final class JsonPath {
 
@@ -61,9 +64,9 @@ public final class JsonPath {
   }
 
   /**
-   * Returns the text form.
+   * Returns the text form of R61.
    *
-   * @return the text
+   * @return the text, {@code $} for the root
    */
   @Override
   public String toString() {

@@ -10,7 +10,8 @@ public enum PackCompatibility {
   TOO_NEW,
   /**
    * The range cannot be used: {@code min_format} above {@code max_format}, a missing or mistyped
-   * field, or only {@code pack_format} (provisional, R5). The game says "broken or incompatible".
+   * field, or only {@code pack_format} (provisional, R4, R5). The game says "broken or
+   * incompatible".
    */
   BROKEN
 }

@@ -5,8 +5,13 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * The content of a {@code pack.mcmeta} (R4). Unknown fields are ignored (provisional, R4).
- * Immutable.
+ * The content of a {@code pack.mcmeta} (R4). Unknown fields, at any depth, are ignored without
+ * diagnostic (provisional, R4, R63 c). Immutable.
+ *
+ * <p>A pack is broken (R4, R5) when a known field has a type it should not, or when {@code
+ * min_format} or {@code max_format} is absent or {@code min_format} is above {@code max_format}; a
+ * broken pack reports {@link PackCompatibility#BROKEN}, and its fields that could not be read take
+ * their empty value.
  */
 public final class PackMeta {
 
@@ -18,18 +23,21 @@ public final class PackMeta {
    *
    * @param packId the identifier of the pack, used as the origin of the description
    * @param type the kind of pack, which sets the format
-   * @return the metadata
+   * @return the metadata; {@link #features()} is {@link FeatureFlags#vanilla()}, since the implicit
+   *     pack requires {@code minecraft:vanilla} (R66 b)
    */
   public static PackMeta implicit(String packId, PackType type) {
     return Skeleton.throwNotImplemented();
   }
 
   /**
-   * Returns the description, a text component kept as written (R4).
+   * Returns the description, a text component kept as written (R4). Its content is not validated,
+   * and the effect of its absence on the validity of the pack is not decided (open question of the
+   * spec): an absent description is simply empty here.
    *
-   * @return the JSON node of {@code pack.description}
+   * @return the JSON node of {@code pack.description}, or empty when absent
    */
-  public JsonNode description() {
+  public Optional<JsonNode> description() {
     return Skeleton.throwNotImplemented();
   }
 
@@ -37,7 +45,8 @@ public final class PackMeta {
    * Returns the supported versions (R5).
    *
    * @return the range, or empty when {@code min_format} or {@code max_format} is absent or
-   *     mistyped, even with {@code pack_format} present
+   *     mistyped, even with {@code pack_format} present. An inverted range ({@code min > max}) is
+   *     present: it is reported by {@link PackFormatRange#compatibilityWith(PackFormat)}
    */
   public Optional<PackFormatRange> formats() {
     return Skeleton.throwNotImplemented();
@@ -47,18 +56,19 @@ public final class PackMeta {
    * Classifies the pack against the game version for its kind (R5).
    *
    * @param type the kind of pack
-   * @return {@link PackCompatibility#BROKEN} when {@link #formats()} is empty, otherwise the result
-   *     of {@link PackFormatRange#compatibilityWith(PackFormat)} for {@link
-   *     PackType#targetFormat()}
+   * @return {@link PackCompatibility#BROKEN} when {@link #formats()} is empty or another known
+   *     field was mistyped, otherwise the result of {@link
+   *     PackFormatRange#compatibilityWith(PackFormat)} for {@link PackType#targetFormat()}
    */
   public PackCompatibility compatibility(PackType type) {
     return Skeleton.throwNotImplemented();
   }
 
   /**
-   * Returns the flags the pack requires, from {@code features.enabled} (R44, R45).
+   * Returns the flags the pack requires, from {@code features.enabled} (R44, R66 b). The loader
+   * discards the pack when they are not all active (R66 c).
    *
-   * @return the flags, empty when the field is absent
+   * @return the flags, empty when the field is absent (or mistyped, which breaks the pack)
    */
   public FeatureFlags features() {
     return Skeleton.throwNotImplemented();

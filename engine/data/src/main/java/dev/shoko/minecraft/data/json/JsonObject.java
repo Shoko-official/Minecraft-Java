@@ -6,7 +6,10 @@ import java.util.Optional;
 import java.util.SequencedMap;
 
 /**
- * A JSON object. Keys are unique (after R51) and keep the order of the file.
+ * A JSON object. Keys are unique (R58): a key written twice keeps the place of its first occurrence
+ * and the value of its last, so {@code {"a":1,"b":2,"a":3}} has the members {@code a=3}, {@code
+ * b=2} in that order. Keys are equal when their decoded strings are equal unit by unit, with no
+ * case folding (R58 a).
  *
  * @param origin the file
  * @param path the place in the file

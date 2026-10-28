@@ -28,11 +28,12 @@ public final class PathClassifier {
    *       {@link FileAttribution.Content} (R10).
    *   <li>{@code pack.mcmeta}, {@code pack.png}, {@code .mcassetsroot} and anything outside {@code
    *       data/} are {@link FileAttribution.Metadata} (R12, R13, R18).
-   *   <li>Otherwise {@link FileAttribution.Ignored}: an unknown folder or a file in a static
-   *       registry folder ({@code UNKNOWN_FOLDER}, R15); a tag under a registry that takes none
-   *       ({@code TAGS_NOT_ACCEPTED}, R16); another extension in a registry folder ({@code
-   *       UNSUPPORTED_EXTENSION}, R12); a namespace or path that breaks the identifier syntax, such
-   *       as a capital letter, a space or {@code ..} ({@code INVALID_IDENTIFIER}, R24).
+   *   <li>Another extension than the folder takes is {@link FileAttribution.Skipped}, with no
+   *       diagnostic (R12).
+   *   <li>Otherwise {@link FileAttribution.Ignored}, reported as {@code FILE_IGNORED}: an unknown
+   *       folder or a file in a static registry folder (R15); a tag under a registry that takes
+   *       none, such as {@code tags/structure} (R16); a namespace or path that breaks the
+   *       identifier syntax, such as a capital letter, a space or {@code ..} (R24).
    * </ul>
    *
    * @param path the path in the stack, with {@code /} separators

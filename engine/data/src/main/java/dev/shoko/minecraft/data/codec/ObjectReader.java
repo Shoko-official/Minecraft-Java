@@ -3,11 +3,19 @@ package dev.shoko.minecraft.data.codec;
 import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import java.util.Optional;
+import java.util.function.Supplier;
 
 /**
- * Reads the fields of one JSON object for {@link Codecs#object(java.util.function.Function)}. Every
- * method that fails throws {@link DecodeException}, which that method turns into an error outcome
- * with the path of the field. Not thread-safe; it lives for one decode call.
+ * Reads the fields of one JSON object for {@link Codecs#object(java.util.function.Function)}.
+ *
+ * <p>Reading never stops at the first problem (R62 g): a method that finds an invalid or missing
+ * field records its error diagnostics and returns a handle that cannot be read; the object codec
+ * calls the handles, through the supplier returned by the reading function, only when no field
+ * failed. All diagnostics of the object are therefore reported. Diagnostics are ordered by the
+ * order of the calls on this reader, then, in strict mode, the unknown fields in text order.
+ *
+ * <p>A key is known as soon as one method of this class is called with it, {@link #has(String)}
+ * included; the others are unknown (R63). Not thread-safe; it lives for one decode call.
  */
 public final class ObjectReader {
 
@@ -32,7 +40,16 @@ public final class ObjectReader {
   }
 
   /**
-   * Tells whether the object has a key.
+   * Returns the handling of unknown fields chosen for this object (R63).
+   *
+   * @return {@link UnknownFields#IGNORE} unless the codec was built as strict
+   */
+  public UnknownFields unknownFields() {
+    return Skeleton.throwNotImplemented();
+  }
+
+  /**
+   * Tells whether the object has a key, and marks the key as known.
    *
    * @param name the key
    * @return whether it is present, whatever its value, {@code null} included
@@ -47,11 +64,12 @@ public final class ObjectReader {
    * @param name the key
    * @param codec the decoder of the value
    * @param <F> the type of the field
-   * @return the decoded value
-   * @throws DecodeException with {@code MISSING_FIELD} when the key is absent, or with the
-   *     diagnostics of {@code codec} when the value is not valid
+   * @return a handle giving the decoded value; reading it after a failure of this field throws
+   *     {@link IllegalStateException}. An absent key records {@code CODEC_MISSING_FIELD} at the
+   *     path of the member that should have been there; an invalid value records the diagnostics of
+   *     {@code codec}. A present {@code null} is {@code CODEC_TYPE_MISMATCH}.
    */
-  public <F> F required(String name, Codec<F> codec) {
+  public <F> Supplier<F> required(String name, Codec<F> codec) {
     return Skeleton.throwNotImplemented();
   }
 
@@ -63,10 +81,10 @@ public final class ObjectReader {
    * @param defaultValue the value when the key is absent; an invalid value present under the key is
    *     an error, never replaced by the default
    * @param <F> the type of the field
-   * @return the decoded value, or {@code defaultValue} when the key is absent
-   * @throws DecodeException with the diagnostics of {@code codec} when a present value is not valid
+   * @return a handle giving the decoded value, or {@code defaultValue} when the key is absent; an
+   *     invalid present value records the diagnostics of {@code codec}
    */
-  public <F> F optional(String name, Codec<F> codec, F defaultValue) {
+  public <F> Supplier<F> optional(String name, Codec<F> codec, F defaultValue) {
     return Skeleton.throwNotImplemented();
   }
 
@@ -76,10 +94,10 @@ public final class ObjectReader {
    * @param name the key
    * @param codec the decoder of the value
    * @param <F> the type of the field
-   * @return the decoded value, or empty when the key is absent
-   * @throws DecodeException with the diagnostics of {@code codec} when a present value is not valid
+   * @return a handle giving the decoded value, or empty when the key is absent; an invalid present
+   *     value records the diagnostics of {@code codec}
    */
-  public <F> Optional<F> optional(String name, Codec<F> codec) {
+  public <F> Supplier<Optional<F>> optional(String name, Codec<F> codec) {
     return Skeleton.throwNotImplemented();
   }
 }

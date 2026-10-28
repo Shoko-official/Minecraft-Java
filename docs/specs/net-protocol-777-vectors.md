@@ -266,71 +266,68 @@ minecraft:sound_event                 1991 entries, ids contiguous from 0: True
 minecraft:game_event                    61 entries, ids contiguous from 0: True
 ```
 
-## Z : textes de déconnexion (D)
+## Z : clés de déconnexion (D)
 
-Clés de traduction du fichier `en_us.json` utiles à la connexion (`python -I cmd_ref.py lang multiplayer.disconnect.`). Le serveur envoie la clé (composant `translate`), le client la traduit.
-
-
-```
-multiplayer.disconnect.authservers_down = Authentication servers are down. Please try again later. Sorry!
-multiplayer.disconnect.bad_chat_index = Detected a missed or reordered chat message from the server
-multiplayer.disconnect.banned = You are banned from this server
-multiplayer.disconnect.banned_ip.expiration =  / Your ban will be removed on %s
-multiplayer.disconnect.banned_ip.reason = Your IP address is banned from this server. / Reason: %s
-multiplayer.disconnect.banned.expiration =  / Your ban will be removed on %s
-multiplayer.disconnect.banned.reason = You are banned from this server. / Reason: %s
-multiplayer.disconnect.banned.reason.default = Banned by an operator.
-multiplayer.disconnect.chat_validation_failed = Chat message validation failure
-multiplayer.disconnect.code_of_conduct = Server requires accepting the Code of Conduct
-multiplayer.disconnect.configuration_error = Unexpected error during configuration
-multiplayer.disconnect.duplicate_login = You logged in from another location
-multiplayer.disconnect.expired_public_key = Expired profile public key. Check that your system time is synchronized, and try restarting your game.
-multiplayer.disconnect.flying = Flying is not enabled on this server
-multiplayer.disconnect.generic = Disconnected
-multiplayer.disconnect.idling = You have been idle for too long!
-multiplayer.disconnect.illegal_characters = Illegal characters in chat
-multiplayer.disconnect.incompatible = Incompatible client! Please use %s
-multiplayer.disconnect.invalid_entity_attacked = Attempting to attack an invalid entity
-multiplayer.disconnect.invalid_packet = The server sent an invalid packet
-multiplayer.disconnect.invalid_player_data = Invalid player data
-multiplayer.disconnect.invalid_player_movement = Invalid move player packet received
-multiplayer.disconnect.invalid_public_key_signature = Invalid signature for profile public key. / Try restarting your game.
-multiplayer.disconnect.invalid_public_key_signature.new = Invalid signature for profile public key. / Try restarting your game.
-multiplayer.disconnect.invalid_vehicle_movement = Invalid move vehicle packet received
-multiplayer.disconnect.ip_banned = You have been IP banned from this server
-multiplayer.disconnect.kicked = Kicked by an operator
-multiplayer.disconnect.missing_tags = Incomplete set of tags received from the server. / Please contact a server operator.
-multiplayer.disconnect.name_taken = That name is already taken
-multiplayer.disconnect.not_whitelisted = You are not white-listed on this server!
-multiplayer.disconnect.out_of_order_chat = Out-of-order chat packet received. Did your system time change?
-multiplayer.disconnect.outdated_client = Incompatible client! Please use %s
-multiplayer.disconnect.outdated_server = Incompatible client! Please use %s
-multiplayer.disconnect.server_full = The server is full!
-multiplayer.disconnect.server_shutdown = Server closed
-multiplayer.disconnect.slow_login = Took too long to log in
-multiplayer.disconnect.too_many_pending_chats = Too many unacknowledged chat messages
-multiplayer.disconnect.transfers_disabled = This server does not accept transfers
-multiplayer.disconnect.unexpected_query_response = Unexpected custom data from client
-multiplayer.disconnect.unsigned_chat = Received a chat packet with a missing or invalid signature.
-multiplayer.disconnect.unverified_username = Failed to verify username!
-```
+Sortie de `python -I cmd_ref.py lang multiplayer.disconnect. disconnect.` (`cmd_ref.py` est l'annexe de `server-commands-vectors.md`) : clé, nombre de marqueurs `%s`, longueur du texte anglais en caractères. Le serveur envoie la clé dans un composant `translate`, le client la traduit. Les textes ne sont pas recopiés : un test lit `resources/assets/minecraft/lang/en_us.json` du cache et compare clé, nombre d'arguments et longueur (`python -I cmd_ref.py langtext CLE` affiche un texte). Les deux messages cités par R36 et R55 le sont parce que ces règles en dépendent.
 
 ```
-disconnect.endOfStream = End of stream
-disconnect.exceeded_packet_rate = Kicked for exceeding packet rate limit
-disconnect.genericReason = %s
-disconnect.ignoring_status_request = Ignoring status request
-disconnect.loginFailedInfo = Failed to log in: %s
-disconnect.loginFailedInfo.insufficientPrivileges = Multiplayer is disabled. Please check your Microsoft account settings.
-disconnect.loginFailedInfo.invalidSession = Invalid session (Try restarting your game and the launcher)
-disconnect.loginFailedInfo.serversUnavailable = The authentication servers are currently not reachable. Please try again.
-disconnect.loginFailedInfo.userBanned = You are banned from playing online
-disconnect.lost = Connection Lost
-disconnect.packetError = Network Protocol Error
-disconnect.spam = Kicked for spamming
-disconnect.timeout = Timed out
-disconnect.transfer = Transferred to another server
-disconnect.unknownHost = Unknown host
+disconnect.endOfStream | 0 | 13
+disconnect.exceeded_packet_rate | 0 | 38
+disconnect.genericReason | 1 | 2
+disconnect.ignoring_status_request | 0 | 23
+disconnect.loginFailedInfo | 1 | 20
+disconnect.loginFailedInfo.insufficientPrivileges | 0 | 70
+disconnect.loginFailedInfo.invalidSession | 0 | 59
+disconnect.loginFailedInfo.serversUnavailable | 0 | 73
+disconnect.loginFailedInfo.userBanned | 0 | 34
+disconnect.lost | 0 | 15
+disconnect.packetError | 0 | 22
+disconnect.spam | 0 | 19
+disconnect.timeout | 0 | 9
+disconnect.transfer | 0 | 29
+disconnect.unknownHost | 0 | 12
+multiplayer.disconnect.authservers_down | 0 | 63
+multiplayer.disconnect.bad_chat_index | 0 | 59
+multiplayer.disconnect.banned | 0 | 31
+multiplayer.disconnect.banned.expiration | 1 | 31
+multiplayer.disconnect.banned.reason | 1 | 43
+multiplayer.disconnect.banned.reason.default | 0 | 22
+multiplayer.disconnect.banned_ip.expiration | 1 | 31
+multiplayer.disconnect.banned_ip.reason | 1 | 54
+multiplayer.disconnect.chat_validation_failed | 0 | 31
+multiplayer.disconnect.code_of_conduct | 0 | 45
+multiplayer.disconnect.configuration_error | 0 | 37
+multiplayer.disconnect.duplicate_login | 0 | 35
+multiplayer.disconnect.expired_public_key | 0 | 102
+multiplayer.disconnect.flying | 0 | 36
+multiplayer.disconnect.generic | 0 | 12
+multiplayer.disconnect.idling | 0 | 32
+multiplayer.disconnect.illegal_characters | 0 | 26
+multiplayer.disconnect.incompatible | 1 | 34
+multiplayer.disconnect.invalid_entity_attacked | 0 | 38
+multiplayer.disconnect.invalid_packet | 0 | 33
+multiplayer.disconnect.invalid_player_data | 0 | 19
+multiplayer.disconnect.invalid_player_movement | 0 | 35
+multiplayer.disconnect.invalid_public_key_signature | 0 | 67
+multiplayer.disconnect.invalid_public_key_signature.new | 0 | 67
+multiplayer.disconnect.invalid_vehicle_movement | 0 | 36
+multiplayer.disconnect.ip_banned | 0 | 40
+multiplayer.disconnect.kicked | 0 | 21
+multiplayer.disconnect.missing_tags | 0 | 82
+multiplayer.disconnect.name_taken | 0 | 26
+multiplayer.disconnect.not_whitelisted | 0 | 40
+multiplayer.disconnect.out_of_order_chat | 0 | 63
+multiplayer.disconnect.outdated_client | 1 | 34
+multiplayer.disconnect.outdated_server | 1 | 34
+multiplayer.disconnect.server_full | 0 | 19
+multiplayer.disconnect.server_shutdown | 0 | 13
+multiplayer.disconnect.slow_login | 0 | 23
+multiplayer.disconnect.too_many_pending_chats | 0 | 37
+multiplayer.disconnect.transfers_disabled | 0 | 37
+multiplayer.disconnect.unexpected_query_response | 0 | 34
+multiplayer.disconnect.unsigned_chat | 0 | 59
+multiplayer.disconnect.unverified_username | 0 | 26
+keys: 56
 ```
 
 ## Sondes

@@ -1,0 +1,239 @@
+package dev.shoko.minecraft.core.nbt;
+
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.SequencedMap;
+
+/**
+ * Compound value: unique string keys mapped to values (R6, R26). Immutable.
+ *
+ * <p>Keys keep their storage order: the order of the map given to {@link #of(SequencedMap)}, which
+ * is the read order for a decoded compound and the write order (R30). The order is not part of
+ * equality (R28, R37). Reproducing the order observed in reference files (R29) is not required.
+ *
+ * <p>The typed getters read leniently (R38): a number of another numeric type is converted as
+ * described by {@link NumericTag}; an absent key or a value of an incompatible type gives the
+ * default value (0, {@code false}, empty string, empty array, empty list, empty compound).
+ */
+public final class CompoundTag implements NbtTag {
+
+  private static final CompoundTag EMPTY = new CompoundTag(new LinkedHashMap<>());
+
+  private final SequencedMap<String, NbtTag> entries;
+
+  /** Takes ownership of {@code entries}, a private copy. */
+  private CompoundTag(SequencedMap<String, NbtTag> entries) {
+    this.entries = Collections.unmodifiableSequencedMap(entries);
+  }
+
+  /**
+   * Returns a compound holding these entries in their iteration order (R6, R30).
+   *
+   * @param entries keys and values, none {@code null}
+   * @return the compound; later changes to {@code entries} do not affect it
+   * @throws NullPointerException when {@code entries}, a key or a value is {@code null}
+   */
+  public static CompoundTag of(SequencedMap<String, ? extends NbtTag> entries) {
+    var copy = new LinkedHashMap<String, NbtTag>();
+    entries.forEach(
+        (key, value) ->
+            copy.put(Objects.requireNonNull(key, "key"), Objects.requireNonNull(value, "value")));
+    return copy.isEmpty() ? EMPTY : new CompoundTag(copy);
+  }
+
+  /**
+   * Returns the compound without entries (R6); also the default value of {@link
+   * #getCompound(String)} (R38).
+   *
+   * @return the empty compound
+   */
+  public static CompoundTag empty() {
+    return EMPTY;
+  }
+
+  /**
+   * Returns the entries in storage order (R30).
+   *
+   * @return an unmodifiable map
+   */
+  public SequencedMap<String, NbtTag> entries() {
+    return entries;
+  }
+
+  /**
+   * Returns the value stored under a key, whatever its type.
+   *
+   * @param key the key
+   * @return the value, or empty when the key is absent
+   */
+  public Optional<NbtTag> get(String key) {
+    return Optional.ofNullable(entries.get(key));
+  }
+
+  /**
+   * Reads a byte (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to byte, or 0
+   */
+  public byte getByte(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.byteValue() : 0;
+  }
+
+  /**
+   * Reads a short (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to short, or 0
+   */
+  public short getShort(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.shortValue() : 0;
+  }
+
+  /**
+   * Reads an int (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to int, or 0
+   */
+  public int getInt(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.intValue() : 0;
+  }
+
+  /**
+   * Reads a long (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to long, or 0
+   */
+  public long getLong(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.longValue() : 0;
+  }
+
+  /**
+   * Reads a float (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to float, or 0
+   */
+  public float getFloat(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.floatValue() : 0;
+  }
+
+  /**
+   * Reads a double (R38).
+   *
+   * @param key the key
+   * @return the numeric value converted to double, or 0
+   */
+  public double getDouble(String key) {
+    return entries.get(key) instanceof NumericTag number ? number.doubleValue() : 0;
+  }
+
+  /**
+   * Reads a boolean (R36, provisional): true when the value is numeric and its original value is
+   * not 0, without converting it to Byte first. Byte 2, Int 256, Double 0.5 and any NaN are true;
+   * 0, 0.0 and -0.0 are false, as is an absent or non-numeric value (R38).
+   *
+   * @param key the key
+   * @return the boolean, or {@code false}
+   */
+  public boolean getBoolean(String key) {
+    // doubleValue() is exact enough: a non-zero integer never converts to 0.0, NaN != 0 is true.
+    return entries.get(key) instanceof NumericTag number && number.doubleValue() != 0;
+  }
+
+  /**
+   * Reads a String value; no other type is converted to a string (R38).
+   *
+   * @param key the key
+   * @return the text, or the empty string
+   */
+  public String getString(String key) {
+    return entries.get(key) instanceof StringTag text ? text.value() : "";
+  }
+
+  /**
+   * Reads a Byte_Array value; no other type is converted (R38).
+   *
+   * @param key the key
+   * @return a copy of the elements, or an empty array
+   */
+  public byte[] getByteArray(String key) {
+    return entries.get(key) instanceof ByteArrayTag array ? array.toArray() : new byte[0];
+  }
+
+  /**
+   * Reads an Int_Array value; no other type is converted (R38).
+   *
+   * @param key the key
+   * @return a copy of the elements, or an empty array
+   */
+  public int[] getIntArray(String key) {
+    return entries.get(key) instanceof IntArrayTag array ? array.toArray() : new int[0];
+  }
+
+  /**
+   * Reads a Long_Array value; no other type is converted (R38).
+   *
+   * @param key the key
+   * @return a copy of the elements, or an empty array
+   */
+  public long[] getLongArray(String key) {
+    return entries.get(key) instanceof LongArrayTag array ? array.toArray() : new long[0];
+  }
+
+  /**
+   * Reads a List value of any element type (R38).
+   *
+   * @param key the key
+   * @return the list, or {@link ListTag#empty()}
+   */
+  public ListTag getList(String key) {
+    return entries.get(key) instanceof ListTag list ? list : ListTag.empty();
+  }
+
+  /**
+   * Reads a Compound value (R38).
+   *
+   * @param key the key
+   * @return the compound, or {@link #empty()}
+   */
+  public CompoundTag getCompound(String key) {
+    return entries.get(key) instanceof CompoundTag compound ? compound : EMPTY;
+  }
+
+  /**
+   * Returns {@link TagType#COMPOUND} (R1).
+   *
+   * @return the type
+   */
+  @Override
+  public TagType type() {
+    return TagType.COMPOUND;
+  }
+
+  /**
+   * Compares keys and values, ignoring key order (R28, R37).
+   *
+   * @param other any object
+   * @return whether {@code other} is a compound with the same keys mapped to equal values
+   */
+  @Override
+  public boolean equals(Object other) {
+    // Map equality ignores iteration order, as R28 requires.
+    return other instanceof CompoundTag compound && entries.equals(compound.entries);
+  }
+
+  /**
+   * Returns a hash consistent with {@link #equals(Object)}, independent of key order (R28, R37).
+   *
+   * @return the hash of the entries
+   */
+  @Override
+  public int hashCode() {
+    return entries.hashCode();
+  }
+}

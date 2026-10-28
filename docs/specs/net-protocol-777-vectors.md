@@ -352,37 +352,37 @@ Capturer PN4 et PN5 ; extraire tous les NBT : entrées de `registry_data`, `disc
 3. Répéter avec `server-ip` vide et un handshake dont l'adresse vaut 255 caractères, le port 0, le protocole -1, puis 776, puis 778.
 Lève R34, R36 (status), R37, R38.
 
-### PN3 : login hors ligne et compression (R28 à R30, R39, R57, R58)
+### PN3 : login hors ligne et compression (R11, R20, R28 à R30, R39, R57, R58)
 
-Pour chaque seuil dans {-1, 0, 1, 256} : F04 puis `hello` (F05 avec le nom `Notch`, puis `a`, `A`, `jeb_`). Enregistrer : présence et octets de `login_compression`, trame de `login_finished` (UUID attendu U01 à U05, propriétés vides), ordre. Envoyer `login_acknowledged` (F06) et vérifier qu'aucun paquet de configuration n'arrive avant. Pour le seuil 256, envoyer ensuite des paquets de configuration de taille 255, 256 et 257 octets (F11, F12) dans les deux formes (en clair, compressés) et noter les réactions (I03 à I05). Lève R28 à R30, R39, R57, R58.
+Pour chaque seuil dans {-1, 0, 1, 256} : F04 puis `hello` (F05 avec le nom `Notch`, puis `a`, `A`, `jeb_`). Enregistrer : présence et octets de `login_compression`, trame de `login_finished` (UUID attendu U01 à U05, propriétés vides), ordre. Envoyer `login_acknowledged` (F06) et vérifier qu'aucun paquet de configuration n'arrive avant. Pour le seuil 256, envoyer ensuite des paquets de configuration de taille 255, 256 et 257 octets (F11, F12) dans les deux formes (en clair, compressés) et noter les réactions (I03 à I05). Lève R11, R20, R28 à R30, R39, R57, R58.
 
-### PN4 : configuration (R43, R62 à R66, R92, R93)
+### PN4 : configuration (R43, R62 à R66, R87, R88, R92, R93)
 
 1. Seuil 256 ; après `login_acknowledged`, envoyer `custom_payload` brand et `client_information` ; enregistrer *tout* jusqu'à `finish_configuration` : ordre, identifiants, taille de chaque `registry_data` (noms de registre, nombre d'entrées, premières entrées en hexadécimal), `update_enabled_features`, présence de `select_known_packs`, `update_tags` (nombre de registres, de tags, octets).
 2. Recommencer en répondant à `select_known_packs` par zéro pack, puis par `minecraft:core` avec les versions `26.3`, puis `1.0` ; comparer les `registry_data` (données présentes ou absentes).
 3. Recommencer sans envoyer `client_information` ni brand.
 4. Comparer les comptes de chaque `registry_data` à ceux de R62 ; comparer le contenu des entrées au JSON de `resources/data/minecraft/**` (types d'étiquettes, R64).
-Lève R43, R62 à R66, R92, R93, Q2.
+Lève R43, R62 à R66, R87, R88, R92, R93, Q2.
 
-### PN5 : entrée en jeu (R44, R68 à R73, R78, R82, R83, R96)
+### PN5 : entrée en jeu (R6, R7, R11, R12, R15, R16, R18, R19, R20, R24, R25, R44, R67 à R74, R78, R82, R85, R88, R94 à R96)
 
-Après PN4, accepter la configuration (`finish_configuration`), puis enregistrer tout le flux de jeu pendant 600 ticks : ordre exact des 47 étapes de R44, champs de `login`, `commands` (comptes de nœuds), `player_position`, `player_info_update`, `set_time`, `game_event` 13, lots de chunks (taille des lots, intervalle, nombre de chunks avant la première réponse), un chunk complet (octets des sections, nombre de fluides, cartes de hauteur, lumière) et un chunk dense préparé avant la connexion : une section de 256 états de blocs distincts, une de 257 (un état distinct par `setblock`, un seul bloc par état), une section de 8 biomes distincts et une de 9 (`fillbiome`). Relever l'octet de bits par entrée de chaque conteneur, la présence d'une palette et la taille du tableau de Long. Attendu provisoire (R69) : 8 puis 16 pour les blocs, 3 puis 7 pour les biomes, aucune valeur de 9 à 15 pour les blocs. Répondre `accept_teleportation`, `chunk_batch_received` (valeurs 1, 9, 100), `player_loaded`. Refaire avec `client_tick_end` absent, avec `player_loaded` absent. Lève R44, R68 à R73, R78, R82, R83, R96, Q1, Q3, Q11, Q12.
+Après PN4, accepter la configuration (`finish_configuration`), puis enregistrer tout le flux de jeu pendant 600 ticks : ordre exact des paquets d'entrée en jeu de R44, champs de `login`, `commands` (comptes de nœuds), `player_position`, `player_info_update`, `set_time`, `game_event` 13, lots de chunks (taille des lots, intervalle, nombre de chunks avant la première réponse), un chunk complet (octets des sections, nombre de fluides, cartes de hauteur, lumière) et un chunk dense préparé avant la connexion : une section de 256 états de blocs distincts, une de 257 (un état distinct par `setblock`, un seul bloc par état), une section de 8 biomes distincts et une de 9 (`fillbiome`). Relever l'octet de bits par entrée de chaque conteneur, la présence d'une palette et la taille du tableau de Long. Attendu provisoire (R69) : 8 puis 16 pour les blocs, 3 puis 7 pour les biomes, aucune valeur de 9 à 15 pour les blocs. Répondre `accept_teleportation`, `chunk_batch_received` (valeurs 1, 9, 100), `player_loaded`. Refaire avec `client_tick_end` absent, avec `player_loaded` absent. Refaire avec un `client_information` de distance de vue 2, 8 puis 32. Lève R6, R7, R11, R12, R15, R16, R18, R19, R20, R24, R25, R44, R67 à R74, R78, R82, R85, R88, R94 à R96, Q1, Q3, Q11, Q12.
 
-### PN6 : entrées invalides de transport et d'état (R27, R30, R35, R36, R49, R85)
+### PN6 : entrées invalides de transport et d'état (R27, R30, R35, R36, R41, R42, R49, R85)
 
-Envoyer I01 à I12 dans chaque état possible (handshake, status, login, configuration, play), ainsi que des paquets d'un état dans un autre, un identifiant hors table (255) et une trame de 2^21 - 1 octets. Noter pour chacun : fermeture de la connexion ou non, délai, présence d'un paquet de déconnexion et sa clé de traduction, journal du serveur. Lève R27, R30, R35, R36, R49, Q7.
+Envoyer I01 à I12 dans chaque état possible (handshake, status, login, configuration, play), ainsi que des paquets d'un état dans un autre, un identifiant hors table (255), une `custom_query_answer` non sollicitée en login, une `cookie_response` non sollicitée en configuration et une trame de 2^21 - 1 octets. Noter pour chacun : fermeture de la connexion ou non, délai, présence d'un paquet de déconnexion et sa clé de traduction, journal du serveur. Lève R27, R30, R35, R36, R41, R42, R49, R85, Q7.
 
-### PN7 : types invalides (R5, R8, R9, R10)
+### PN7 : types invalides (R5, R8, R9, R10, R14)
 
-En configuration : `client_information` avec un Boolean valant `02`, une langue de 17 caractères, une String en UTF-8 invalide (`ff`), une longueur négative, un Identifier invalide (majuscule) dans `custom_payload`, un VarInt de 6 octets, N22. Noter la réaction. Lève R5, R8, R9, R10.
+En configuration : `client_information` avec un Boolean valant `02`, une langue de 17 caractères, une String en UTF-8 invalide (`ff`), une longueur négative, un Identifier invalide (majuscule) dans `custom_payload`, un VarInt de 6 octets, N22, un `select_known_packs` annonçant 65 paquets (maximum 64). Noter la réaction. Lève R5, R8, R9, R10, R14.
 
-### PN8 : keep-alive (R47)
+### PN8 : keep-alive, ping (R47, R48)
 
-En configuration et en jeu, ne jamais répondre aux keep-alive ; noter l'intervalle entre deux émissions et l'instant de la déconnexion et sa clé. Répondre avec une mauvaise valeur. Lève R47, Q5.
+En configuration et en jeu, ne jamais répondre aux keep-alive ; noter l'intervalle entre deux émissions et l'instant de la déconnexion et sa clé. Répondre avec une mauvaise valeur. En jeu, envoyer `ping_request` (Long) et un `pong` non sollicité (Int) et noter les réponses. Lève R47, R48, Q5.
 
-### PN9 : mode en ligne, demande de chiffrement (R50, R51)
+### PN9 : mode en ligne, demande de chiffrement (R50, R51 ; R31, R32, R52 à R54 hors d'atteinte)
 
-`online-mode=true` : envoyer F04 puis `hello` ; enregistrer `hello` clientbound : longueur de la clé, préfixe DER (CH04), longueur du jeton, `should_authenticate`, `server_id`. Ne pas répondre. Le reste du flux (R52 à R55) n'est vérifiable que par le scénario L4 en ligne avec le compte du propriétaire sur un serveur local, car l'API de sessions de Mojang ne peut pas être simulée sans configurer le serveur de référence autrement que par défaut. Lève R50 (partiellement).
+`online-mode=true` : envoyer F04 puis `hello` ; enregistrer `hello` clientbound : longueur de la clé, préfixe DER (CH04), longueur du jeton, `should_authenticate`, `server_id`. Ne pas répondre. Le reste du flux (R52 à R55) n'est vérifiable que par le scénario L4 en ligne avec le compte du propriétaire sur un serveur local, car l'API de sessions de Mojang ne peut pas être simulée sans configurer le serveur de référence autrement que par défaut. Lève R50 (partiellement). Les règles de chiffrement R31 et R32, de session R52 à R54 et d'UUID en ligne R54 ne sont exercées que par le L4 en ligne : PN9 s'arrête avant la réponse `key`.
 
 ### PN10 : ping hérité (R35)
 
@@ -392,13 +392,13 @@ Envoyer `fe 01` seul, puis `fe 01 fa` suivi du corps du ping 1.6 de la documenta
 
 Handshake avec intention 3 pour `accepts-transfers` faux puis vrai. Noter la déconnexion et la clé. Lève R46.
 
-### PN12 : mouvement, blocs, conteneurs (R75, R76, Q6, Q9)
+### PN12 : mouvement, blocs, conteneurs (R12, R22, R74 à R77, R83, Q6, Q9)
 
-Après PN5 : envoyer `move_player_pos` pour des déplacements de 0,1 ; 1 ; 10 ; 100 blocs, `NaN`, une position hors bordure ; `player_action` début et fin de minage d'un bloc proche et lointain avec séquences croissantes, `use_item_on` sur une face valide et invalide, `set_creative_mode_slot` ; noter les réponses (`block_update`, `block_changed_ack`, `player_position`, expulsion). Lève R75, R76, Q6, Q9.
+Après PN5 : envoyer `move_player_pos` pour des déplacements de 0,1 ; 1 ; 10 ; 100 blocs, `NaN`, une position hors bordure ; `player_action` début et fin de minage d'un bloc proche et lointain avec séquences croissantes, `use_item_on` sur une face valide et invalide, `set_creative_mode_slot`, un `fill` de plusieurs blocs dans une section (`section_blocks_update`) ; noter les réponses (`block_update`, `block_changed_ack`, `player_position`, expulsion). Avec un second client de sonde connecté, le déplacer et relever ce que reçoit le premier (`player_info_update`, `add_entity`, `move_entity_*`, `entity_position_sync`, `rotate_head`). Lève R12, R22, R74, R75, R76, R77, R83, Q6, Q9.
 
-### PN13 : chat, commandes, reconfiguration (R43, R45, R79)
+### PN13 : chat, commandes, reconfiguration (R15, R43, R45, R56, R79, R80)
 
-Envoyer `chat` (non signé), `chat_command` (`time query gametime`), `chat_command_signed` sans signature valide, `chat_session_update` avec une clé quelconque, `command_suggestion` (`/ti`). Noter les paquets reçus. Si une commande ou un réglage du serveur de référence déclenche `start_configuration`, répondre `configuration_acknowledged` et enregistrer la séquence. Lève R79, R80, R45, Q4.
+Envoyer `chat` (non signé), `chat_command` (`time query gametime`, `say bonjour` pour `disguised_chat`), `chat_command_signed` sans signature valide, `chat_session_update` avec une clé quelconque, `command_suggestion` (`/ti`). Noter les paquets reçus. Si une commande ou un réglage du serveur de référence déclenche `start_configuration`, répondre `configuration_acknowledged` et enregistrer la séquence. Lève R15, R45, R56, R79, R80, Q4.
 
 ### PA1 à PA4 : authentification et accès (R58 à R60, R40)
 

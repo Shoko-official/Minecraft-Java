@@ -21,12 +21,15 @@ set -euo pipefail
 # The size loop runs last in a pipeline and must update $fail in the current shell.
 shopt -s lastpipe
 
-# Perl regexes. Structured attribution is looked for on every line of a message; bare tool names
-# only outside comment lines, because git's editor template quotes branch names and paths.
+# Perl regexes, case-insensitive.
+# TRAILER is the form tools actually inject; it is searched on every line of a message, including
+# '#' lines, because git keeps those with -m and -F. PROSE and BARE are searched everywhere
+# except '#' lines of a message, since git's editor template quotes branch names and paths.
 # Tool configuration paths (.claude/, CLAUDE.md) are not attribution.
-STRUCTURED='co-?authored[- ]by|assisted[- ]by|generated (with|by|using) (an? )?(claude|ai)|ai[- ]assisted|ai[- ]generated'
+TRAILER='^(#\s*)?\s*(co-?authored[- ]by|assisted[- ]by)\s*:|^(#\s*)?\s*generated (with|by|using) (an? )?(claude|ai)(?![\w-])'
+PROSE='generated (with|by|using) (an? )?(claude|ai)(?![\w-])|ai[- ]assisted|ai[- ]generated'
 BARE='(?<![.\w])claude(?![\w]|\.md)|claude\.ai|claude[_-]code|\banthropic\b'
-ATTRIBUTION="$STRUCTURED|$BARE"
+ATTRIBUTION="$TRAILER|$PROSE|$BARE"
 # En dash and em dash, as fixed byte strings: PCRE code points need a UTF-8 locale, which the
 # C locale used here (stable byte semantics) is not.
 EN_DASH=$'\xe2\x80\x93'
@@ -53,15 +56,15 @@ scan_text() {
   fi
 }
 
-# scan_message < message : structured attribution everywhere, the rest outside '#' lines.
+# scan_message < message : trailers everywhere, the rest outside '#' lines.
 scan_message() {
   local text body
   text="$(cat)"
   body="$(grep -v '^#' <<<"$text" || true)"
-  if LC_ALL=C grep -iqP -- "$STRUCTURED" <<<"$text"; then
+  if LC_ALL=C grep -iqP -- "$TRAILER" <<<"$text"; then
     report "forbidden attribution string in commit message"
   fi
-  if LC_ALL=C grep -iqP -- "$BARE" <<<"$body"; then
+  if LC_ALL=C grep -iqP -- "$PROSE|$BARE" <<<"$body"; then
     report "forbidden attribution string in commit message"
   fi
   if LC_ALL=C grep -qF -e "$EN_DASH" -e "$EM_DASH" <<<"$body"; then
@@ -73,8 +76,8 @@ mode="${1:-tree}"
 case "$mode" in
   --message)
     file="${2:?message file required}"
-    # Git keeps '#' lines of messages given with -m or -F, hence the structured scan on all
-    # lines; only the verbose-diff part below the scissors line is cut.
+    # Git keeps '#' lines of messages given with -m or -F, hence the trailer scan on all lines;
+    # only the verbose-diff part below the scissors line is cut.
     tr -d '\r' < "$file" | sed '/^# -* >8 -*$/,$d' | scan_message
     exit "$fail"
     ;;
@@ -127,15 +130,19 @@ while IFS= read -r -d '' f; do
 done < <(list_files)
 shopt -u nocasematch
 
-# .gitattributes can mark a text file as binary, which hides it from git grep -I.
-if [ -f .gitattributes ]; then
-  while IFS= read -r line; do
-    case "$line" in
-      *"*.png "*|*"*.ogg "*|*"*.jar "*|*"*.mca "*|*"*.nbt "*) ;;
-      *binary*|*-text*|*-diff*) report ".gitattributes hides files from the content checks: $line" ;;
+# Attributes can hide a text file from the content checks (git grep -I skips what is marked
+# binary or unset). Ask git itself, so that nested .gitattributes files and every pattern form
+# are covered, and allow only the extensions that really are binary.
+attr_flags=()
+[ "$mode" = "--staged" ] && attr_flags=(--cached)
+while IFS= read -r -d '' attr_path && IFS= read -r -d '' attr_name && IFS= read -r -d '' attr_value; do
+  if [ "$attr_value" = "unset" ]; then
+    case "$attr_path" in
+      *.png|*.jpg|*.ogg|*.jar|*.mca|*.nbt|*.zip|*.dat) ;;
+      *) report "attribute '$attr_name' is unset for $attr_path, which hides it from the content checks" ;;
     esac
-  done < .gitattributes
-fi
+  fi
+done < <(list_files | git check-attr "${attr_flags[@]}" --stdin -z diff text)
 
 hits() { # $1 label, remaining arguments: git grep options and patterns
   local label="$1" out

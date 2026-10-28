@@ -15,6 +15,8 @@ Les sorties de l'oracle sont mises en cache dans `.cache/oracle/<version>/<seed>
 
 **Indépendance de l'instrument.** `tools/oracle` lit les fichiers de référence avec son propre lecteur minimal, sans importer `engine/*`. Sinon un bug symétrique de lecture (palette, bits par entrée) serait invisible. `tools/diff` est testé avec des fixtures contenant des défauts injectés : le comparateur doit les détecter avant d'être cru.
 
+**Lancer les tests marqués `oracle`.** Ils sont exclus de `./gradlew build` et tournent via `./gradlew oracleTest` (ou `./gradlew :engine:core:oracleTest` pour un seul module). Ils lisent le jeu de référence du cache (`.cache/` ou `MINECRAFT_CACHE_DIR`, préparé par `./gradlew :tools:bootstrap:run`) et s'ignorent eux-mêmes quand il manque. Pour qu'un lancement explicite ne réussisse pas sans rien prouver, `oracleTest` échoue avec un message clair si `reference/` est absent ou vide dans le cache, n'est jamais mis en cache ni considéré à jour. `./gradlew build` reste vert sans cache, comme sur la CI GitHub.
+
 ## Niveaux de preuve
 
 | Niveau | Nom | Quoi | Coût | Quand |

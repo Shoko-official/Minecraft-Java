@@ -6,7 +6,7 @@ Pour ne pas recopier les données de Mojang, les tableaux volumineux ne sont pas
 
 ## Outil et commandes
 
-L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF, 31 513 octets : `9e47732a125ced2b5b2ba026bce4d6a272cab1025ff97052b8d56dda2cc266ab`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3` (jeu 26.3, `serverSha256` de `state.json` : `d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64`). Toutes les commandes sont `python -I dim_ref.py REF <sous-commande>` ; la sortie est en ASCII, fins de ligne LF, indépendante du chemin de `REF` ; les empreintes sont les SHA-256 complets des sorties.
+L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du texte de l'annexe, fins de ligne LF, 32 081 octets : `ac173f0213d2b995bae6e74a0302b4c84f3c81331ebc55792970fb45e1fada2b`). `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3` (jeu 26.3, `serverSha256` de `state.json` : `d052f14d7a173734fba553711e5b570162e2f2a313267ee31a21b975a679be64`). Toutes les commandes sont `python -I dim_ref.py REF <sous-commande>` ; la sortie est en ASCII, fins de ligne LF, indépendante du chemin de `REF` ; les empreintes sont les SHA-256 complets des sorties.
 
 | Sous-commande | Sortie | Lignes | SHA-256 de la sortie |
 |---|---|---|---|
@@ -22,7 +22,7 @@ L'annexe en fin de fichier est le texte intégral de `dim_ref.py` (SHA-256 du te
 | `structures` | ensembles, structures, tags, gabarits, pièces, butins | 22 | `121ff06ca97a0f9c6baaf6c4e3447e46e9ad3b5bba32f60f48b85b45a1ece1cd` |
 | `bastion` | statistiques des 60 pools et des 167 gabarits | 7 | `a26b5ba8fda0e74cd86e4001f39f7dc9edfdef29102fa3fdbe78b2e6653671cf` |
 | `portal` | tags, états de blocs, POI, tickets, règles, déclencheurs, features | 32 | `353052e5640516ccdfe336f7484eb8263167be86aaed6cb6a575e438d10de6fe` |
-| `vectors` | profils sans bruit (Nether DX7, End DX13), régions (DX9, DX14), conversion 8:1 (DX4), anneau (DX16), piliers (DX17) | 120 | `3b7d3d788cf5c14d7395cfa2a048e2b2e96b2ac4d6a005494e02043f7f1b5901` |
+| `vectors` | profils sans bruit (Nether DX7, End DX13), régions (DX9, DX14), conversion 8:1 (DX4), anneau (DX16), piliers (DX17) | 122 | `bb91b74c001302f7ae79f332baf6bdbd162ff9e88994f05919d3f5ebca62c2f6` |
 | `grids` | sections, positions, cellules de biomes (DX18), coins d'interpolation (DX19), indépendance en Y du climat du Nether (DX20), espérances par chunk des features de l'End (DX21), poids de `nether_complexes` (DX22) | 18 | `970d585eed8a376b172cced6a50250a0daa894be0e699cf672aff097626e9a0c` |
 | `portalvec` | tailles de cadre (DX3), yeux de l'End (DX5), longueurs de passerelle (DX6) | 26 | `ecdf50b4ef777993f12846e97668961aca96013e35a2fea5d6bd06dd5ffeee7d` |
 
@@ -58,7 +58,7 @@ triggers ['changed_dimension', 'nether_travel', 'used_ender_eye']
 Conventions de `worldgen-surface-carvers-vectors.md` (graine 12345 sauf indication, `forceload`, attente W, `save-all flush`, arrêt, lecture de `dimensions/minecraft/<dimension>/region/r.*.mca`) ; les datapacks de sonde sont produits à la volée par `tools/oracle` depuis `.cache/reference/26.3`, jamais commités.
 
 - **FLATALL** : monde créé avec le préréglage `flat_all_dimensions` (D, R1 de la spec : trois dimensions plates, sans bruit, sans feature, sans structure ; Overworld : 1 couche de bedrock (Y -64) et 67 de grès (Y -63 à 3), biome désert ; Nether : bedrock Y 0 et basalte Y 1 à 3, biome `basalt_deltas` ; End : bedrock Y 0 et pierre d'End Y 1 à 3, biome `the_end` ; le dernier bloc plein est donc à Y 3 dans les trois dimensions, et un cadre de portail posé sur le sol a sa rangée basse à Y 4). Réglage du préréglage à la création : propriété `level-type` (nom exact à confirmer par DP0).
-- **VOID** : dimension personnalisée `probe:void` : fichier `data/probe/dimension/void.json` de forme `{"type": "minecraft:the_nether", "generator": {"type": "minecraft:flat", "settings": {"biome": "minecraft:the_void", "features": true, "lakes": false, "layers": [{"block": "minecraft:air", "height": 1}], "structure_overrides": []}}}` (réglage du préréglage plat `the_void`, D ; le biome `the_void` n'a aucune feature). Aucun sol, aucune structure. Le champ `type` varie selon la sonde.
+- **VOID** : dimension personnalisée `probe:void` : fichier `data/probe/dimension/void.json` de forme `{"type": "minecraft:the_nether", "generator": {"type": "minecraft:flat", "settings": {"biome": "minecraft:the_void", "features": false, "lakes": false, "layers": [{"block": "minecraft:air", "height": 1}], "structure_overrides": []}}}` (réglage du préréglage plat `the_void`, D, sauf `features` : le préréglage a `true`, or la liste de features du biome `the_void` contient `void_start_platform` à l'étape 10, une placed feature à filtre de biome seul ; `features` est donc mis à `false` pour que le montage n'ait pas de sol). Aucun sol, aucune structure. Le champ `type` varie selon la sonde.
 - **DIMX(champ, valeur)** : copie de `dimension_type/overworld.json` avec un champ modifié, référencée par une dimension plate `probe:x`.
 - **PORTAL(axe, w, h, coin)** : `fill` d'obsidienne pour un cadre de w x h intérieur (avec angles si `coin`), puis `setblock <x> <y> <z> minecraft:fire` à l'intérieur. Lecture : `execute if block`, `data get block`.
 - **OBS-DIM(étiquette)** : `execute as @e[tag=<T>,limit=1] if dimension <clé> run data get entity @s Pos` ; renvoie la position quand l'entité est dans la dimension demandée, aucun résultat sinon. Valide par DP0.
@@ -723,9 +723,16 @@ def cmd_vectors():
         print("  k=%2d gateway %2d floor=%s trunc=%s%s" % (k, k + 1, fl, tr, flag))
     print("  axis-aligned k:", amb)
     print("  alternative indexing k = 1..20 would give gateway 1 at", pos[1], "and a 20th gateway at", (math.floor(96 * math.cos(2 * math.pi)), math.floor(96 * math.sin(2 * math.pi))), "instead of", pos[0])
-    print("  page examples (End_gateway): gateway 1 (96,0), gateway 6 (-1,96), gateway 20 (91,-30)")
-    for n, ex in [(1, (96, 0)), (6, (-1, 96)), (20, (91, -30))]:
-        print("   gateway %2d computed floor %s page %s %s" % (n, pos[n - 1], ex, "match" if pos[n - 1] == ex else "MISMATCH"))
+    page = [(96, 0), (91, 29), (77, 56), (56, 77), (29, 91), (-1, 96), (-30, 91), (-57, 77), (-78, 56), (-92, 29),
+            (-96, -1), (-92, -30), (-78, -57), (-57, -78), (-30, -92), (0, -96), (29, -92), (56, -78), (77, -57), (91, -30)]
+    print("  page table (End_gateway, gateways 1..20, y 75) compared with the double-precision floor computation:")
+    bad = []
+    for n in range(1, 21):
+        if pos[n - 1] != page[n - 1]:
+            bad.append(n)
+            print("   gateway %2d computed %s page %s MISMATCH" % (n, pos[n - 1], page[n - 1]))
+    print("  mismatching gateways:", bad, "of 20 ; the page table equals the floor computation for", 20 - len(bad))
+    print("  trunc computation equals the page table for", sum(1 for k in range(20) if (int(96 * math.cos(math.pi * k / 10.0)), int(96 * math.sin(math.pi * k / 10.0))) == page[k]), "of 20")
     print("== DX17 End spikes (wiki 'Obsidian Pillar', 2026-10-28): centres, top y, distance of centre to origin")
     centres = [(-42, -1), (-34, -25), (-34, 24), (-13, -40), (-13, 39), (12, -40), (12, 39), (33, -25), (33, 24), (42, 0)]
     for x, z in sorted(centres, key=lambda c: math.atan2(c[1], c[0])):

@@ -1,6 +1,6 @@
 # Vecteurs et sondes : génération du Nether
 
-Complète `dim-nether-generation.md`. Les vecteurs DX sont des calculs sur les données extraites (preuve C), produits par `dim_ref.py` (annexe de [dim-definitions-portals-vectors.md](dim-definitions-portals-vectors.md), SHA-256 `9e47732a125ced2b5b2ba026bce4d6a272cab1025ff97052b8d56dda2cc266ab`). Les sondes DN sont des expériences sur l'oracle, **non exécutées** (EULA non acceptée) ; chacune dit la commande, l'entrée et la sortie attendue.
+Complète `dim-nether-generation.md`. Les vecteurs DX sont des calculs sur les données extraites (preuve C), produits par `dim_ref.py` (annexe de [dim-definitions-portals-vectors.md](dim-definitions-portals-vectors.md), SHA-256 `ac173f0213d2b995bae6e74a0302b4c84f3c81331ebc55792970fb45e1fada2b`). Les sondes DN sont des expériences sur l'oracle, **non exécutées** (EULA non acceptée) ; chacune dit la commande, l'entrée et la sortie attendue.
 
 Les tableaux volumineux ne sont pas reproduits : la commande est donnée avec l'empreinte SHA-256 complète de la sortie et quelques lignes d'exemple. `REF` = `C:\Users\shoko\Downloads\Minecraft\.cache\reference\26.3`.
 
@@ -16,7 +16,7 @@ Les tableaux volumineux ne sont pas reproduits : la commande est donnée avec l'
 | `order` | ordre partiel par étape dans les 5 biomes (R39) | `a2ade2d170aff7d8e640bac04dbbab9cbfc42891363ff278a337e9924ad4803b` |
 | `structures` | ensembles, structures, tags, gabarits, pièces (R26 à R36) | `121ff06ca97a0f9c6baaf6c4e3447e46e9ad3b5bba32f60f48b85b45a1ece1cd` |
 | `bastion` | 60 pools, 176 éléments, 167 gabarits (R32) | `a26b5ba8fda0e74cd86e4001f39f7dc9edfdef29102fa3fdbe78b2e6653671cf` |
-| `vectors` | profil du Nether (DX7), régions (DX9) | `3b7d3d788cf5c14d7395cfa2a048e2b2e96b2ac4d6a005494e02043f7f1b5901` |
+| `vectors` | profil du Nether (DX7), régions (DX9) | `bb91b74c001302f7ae79f332baf6bdbd162ff9e88994f05919d3f5ebca62c2f6` |
 
 ## DX : vecteurs calculés
 

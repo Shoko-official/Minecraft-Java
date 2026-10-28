@@ -199,10 +199,14 @@ public final class Chunk {
   }
 
   /**
-   * Returns the sky light of a section as the reader must interpret it (CF-R15, provisional): the
-   * stored array if present, else the bottom layer (16 x 16 values, {@code y = 0}) of the sky light
-   * of the section above repeated 16 times, else 15 everywhere when there is no section above or it
-   * has no sky light either. The result is computed, never stored.
+   * Returns the sky light of a section as the reader must interpret it (CF-R30, provisional): a
+   * view computed on demand from the current state of the chunk, with no side effect. If the
+   * section has a stored {@code SkyLight}, that array. Otherwise the effective sky light of the
+   * section at {@code sectionY + 1} when it exists in the chunk (the light section above the world
+   * height included, CF-R31), of which the bottom layer (indices 0 to 255, {@code ly = 0}) is
+   * repeated 16 times, once per {@code ly}. Otherwise 15 everywhere (2048 bytes {@code ff}). The
+   * derivation is recursive upwards and reflects later changes of the sections above. Nothing is
+   * stored: neither reading nor writing a chunk materializes a derived array.
    *
    * @param sectionY section y inside the world height
    * @return a new array

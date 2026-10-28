@@ -1,25 +1,21 @@
 package dev.shoko.minecraft.world.chunk;
 
 /**
- * A chunk tree does not follow the schema, so the chunk is refused (CF-R10, CF-R20 to CF-R29). The
- * fault names the field: a path such as {@code sections[3].block_states}.
+ * A tree of an {@code entities/} or {@code poi/} chunk does not follow its schema (AR-R22, AR-R23).
+ * The fault names the field: a path such as {@code Sections.-4.Records}. The chunks of {@code
+ * region/} do not use it: their faults are the refusals of {@link
+ * dev.shoko.minecraft.world.ReadResult}.
  */
 public final class ChunkFormatException extends Exception {
 
   private static final long serialVersionUID = 1L;
 
-  /** Why the chunk is refused. */
+  /** What is wrong with the tree. */
   public enum Reason {
     /** A required field is missing. */
     MISSING_FIELD,
     /** A field has another tag type than the schema says. */
     WRONG_TYPE,
-    /** {@code DataVersion} is not the supported one (chunk spec, section Entrees / sorties). */
-    UNSUPPORTED_DATA_VERSION,
-    /** The status is unknown or was removed (CF-R29). */
-    UNSUPPORTED_STATUS,
-    /** A container is inconsistent: empty palette, wrong data length, index too large (CF-R10). */
-    INVALID_CONTAINER,
     /** A value is outside what the schema allows. */
     INVALID_VALUE
   }
@@ -27,7 +23,7 @@ public final class ChunkFormatException extends Exception {
   /**
    * Creates a fault.
    *
-   * @param reason why the chunk is refused
+   * @param reason what is wrong
    * @param path the faulty field
    * @param message a description for humans
    */
@@ -39,7 +35,7 @@ public final class ChunkFormatException extends Exception {
   /**
    * Creates a fault caused by another one.
    *
-   * @param reason why the chunk is refused
+   * @param reason what is wrong
    * @param path the faulty field
    * @param message a description for humans
    * @param cause the underlying failure
@@ -50,7 +46,7 @@ public final class ChunkFormatException extends Exception {
   }
 
   /**
-   * Returns why the chunk is refused.
+   * Returns what is wrong.
    *
    * @return the reason
    */
@@ -61,7 +57,7 @@ public final class ChunkFormatException extends Exception {
   /**
    * Returns the faulty field.
    *
-   * @return the path, such as {@code sections[3].block_states.data}
+   * @return the path, such as {@code Sections.-4.Records}
    */
   public String path() {
     return Skeleton.throwNotImplemented();

@@ -15,7 +15,8 @@ public interface PaletteEntryCodec<T> {
    * @param entry the tag
    * @return the value; lenient cases (unknown identifier, partial properties) are resolved by the
    *     implementation and reported to its warning sink
-   * @throws PaletteFormatException if the tag cannot be an entry at all
+   * @throws PaletteFormatException if the tag cannot be an entry at all; an implementation whose
+   *     spec never rejects an entry (block states, BS-R22) does not declare it
    */
   T decode(NbtTag entry) throws PaletteFormatException;
 

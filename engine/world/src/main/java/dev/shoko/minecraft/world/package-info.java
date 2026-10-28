@@ -22,8 +22,17 @@
  * <p>Everything this module needs from loaded data (the block report, the known biomes) enters
  * through a small port interface defined here: {@link
  * dev.shoko.minecraft.world.block.BlockReportSource} and {@link
- * dev.shoko.minecraft.world.biome.BiomeCatalog}. Non-fatal findings go to a {@link
- * dev.shoko.minecraft.world.WarningSink}. Nothing reads a clock: times are explicit arguments.
+ * dev.shoko.minecraft.world.biome.BiomeCatalog}. Nothing reads a clock: times are explicit
+ * arguments.
+ *
+ * <p>Reading a chunk has three exclusive issues, {@link dev.shoko.minecraft.world.ReadResult}
+ * present, absent or refused (AR-R26). An absent chunk carries an {@link
+ * dev.shoko.minecraft.world.AbsentCause}, a refused one a {@link
+ * dev.shoko.minecraft.world.RefusedCause}; findings that do not change the issue are {@link
+ * dev.shoko.minecraft.world.ReadWarning}s, each with a {@link
+ * dev.shoko.minecraft.world.WarningCode}, in the list of the result. The lower-level lenient
+ * decoders report to a {@link dev.shoko.minecraft.world.WarningSink}. A failure of the file system
+ * is an {@link java.io.IOException}, none of the three issues (AR-R27).
  *
  * <p>Chunks, sections, containers and light arrays are mutable and confined to the thread that
  * ticks the world; codecs, registries and block types are immutable and safe to share.

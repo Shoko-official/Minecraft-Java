@@ -2,11 +2,10 @@ package dev.shoko.minecraft.world.storage;
 
 import dev.shoko.minecraft.core.coord.ChunkPos;
 import dev.shoko.minecraft.core.coord.RegionPos;
-import dev.shoko.minecraft.world.WarningSink;
+import dev.shoko.minecraft.world.ReadResult;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.file.Path;
-import java.util.Optional;
 
 /**
  * One region file {@code r.<rx>.<rz>.mca}: 32 x 32 chunks behind an 8192 byte header of 1024
@@ -26,36 +25,59 @@ public final class RegionFile implements Closeable {
 
   /**
    * Opens a region file. A missing file is valid: every chunk is absent (AR-R19) and the file is
-   * created by the first write.
+   * created by the first write. The findings of a read go to the result of that read.
    *
    * @param regionFolder the {@code region/} folder
    * @param region the region position, which gives the file name (AR-R4)
-   * @param warnings where findings about invalid locations go (AR-R20)
    * @return the open file
    * @throws IOException if the file exists but cannot be read
    */
-  public static RegionFile open(Path regionFolder, RegionPos region, WarningSink warnings)
-      throws IOException {
+  public static RegionFile open(Path regionFolder, RegionPos region) throws IOException {
     return Skeleton.throwNotImplemented();
   }
 
   /**
-   * Reads the NBT bytes of a chunk, decompressed.
-   *
-   * <p>Absent (empty result, no error) when the location is zero or the file does not exist
-   * (AR-R19). Absent with a warning, provisional, when the location is invalid: offset below 2,
-   * zero count with a non-zero offset, sectors beyond the end of the file, {@code L <= 0}, {@code L
-   * + 4 > count * 4096}, or a stream that does not decompress (AR-R20). Types 1 to 4 are accepted
-   * in any file (AR-R14).
+   * Reads the NBT bytes of a chunk, decompressed, with {@link
+   * RegionCompression#DEFAULT_DECOMPRESSION_LIMIT}.
    *
    * @param chunk absolute chunk position, which must be in this region
-   * @return the bytes, or empty when absent
-   * @throws ChunkRefusedException for compression type 127 or unknown (AR-R14) and for a missing
-   *     external file (AR-R18)
-   * @throws IOException on a read failure
+   * @return the issue of the read, see {@link #read(ChunkPos, long)}
+   * @throws IOException on a read failure of the file system (AR-R27)
    * @throws IllegalArgumentException if the chunk is in another region
    */
-  public Optional<byte[]> read(ChunkPos chunk) throws IOException, ChunkRefusedException {
+  public ReadResult<byte[]> read(ChunkPos chunk) throws IOException {
+    return Skeleton.throwNotImplemented();
+  }
+
+  /**
+   * Reads the NBT bytes of a chunk, decompressed (AR-R19 to AR-R21, AR-R26 to AR-R29). Never
+   * writes. Types 1 to 4 are accepted in any file (AR-R14). The issues, with their causes:
+   *
+   * <ul>
+   *   <li>Present: the decompressed bytes of the record, or of its {@code .mcc} file for an
+   *       external chunk (AR-R17). No warning.
+   *   <li>Absent, no warning: NO_REGION_FILE when the file does not exist, EMPTY_SLOT when the
+   *       location is zero (AR-R19).
+   *   <li>Absent, with one warning: INVALID_LOCATION for an offset below 2, a zero count with a
+   *       non-zero offset, sectors beyond the end of the file (a file shorter than its locations is
+   *       invalid content, not a failure), {@code L <= 0} or {@code L + 4 > count * 4096} (AR-R20);
+   *       UNREADABLE_RECORD when the stream does not decompress, trailer included (AR-R20).
+   *   <li>Refused: UNSUPPORTED_COMPRESSION for type 127 or unknown (AR-R14); MISSING_EXTERNAL_FILE
+   *       when the {@code .mcc} file is absent (AR-R18); TOO_LARGE when the decompressed output
+   *       exceeds the limit (AR-R29). For type 3, {@code L - 1} (or the size of the {@code .mcc})
+   *       is compared with the limit before any read.
+   * </ul>
+   *
+   * The message of a refusal names the file and the index in the region.
+   *
+   * @param chunk absolute chunk position, which must be in this region
+   * @param decompressionLimit the most bytes the decompression may produce; exactly that many is
+   *     accepted
+   * @return the issue of the read
+   * @throws IOException on a read failure of the file system, which is none of the issues
+   * @throws IllegalArgumentException if the chunk is in another region or the limit is negative
+   */
+  public ReadResult<byte[]> read(ChunkPos chunk, long decompressionLimit) throws IOException {
     return Skeleton.throwNotImplemented();
   }
 

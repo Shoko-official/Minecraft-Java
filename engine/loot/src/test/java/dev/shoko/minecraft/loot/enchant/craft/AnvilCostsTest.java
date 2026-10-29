@@ -181,4 +181,30 @@ class AnvilCostsTest {
         LootItems.enchanted(sword(0), Map.of("minecraft:smite", 2, "minecraft:unbreaking", 1));
     assertThat(cost(target, sacrifice)).isEqualTo(3);
   }
+
+  @Test
+  void provisionalABrokenTargetPastTheMaximumMergesToADamageBetweenZeroAndTheMaximum() {
+    // spec: EN-R42b (remaining = max(0, max - damage), the result stays in [0, max_damage]): both
+    // items 439 over the maximum of 1561 have nothing left, only the 12 percent bonus of 187 stays
+    AnvilResult.Output out = output(combine(sword(2000), sword(2000), "", false));
+    assertThat(out.result().damage()).isEqualTo(1561 - 187);
+    assertThat(output(combine(sword(1562), sword(1561), "", false)).result().damage())
+        .isEqualTo(1561 - 187);
+  }
+
+  @Test
+  void provisionalABrokenTargetMergedWithAnIntactItemRestoresTheFullDurability() {
+    // spec: EN-R42b: 0 + 1561 + 187 is capped at the maximum, so the damage is 0, never negative
+    assertThat(output(combine(sword(5000), sword(0), "", false)).result().damage()).isZero();
+    assertThat(output(combine(sword(1562), sword(0), "", false)).result().damage()).isZero();
+  }
+
+  @Test
+  void provisionalASacrificeBrokenPastTheMaximumAddsOnlyTheBonus() {
+    // spec: EN-R42b (a damage above the maximum counts for 0 remaining durability)
+    int damage =
+        output(combine(sword(1000), sword(Integer.MAX_VALUE), "", false)).result().damage();
+    assertThat(damage).isBetween(0, 1561);
+    assertThat(damage).isEqualTo(1561 - (561 + 187));
+  }
 }

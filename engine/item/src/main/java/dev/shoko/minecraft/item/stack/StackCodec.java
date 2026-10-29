@@ -61,8 +61,9 @@ public final class StackCodec {
    * Reads a stack from NBT (IC-R24, IC-R26): {@code {id, count?, components?}}.
    *
    * @param tag the compound; extra keys such as {@code Slot} are ignored
-   * @return the stack. A missing {@code count} is 1. An unknown {@code id} gives the empty stack
-   *     with an {@code UNKNOWN_ITEM} warning, and a count of 0 or less the empty stack with {@code
+   * @return the stack. A missing {@code count} is 1; a count above 99 is a {@code VALUE_RANGE}
+   *     failure, as in the JSON form (IC-R16). An unknown {@code id} gives the empty stack with an
+   *     {@code UNKNOWN_ITEM} warning, and a count of 0 or less the empty stack with {@code
    *     NON_POSITIVE_COUNT} (provisional, probe PI6). A missing {@code id} or a wrongly typed field
    *     is a failure; so is an error in {@code components}
    */
@@ -108,10 +109,11 @@ public final class StackCodec {
       throw new FindingException(FindingCode.TYPE_MISMATCH, "$.count", "expected an integer");
     }
     long value = number.longValue();
-    if (value != (int) value) {
-      throw new FindingException(FindingCode.VALUE_RANGE, "$.count", "count out of range");
+    if (value > ItemStack.MAX_COUNT) {
+      throw new FindingException(
+          FindingCode.VALUE_RANGE, "$.count", "count above " + ItemStack.MAX_COUNT);
     }
-    return (int) value;
+    return (int) Math.max(value, Integer.MIN_VALUE);
   }
 
   private static boolean isIntegral(NumericTag number) {
@@ -244,7 +246,8 @@ public final class StackCodec {
    *
    * @param stack a non-empty stack
    * @return the JSON text, {@code count} always written
-   * @throws IllegalArgumentException when the stack is empty
+   * @throws IllegalArgumentException when the stack is empty or a component holds a number that
+   *     JSON cannot write (NaN or an infinity, which only NBT input produces)
    */
   public String toJson(ItemStack stack) {
     requireNonEmpty(stack);

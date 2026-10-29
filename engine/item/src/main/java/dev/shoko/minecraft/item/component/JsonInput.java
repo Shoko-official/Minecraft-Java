@@ -70,6 +70,11 @@ final class JsonInput implements ShapeInput<JsonNode> {
   }
 
   @Override
+  public int floatBits(JsonNode value) {
+    return Float.floatToRawIntBits((float) decimal(value));
+  }
+
+  @Override
   public boolean bool(JsonNode value) {
     return ((JsonBoolean) value).value();
   }

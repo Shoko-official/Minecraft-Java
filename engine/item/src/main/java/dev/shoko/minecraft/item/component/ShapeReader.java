@@ -48,8 +48,8 @@ final class ShapeReader<T> {
       case Shape.Str _ -> new StringTag(text(value, path));
       case Shape.Ident _ -> new StringTag(identifier(text(value, path), path).toString());
       case Shape.IdSet _ -> idSet(value, path);
-      case Shape.IntS _ -> new IntTag(intValue(value, path));
-      case Shape.FloatS _ -> FloatTag.of(floatValue(value, path));
+      case Shape.IntS range -> new IntTag(intValue(range, value, path));
+      case Shape.FloatS _ -> new FloatTag(floatBits(value, path));
       case Shape.DoubleS _ -> DoubleTag.of(number(value, path));
       case Shape.BoolS _ -> new ByteTag((byte) (bool(value, path) ? 1 : 0));
       case Shape.ListOf list -> list(list, value, path);
@@ -112,22 +112,23 @@ final class ShapeReader<T> {
     return input.decimal(value);
   }
 
-  private int intValue(T value, String path) {
+  private int intValue(Shape.IntS range, T value, String path) {
     expect(value, Kind.INTEGER, "an integer", path);
     long integer = input.integer(value);
-    if (integer != (int) integer) {
+    if (integer < range.min() || integer > range.max()) {
       throw new FindingException(FindingCode.VALUE_RANGE, path, "integer out of range: " + integer);
     }
     return (int) integer;
   }
 
-  private float floatValue(T value, String path) {
+  /** The bits of the float, kept as they are when the tag already is a float (NaN payloads). */
+  private int floatBits(T value, String path) {
     double number = number(value, path);
-    float converted = (float) number;
-    if (Float.isInfinite(converted) && !Double.isInfinite(number)) {
+    int bits = input.floatBits(value);
+    if (Float.isInfinite(Float.intBitsToFloat(bits)) && !Double.isInfinite(number)) {
       throw new FindingException(FindingCode.VALUE_RANGE, path, "float out of range: " + number);
     }
-    return converted;
+    return bits;
   }
 
   private boolean bool(T value, String path) {
@@ -160,6 +161,10 @@ final class ShapeReader<T> {
             (key, child) -> {
               String at = path + "." + key;
               String id = identifier(key, at).toString();
+              if (entries.containsKey(id)) {
+                throw new FindingException(
+                    FindingCode.DUPLICATE_KEY, at, "the key " + id + " is given twice");
+              }
               entries.put(id, read(shape.value(), child, at));
             });
     return CompoundTag.of(entries);

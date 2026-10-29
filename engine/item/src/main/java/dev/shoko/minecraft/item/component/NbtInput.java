@@ -62,6 +62,13 @@ final class NbtInput implements ShapeInput<NbtTag> {
   }
 
   @Override
+  public int floatBits(NbtTag value) {
+    return value instanceof FloatTag tag
+        ? tag.bits()
+        : Float.floatToRawIntBits((float) decimal(value));
+  }
+
+  @Override
   public boolean bool(NbtTag value) {
     return ((NumericTag) value).longValue() != 0;
   }

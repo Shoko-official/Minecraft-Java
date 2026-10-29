@@ -27,8 +27,7 @@ import java.util.Set;
 final class ProviderDecoder<T> {
 
   private static final Set<String> NARY = Set.of("add", "mul", "min", "max", "avg");
-  private static final Set<String> BINARY =
-      Set.of("sub", "div", "mod", "pow", "floor_div", "floor_mod");
+  private static final Set<String> BINARY = Set.of("sub", "div", "mod", "floor_div", "floor_mod");
   private static final Set<String> UNARY =
       Set.of(
           "abs",
@@ -139,6 +138,13 @@ final class ProviderDecoder<T> {
   private T other(String type, Fields fields, Findings findings) {
     if (NARY.contains(type)) {
       return family.arithmetic(type, operands(fields, findings));
+    }
+    if (type.equals("pow")) {
+      // LT-R79 (provisional): pow reads base and exponent.
+      return family.arithmetic(
+          type,
+          new ArrayList<>(
+              List.of(child(fields, "base", findings), child(fields, "exponent", findings))));
     }
     if (BINARY.contains(type)) {
       List<T> operands = new ArrayList<>();

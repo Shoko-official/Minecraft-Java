@@ -4,7 +4,13 @@ import dev.shoko.minecraft.core.nbt.CompoundTag;
 import dev.shoko.minecraft.core.nbt.NbtTag;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
+import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.item.Decoding;
+import dev.shoko.minecraft.item.FindingCode;
+import dev.shoko.minecraft.item.FindingException;
+import java.util.LinkedHashMap;
+import java.util.Optional;
+import java.util.SequencedMap;
 
 /**
  * Decodes and encodes component values and tables (IC-R9 to IC-R13, IC-R27). The registry is the
@@ -16,7 +22,15 @@ import dev.shoko.minecraft.item.Decoding;
  */
 public final class ComponentCodec {
 
-  private ComponentCodec() {}
+  private static final String REMOVAL_PREFIX = "!";
+
+  private final ComponentCatalog catalog;
+  private final ShapeReader<JsonNode> jsonReader = new ShapeReader<>(JsonInput.INSTANCE);
+  private final ShapeReader<NbtTag> nbtReader = new ShapeReader<>(NbtInput.INSTANCE);
+
+  private ComponentCodec(ComponentCatalog catalog) {
+    this.catalog = catalog;
+  }
 
   /**
    * Creates a codec.
@@ -25,7 +39,7 @@ public final class ComponentCodec {
    * @return the codec
    */
   public static ComponentCodec of(ComponentCatalog catalog) {
-    return Skeleton.throwNotImplemented();
+    return new ComponentCodec(catalog);
   }
 
   /**
@@ -36,7 +50,7 @@ public final class ComponentCodec {
    * @return the value, or the failure
    */
   public Decoding<ComponentValue> valueFromJson(Identifier type, JsonNode node) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(() -> jsonValue(type, node, "$"));
   }
 
   /**
@@ -47,7 +61,7 @@ public final class ComponentCodec {
    * @return the value, or the failure
    */
   public Decoding<ComponentValue> valueFromNbt(Identifier type, NbtTag tag) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(() -> nbtValue(type, tag, "$"));
   }
 
   /**
@@ -58,7 +72,22 @@ public final class ComponentCodec {
    * @return the components in file order, or the failure
    */
   public Decoding<ComponentMap> tableFromJson(JsonNode table) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(
+        () -> {
+          SequencedMap<Identifier, ComponentValue> entries = new LinkedHashMap<>();
+          jsonMembers(table)
+              .forEach(
+                  (key, node) -> {
+                    String path = "$." + key;
+                    if (key.startsWith(REMOVAL_PREFIX)) {
+                      throw new FindingException(
+                          FindingCode.INVALID_IDENTIFIER, path, "a removal is not part of a table");
+                    }
+                    Identifier id = componentId(key, path);
+                    entries.put(id, jsonValue(id, node, path));
+                  });
+          return new ComponentMap(entries);
+        });
   }
 
   /**
@@ -69,7 +98,20 @@ public final class ComponentCodec {
    * @return the patch, or the failure
    */
   public Decoding<ComponentPatch> patchFromJson(JsonNode components) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(
+        () -> {
+          SequencedMap<Identifier, ComponentChange> changes = new LinkedHashMap<>();
+          jsonMembers(components)
+              .forEach(
+                  (key, node) -> {
+                    String path = "$." + key;
+                    boolean removal = key.startsWith(REMOVAL_PREFIX);
+                    Identifier id = componentId(removal ? key.substring(1) : key, path);
+                    changes.put(
+                        id, removal ? requireKnown(id, path) : set(jsonValue(id, node, path)));
+                  });
+          return new ComponentPatch(changes);
+        });
   }
 
   /**
@@ -79,7 +121,21 @@ public final class ComponentCodec {
    * @return the patch, or the failure
    */
   public Decoding<ComponentPatch> patchFromNbt(CompoundTag components) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(
+        () -> {
+          SequencedMap<Identifier, ComponentChange> changes = new LinkedHashMap<>();
+          components
+              .entries()
+              .forEach(
+                  (key, tag) -> {
+                    String path = "$." + key;
+                    boolean removal = key.startsWith(REMOVAL_PREFIX);
+                    Identifier id = componentId(removal ? key.substring(1) : key, path);
+                    changes.put(
+                        id, removal ? requireKnown(id, path) : set(nbtValue(id, tag, path)));
+                  });
+          return new ComponentPatch(changes);
+        });
   }
 
   /**
@@ -91,7 +147,18 @@ public final class ComponentCodec {
    * @return the compound, empty for an empty patch
    */
   public CompoundTag patchToNbt(ComponentPatch patch) {
-    return Skeleton.throwNotImplemented();
+    SequencedMap<String, NbtTag> entries = new LinkedHashMap<>();
+    patch
+        .changes()
+        .forEach(
+            (id, change) -> {
+              switch (change) {
+                case ComponentChange.Set set -> entries.put(id.toString(), set.value().tag());
+                case ComponentChange.Removed _ ->
+                    entries.put(REMOVAL_PREFIX + id, CompoundTag.empty());
+              }
+            });
+    return CompoundTag.of(entries);
   }
 
   /**
@@ -101,8 +168,51 @@ public final class ComponentCodec {
    * @param type the component type, which gives the JSON shape of the value
    * @param value the value
    * @return the JSON text
+   * @throws IllegalArgumentException when the value holds a number that JSON cannot write (NaN or
+   *     an infinity, which only NBT input can produce)
    */
   public String valueToJson(Identifier type, ComponentValue value) {
-    return Skeleton.throwNotImplemented();
+    return TagJson.write(value.tag());
+  }
+
+  private static ComponentChange set(ComponentValue value) {
+    return new ComponentChange.Set(value);
+  }
+
+  private ComponentChange requireKnown(Identifier id, String path) {
+    knownType(id, path);
+    return new ComponentChange.Removed();
+  }
+
+  private static SequencedMap<String, JsonNode> jsonMembers(JsonNode node) {
+    if (node instanceof JsonObject object) {
+      return object.members();
+    }
+    throw new FindingException(FindingCode.TYPE_MISMATCH, "$", "expected an object");
+  }
+
+  private static Identifier componentId(String text, String path) {
+    Optional<Identifier> id = Identifier.tryParse(text);
+    if (id.isEmpty() || text.isEmpty()) {
+      throw new FindingException(
+          FindingCode.INVALID_IDENTIFIER, path, "not a component identifier: " + text);
+    }
+    return id.get();
+  }
+
+  private void knownType(Identifier type, String path) {
+    if (catalog.find(type).isEmpty()) {
+      throw new FindingException(FindingCode.UNKNOWN_COMPONENT, path, "no component type " + type);
+    }
+  }
+
+  private ComponentValue jsonValue(Identifier type, JsonNode node, String path) {
+    knownType(type, path);
+    return new ComponentValue(jsonReader.read(ShapeTable.of(type), node, path));
+  }
+
+  private ComponentValue nbtValue(Identifier type, NbtTag tag, String path) {
+    knownType(type, path);
+    return new ComponentValue(nbtReader.read(ShapeTable.of(type), tag, path));
   }
 }

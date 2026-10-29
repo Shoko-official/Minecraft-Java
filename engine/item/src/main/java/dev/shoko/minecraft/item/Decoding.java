@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.item;
 
 import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * The outcome of decoding data: a value, possibly with warnings, or a failure. Unlike an exception,
@@ -20,6 +21,21 @@ public sealed interface Decoding<T> permits Decoding.Success, Decoding.Failure {
    * @return the findings, empty when there is nothing to report
    */
   List<Finding> findings();
+
+  /**
+   * Runs a decoder that reports a refusal by throwing {@link FindingException}.
+   *
+   * @param <T> what a successful decoding yields
+   * @param body the decoder
+   * @return a success without finding, or the failure carrying the findings of the refusal
+   */
+  static <T> Decoding<T> attempt(Supplier<T> body) {
+    try {
+      return new Success<>(body.get(), List.of());
+    } catch (FindingException refusal) {
+      return new Failure<>(refusal.findings());
+    }
+  }
 
   /**
    * The data was decoded.

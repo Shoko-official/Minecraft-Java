@@ -1,9 +1,32 @@
 package dev.shoko.minecraft.item.stack;
 
 import dev.shoko.minecraft.core.nbt.CompoundTag;
+import dev.shoko.minecraft.core.nbt.IntTag;
+import dev.shoko.minecraft.core.nbt.NbtException;
+import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.NumericTag;
+import dev.shoko.minecraft.core.nbt.StringTag;
+import dev.shoko.minecraft.core.nbt.snbt.SnbtWriter;
+import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
+import dev.shoko.minecraft.data.json.JsonNumber;
+import dev.shoko.minecraft.data.json.JsonObject;
+import dev.shoko.minecraft.data.json.JsonString;
 import dev.shoko.minecraft.item.Decoding;
+import dev.shoko.minecraft.item.Finding;
+import dev.shoko.minecraft.item.FindingCode;
+import dev.shoko.minecraft.item.FindingException;
+import dev.shoko.minecraft.item.component.ComponentChange;
+import dev.shoko.minecraft.item.component.ComponentCodec;
+import dev.shoko.minecraft.item.component.ComponentPatch;
 import dev.shoko.minecraft.item.registry.ItemCatalog;
+import dev.shoko.minecraft.item.registry.ItemType;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Optional;
+import java.util.SequencedMap;
+import java.util.StringJoiner;
 
 /**
  * Reads and writes stacks in the three forms of the game (IC-R24 to IC-R29): the NBT of
@@ -12,7 +35,17 @@ import dev.shoko.minecraft.item.registry.ItemCatalog;
  */
 public final class StackCodec {
 
-  private StackCodec() {}
+  private static final String ID = "id";
+  private static final String COUNT = "count";
+  private static final String COMPONENTS = "components";
+
+  private final ItemCatalog items;
+  private final ComponentCodec components;
+
+  private StackCodec(ItemCatalog items) {
+    this.items = items;
+    this.components = ComponentCodec.of(items.components());
+  }
 
   /**
    * Creates a codec.
@@ -21,7 +54,7 @@ public final class StackCodec {
    * @return the codec
    */
   public static StackCodec of(ItemCatalog items) {
-    return Skeleton.throwNotImplemented();
+    return new StackCodec(items);
   }
 
   /**
@@ -34,7 +67,97 @@ public final class StackCodec {
    *     is a failure; so is an error in {@code components}
    */
   public Decoding<ItemStack> fromNbt(CompoundTag tag) {
-    return Skeleton.throwNotImplemented();
+    try {
+      return readNbt(tag);
+    } catch (FindingException refusal) {
+      return new Decoding.Failure<>(refusal.findings());
+    }
+  }
+
+  private Decoding<ItemStack> readNbt(CompoundTag tag) {
+    Identifier id = itemId(nbtField(tag, ID, "$.id"), "$.id");
+    int count = nbtCount(tag);
+    CompoundTag patchTag = nbtComponents(tag);
+    List<Finding> warnings = new ArrayList<>();
+    Optional<ItemType> type = items.find(id);
+    if (type.isEmpty()) {
+      warnings.add(new Finding(FindingCode.UNKNOWN_ITEM, "$.id", "no item " + id));
+    }
+    if (count <= 0) {
+      warnings.add(new Finding(FindingCode.NON_POSITIVE_COUNT, "$.count", "count " + count));
+    }
+    if (!warnings.isEmpty()) {
+      return new Decoding.Success<>(ItemStack.empty(), warnings);
+    }
+    ComponentPatch patch = decodePatch(components.patchFromNbt(patchTag));
+    return new Decoding.Success<>(ItemStack.of(type.get(), count, patch), List.of());
+  }
+
+  private static NbtTag nbtField(CompoundTag tag, String key, String path) {
+    return tag.get(key)
+        .orElseThrow(
+            () -> new FindingException(FindingCode.MISSING_FIELD, path, "missing field " + key));
+  }
+
+  private static int nbtCount(CompoundTag tag) {
+    Optional<NbtTag> count = tag.get(COUNT);
+    if (count.isEmpty()) {
+      return 1;
+    }
+    if (!(count.get() instanceof NumericTag number) || !isIntegral(number)) {
+      throw new FindingException(FindingCode.TYPE_MISMATCH, "$.count", "expected an integer");
+    }
+    long value = number.longValue();
+    if (value != (int) value) {
+      throw new FindingException(FindingCode.VALUE_RANGE, "$.count", "count out of range");
+    }
+    return (int) value;
+  }
+
+  private static boolean isIntegral(NumericTag number) {
+    return switch (number.type()) {
+      case BYTE, SHORT, INT, LONG -> true;
+      default -> false;
+    };
+  }
+
+  private static CompoundTag nbtComponents(CompoundTag tag) {
+    Optional<NbtTag> value = tag.get(COMPONENTS);
+    if (value.isEmpty()) {
+      return CompoundTag.empty();
+    }
+    if (value.get() instanceof CompoundTag compound) {
+      return compound;
+    }
+    throw new FindingException(FindingCode.TYPE_MISMATCH, "$.components", "expected a compound");
+  }
+
+  private static Identifier itemId(NbtTag tag, String path) {
+    if (!(tag instanceof StringTag text)) {
+      throw new FindingException(FindingCode.TYPE_MISMATCH, path, "expected a string");
+    }
+    return parseId(text.value(), path);
+  }
+
+  private static Identifier parseId(String text, String path) {
+    return Identifier.tryParse(text)
+        .orElseThrow(
+            () ->
+                new FindingException(
+                    FindingCode.INVALID_IDENTIFIER, path, "not an identifier: " + text));
+  }
+
+  private static ComponentPatch decodePatch(Decoding<ComponentPatch> decoding) {
+    if (decoding instanceof Decoding.Success<ComponentPatch> success) {
+      return success.value();
+    }
+    List<Finding> prefixed = new ArrayList<>();
+    for (Finding finding : decoding.findings()) {
+      prefixed.add(
+          new Finding(
+              finding.code(), "$.components" + finding.path().substring(1), finding.message()));
+    }
+    throw new FindingException(prefixed);
   }
 
   /**
@@ -46,7 +169,20 @@ public final class StackCodec {
    * @throws IllegalArgumentException when the stack is empty
    */
   public CompoundTag toNbt(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    requireNonEmpty(stack);
+    SequencedMap<String, NbtTag> entries = new LinkedHashMap<>();
+    entries.put(ID, new StringTag(stack.type().id().toString()));
+    entries.put(COUNT, new IntTag(stack.count()));
+    if (!stack.patch().isEmpty()) {
+      entries.put(COMPONENTS, components.patchToNbt(stack.patch()));
+    }
+    return CompoundTag.of(entries);
+  }
+
+  private static void requireNonEmpty(ItemStack stack) {
+    if (stack.isEmpty()) {
+      throw new IllegalArgumentException("the empty stack has no written form");
+    }
   }
 
   /**
@@ -57,7 +193,49 @@ public final class StackCodec {
    * @return the stack, or the failure
    */
   public Decoding<ItemStack> fromJson(JsonNode node) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(() -> readJson(node));
+  }
+
+  private ItemStack readJson(JsonNode node) {
+    if (!(node instanceof JsonObject object)) {
+      throw new FindingException(FindingCode.TYPE_MISMATCH, "$", "expected an object");
+    }
+    JsonNode idNode =
+        object
+            .get(ID)
+            .orElseThrow(
+                () -> new FindingException(FindingCode.MISSING_FIELD, "$.id", "missing field id"));
+    if (!(idNode instanceof JsonString text)) {
+      throw new FindingException(FindingCode.TYPE_MISMATCH, "$.id", "expected a string");
+    }
+    Identifier id = parseId(text.value(), "$.id");
+    ItemType type =
+        items
+            .find(id)
+            .filter(found -> !found.isAir())
+            .orElseThrow(
+                () ->
+                    new FindingException(
+                        FindingCode.UNRESOLVED_ITEM, "$.id", "no item stack of " + id));
+    int count = object.get(COUNT).map(StackCodec::jsonCount).orElse(1);
+    ComponentPatch patch =
+        object
+            .get(COMPONENTS)
+            .map(c -> decodePatch(components.patchFromJson(c)))
+            .orElse(ComponentPatch.empty());
+    return ItemStack.of(type, count, patch);
+  }
+
+  private static int jsonCount(JsonNode node) {
+    if (!(node instanceof JsonNumber number) || !number.isInteger()) {
+      throw new FindingException(FindingCode.TYPE_MISMATCH, "$.count", "expected an integer");
+    }
+    long value = number.longValue();
+    if (value < 1 || value > ItemStack.MAX_COUNT) {
+      throw new FindingException(
+          FindingCode.VALUE_RANGE, "$.count", "count outside 1 to " + ItemStack.MAX_COUNT);
+    }
+    return (int) value;
   }
 
   /**
@@ -69,7 +247,28 @@ public final class StackCodec {
    * @throws IllegalArgumentException when the stack is empty
    */
   public String toJson(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    requireNonEmpty(stack);
+    StringBuilder out = new StringBuilder("{\"id\":\"").append(stack.type().id()).append('"');
+    out.append(",\"count\":").append(stack.count());
+    if (!stack.patch().isEmpty()) {
+      out.append(",\"components\":").append(componentsJson(stack.patch()));
+    }
+    return out.append('}').toString();
+  }
+
+  private String componentsJson(ComponentPatch patch) {
+    StringJoiner joiner = new StringJoiner(",", "{", "}");
+    patch
+        .changes()
+        .forEach(
+            (id, change) ->
+                joiner.add(
+                    switch (change) {
+                      case ComponentChange.Set set ->
+                          "\"" + id + "\":" + components.valueToJson(id, set.value());
+                      case ComponentChange.Removed _ -> "\"!" + id + "\":{}";
+                    }));
+    return joiner.toString();
   }
 
   /**
@@ -82,7 +281,21 @@ public final class StackCodec {
    *     the component
    */
   public Decoding<ItemStack> fromCommandText(String text) {
-    return Skeleton.throwNotImplemented();
+    return Decoding.attempt(
+        () -> {
+          CommandText.Parts parts = CommandText.split(text);
+          Identifier id = parseId(parts.item(), "$");
+          ItemType type =
+              items
+                  .find(id)
+                  .filter(found -> !found.isAir())
+                  .orElseThrow(
+                      () ->
+                          new FindingException(
+                              FindingCode.UNRESOLVED_ITEM, "$", "no item stack of " + id));
+          CompoundTag entries = CompoundTag.of(parts.components());
+          return ItemStack.of(type, 1, decodePatch(components.patchFromNbt(entries)));
+        });
   }
 
   /**
@@ -93,6 +306,30 @@ public final class StackCodec {
    * @throws IllegalArgumentException when the stack is empty
    */
   public String toCommandText(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    requireNonEmpty(stack);
+    String id = stack.type().id().toString();
+    if (stack.patch().isEmpty()) {
+      return id;
+    }
+    StringJoiner joiner = new StringJoiner(",", id + "[", "]");
+    stack
+        .patch()
+        .changes()
+        .forEach(
+            (key, change) ->
+                joiner.add(
+                    switch (change) {
+                      case ComponentChange.Set set -> key + "=" + snbt(set.value().tag());
+                      case ComponentChange.Removed _ -> "!" + key;
+                    }));
+    return joiner.toString();
+  }
+
+  private static String snbt(NbtTag tag) {
+    try {
+      return SnbtWriter.write(tag);
+    } catch (NbtException e) {
+      throw new IllegalArgumentException("value too deep for SNBT", e);
+    }
   }
 }

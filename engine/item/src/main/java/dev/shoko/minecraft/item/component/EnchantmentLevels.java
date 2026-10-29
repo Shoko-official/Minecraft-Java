@@ -1,7 +1,20 @@
 package dev.shoko.minecraft.item.component;
 
+import dev.shoko.minecraft.core.nbt.CompoundTag;
+import dev.shoko.minecraft.core.nbt.DoubleTag;
+import dev.shoko.minecraft.core.nbt.FloatTag;
+import dev.shoko.minecraft.core.nbt.IntTag;
+import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.NumericTag;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.Decoding;
+import dev.shoko.minecraft.item.Finding;
+import dev.shoko.minecraft.item.FindingCode;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.SequencedMap;
 
 /**
@@ -12,6 +25,18 @@ import java.util.SequencedMap;
  */
 public record EnchantmentLevels(SequencedMap<Identifier, Integer> levels) {
 
+  /** Largest level accepted (IC-R22, provisional). */
+  private static final int MAX_LEVEL = 255;
+
+  /**
+   * Copies the levels.
+   *
+   * @param levels the levels in insertion order
+   */
+  public EnchantmentLevels {
+    levels = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(levels));
+  }
+
   /**
    * Reads the value of one of the two components.
    *
@@ -20,7 +45,36 @@ public record EnchantmentLevels(SequencedMap<Identifier, Integer> levels) {
    *     above 255 is a {@code VALUE_RANGE} failure
    */
   public static Decoding<EnchantmentLevels> from(ComponentValue value) {
-    return Skeleton.throwNotImplemented();
+    if (!(value.tag() instanceof CompoundTag compound)) {
+      return failure(FindingCode.TYPE_MISMATCH, "$", "expected an object");
+    }
+    SequencedMap<Identifier, Integer> levels = new LinkedHashMap<>();
+    for (Map.Entry<String, NbtTag> entry : compound.entries().entrySet()) {
+      String path = "$." + entry.getKey();
+      Optional<Identifier> id = Identifier.tryParse(entry.getKey());
+      if (id.isEmpty()) {
+        return failure(FindingCode.INVALID_IDENTIFIER, path, "not an identifier");
+      }
+      if (!(entry.getValue() instanceof NumericTag number) || isDecimal(number)) {
+        return failure(FindingCode.TYPE_MISMATCH, path, "expected an integer level");
+      }
+      long level = number.longValue();
+      if (level > MAX_LEVEL) {
+        return failure(FindingCode.VALUE_RANGE, path, "level above " + MAX_LEVEL);
+      }
+      if (level >= 1) {
+        levels.put(id.get(), (int) level);
+      }
+    }
+    return new Decoding.Success<>(new EnchantmentLevels(levels), List.of());
+  }
+
+  private static boolean isDecimal(NumericTag number) {
+    return number instanceof FloatTag || number instanceof DoubleTag;
+  }
+
+  private static Decoding<EnchantmentLevels> failure(FindingCode code, String path, String text) {
+    return new Decoding.Failure<>(List.of(new Finding(code, path, text)));
   }
 
   /**
@@ -29,7 +83,9 @@ public record EnchantmentLevels(SequencedMap<Identifier, Integer> levels) {
    * @return the compound of identifiers to integers, in the order of {@link #levels()}
    */
   public ComponentValue toValue() {
-    return Skeleton.throwNotImplemented();
+    SequencedMap<String, NbtTag> entries = new LinkedHashMap<>();
+    levels.forEach((id, level) -> entries.put(id.toString(), new IntTag(level)));
+    return new ComponentValue(CompoundTag.of(entries));
   }
 
   /**
@@ -40,7 +96,13 @@ public record EnchantmentLevels(SequencedMap<Identifier, Integer> levels) {
    * @return the new levels
    */
   public EnchantmentLevels with(Identifier enchantment, int level) {
-    return Skeleton.throwNotImplemented();
+    SequencedMap<Identifier, Integer> copy = new LinkedHashMap<>(levels);
+    if (level < 1) {
+      copy.remove(enchantment);
+    } else {
+      copy.put(enchantment, level);
+    }
+    return new EnchantmentLevels(copy);
   }
 
   /**
@@ -50,6 +112,6 @@ public record EnchantmentLevels(SequencedMap<Identifier, Integer> levels) {
    * @return the level, 0 when absent
    */
   public int levelOf(Identifier enchantment) {
-    return Skeleton.throwNotImplemented();
+    return levels.getOrDefault(enchantment, 0);
   }
 }

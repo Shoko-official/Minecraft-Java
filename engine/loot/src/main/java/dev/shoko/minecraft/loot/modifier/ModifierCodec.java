@@ -1,9 +1,12 @@
 package dev.shoko.minecraft.loot.modifier;
 
+import dev.shoko.minecraft.data.json.JsonArray;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.item.registry.ItemCatalog;
+import dev.shoko.minecraft.loot.Findings;
 import dev.shoko.minecraft.loot.LootDecoding;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -28,7 +31,9 @@ public final class ModifierCodec {
    */
   public static LootDecoding<ItemModifier> decode(
       JsonNode node, RegistryAccess access, ItemCatalog items) {
-    return Skeleton.throwNotImplemented();
+    Findings findings = new Findings();
+    ItemModifier modifier = new ModifierReader(access, items, findings).modifier(node);
+    return findings.result(modifier);
   }
 
   /**
@@ -42,6 +47,21 @@ public final class ModifierCodec {
    */
   public static LootDecoding<List<ItemModifier>> decodeList(
       JsonNode node, RegistryAccess access, ItemCatalog items) {
-    return Skeleton.throwNotImplemented();
+    Findings findings = new Findings();
+    List<ItemModifier> modifiers = new ModifierReader(access, items, findings).list(node);
+    return findings.result(List.copyOf(modifiers));
+  }
+
+  /** Reads a list of modifiers with a reader that shares its warnings. */
+  static List<ItemModifier> readList(ModifierReader reader, JsonNode node) {
+    List<ItemModifier> modifiers = new ArrayList<>();
+    if (node instanceof JsonArray array) {
+      for (JsonNode element : array.elements()) {
+        modifiers.add(reader.modifier(element));
+      }
+    } else {
+      modifiers.add(reader.modifier(node));
+    }
+    return modifiers;
   }
 }

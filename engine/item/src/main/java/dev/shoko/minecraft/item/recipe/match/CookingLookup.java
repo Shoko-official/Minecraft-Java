@@ -1,10 +1,13 @@
 package dev.shoko.minecraft.item.recipe.match;
 
 import dev.shoko.minecraft.item.recipe.CookingRecipe;
+import dev.shoko.minecraft.item.recipe.Recipe;
 import dev.shoko.minecraft.item.recipe.RecipeSet;
 import dev.shoko.minecraft.item.recipe.RecipeType;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.EnumSet;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Finds the cooking recipe of an input item for a machine (RC-R25, RC-R26a, RC-R31). A recipe of
@@ -15,7 +18,18 @@ import java.util.Optional;
  */
 public final class CookingLookup {
 
-  private CookingLookup() {}
+  private static final Set<RecipeType> MACHINES =
+      EnumSet.of(
+          RecipeType.SMELTING,
+          RecipeType.BLASTING,
+          RecipeType.SMOKING,
+          RecipeType.CAMPFIRE_COOKING);
+
+  private final RecipeSet recipes;
+
+  private CookingLookup(RecipeSet recipes) {
+    this.recipes = recipes;
+  }
 
   /**
    * Creates a lookup.
@@ -24,7 +38,7 @@ public final class CookingLookup {
    * @return the lookup
    */
   public static CookingLookup of(RecipeSet recipes) {
-    return Skeleton.throwNotImplemented();
+    return new CookingLookup(recipes);
   }
 
   /**
@@ -36,6 +50,17 @@ public final class CookingLookup {
    * @throws IllegalArgumentException when the machine is not a cooking type
    */
   public Optional<CookingRecipe> find(RecipeType machine, ItemStack input) {
-    return Skeleton.throwNotImplemented();
+    if (!MACHINES.contains(machine)) {
+      throw new IllegalArgumentException(machine + " does not cook");
+    }
+    if (input.isEmpty()) {
+      return Optional.empty();
+    }
+    for (Recipe recipe : recipes.ofType(machine)) {
+      if (recipe instanceof CookingRecipe cooking && cooking.ingredient().matches(input)) {
+        return Optional.of(cooking);
+      }
+    }
+    return Optional.empty();
   }
 }

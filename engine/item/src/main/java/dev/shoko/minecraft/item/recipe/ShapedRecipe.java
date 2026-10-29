@@ -31,6 +31,6 @@ public record ShapedRecipe(
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.CRAFTING;
   }
 }

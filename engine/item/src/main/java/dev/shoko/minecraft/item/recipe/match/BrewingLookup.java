@@ -1,7 +1,12 @@
 package dev.shoko.minecraft.item.recipe.match;
 
+import dev.shoko.minecraft.core.nbt.StringTag;
+import dev.shoko.minecraft.item.component.WellKnownComponents;
 import dev.shoko.minecraft.item.recipe.BrewingRecipe;
+import dev.shoko.minecraft.item.recipe.Recipe;
 import dev.shoko.minecraft.item.recipe.RecipeSet;
+import dev.shoko.minecraft.item.recipe.RecipeType;
+import dev.shoko.minecraft.item.recipe.ingredient.PotionMatch;
 import dev.shoko.minecraft.item.stack.ItemStack;
 import java.util.Optional;
 
@@ -12,7 +17,11 @@ import java.util.Optional;
  */
 public final class BrewingLookup {
 
-  private BrewingLookup() {}
+  private final RecipeSet recipes;
+
+  private BrewingLookup(RecipeSet recipes) {
+    this.recipes = recipes;
+  }
 
   /**
    * Creates a lookup.
@@ -21,7 +30,7 @@ public final class BrewingLookup {
    * @return the lookup
    */
   public static BrewingLookup of(RecipeSet recipes) {
-    return Skeleton.throwNotImplemented();
+    return new BrewingLookup(recipes);
   }
 
   /**
@@ -33,7 +42,29 @@ public final class BrewingLookup {
    * @return the first matching recipe in resolution order, empty when none
    */
   public Optional<BrewingRecipe> find(ItemStack bottle, ItemStack reagent) {
-    return Skeleton.throwNotImplemented();
+    if (bottle.isEmpty() || reagent.isEmpty()) {
+      return Optional.empty();
+    }
+    for (Recipe recipe : recipes.ofType(RecipeType.BREWING)) {
+      if (recipe instanceof BrewingRecipe brewing
+          && brewing.input().item().matches(bottle)
+          && potionMatches(brewing.input().potion(), bottle)
+          && brewing.reagent().matches(reagent)) {
+        return Optional.of(brewing);
+      }
+    }
+    return Optional.empty();
+  }
+
+  private static boolean potionMatches(PotionMatch condition, ItemStack bottle) {
+    return switch (condition) {
+      case PotionMatch.Any _ -> true;
+      case PotionMatch.Exact exact ->
+          GridStacks.compound(bottle, WellKnownComponents.POTION_CONTENTS)
+              .get("potion")
+              .filter(tag -> tag.equals(new StringTag(exact.potion().toString())))
+              .isPresent();
+    };
   }
 
   /**
@@ -45,7 +76,8 @@ public final class BrewingLookup {
    * @return the bottle after, with a count of 1
    */
   public ItemStack brew(BrewingRecipe recipe, ItemStack bottle) {
-    return Skeleton.throwNotImplemented();
+    ItemStack output = recipe.output();
+    return GridStacks.carry(bottle, output.type(), 1, output.patch());
   }
 
   /**
@@ -55,6 +87,11 @@ public final class BrewingLookup {
    * @return {@code true} when some recipe accepts it as reagent
    */
   public boolean isReagent(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    for (Recipe recipe : recipes.ofType(RecipeType.BREWING)) {
+      if (recipe instanceof BrewingRecipe brewing && brewing.reagent().matches(stack)) {
+        return true;
+      }
+    }
+    return false;
   }
 }

@@ -1,9 +1,12 @@
 package dev.shoko.minecraft.item.recipe.book;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.item.recipe.Recipe;
 import dev.shoko.minecraft.item.recipe.RecipeSet;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.SortedSet;
+import java.util.TreeSet;
 
 /**
  * The recipes a player has unlocked (RC-R51, RC-R52).
@@ -12,13 +15,24 @@ import java.util.SortedSet;
  */
 public record RecipeBook(SortedSet<Identifier> unlocked) {
 
+  private static final RecipeBook EMPTY = new RecipeBook(new TreeSet<>());
+
+  /**
+   * Copies the identifiers.
+   *
+   * @param unlocked the identifiers of the recipes
+   */
+  public RecipeBook {
+    unlocked = Collections.unmodifiableSortedSet(new TreeSet<>(unlocked));
+  }
+
   /**
    * Returns a book with nothing unlocked.
    *
    * @return the empty book
    */
   public static RecipeBook empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -28,7 +42,9 @@ public record RecipeBook(SortedSet<Identifier> unlocked) {
    * @return the new book
    */
   public RecipeBook give(Collection<Identifier> recipes) {
-    return Skeleton.throwNotImplemented();
+    TreeSet<Identifier> result = new TreeSet<>(unlocked);
+    result.addAll(recipes);
+    return new RecipeBook(result);
   }
 
   /**
@@ -38,7 +54,7 @@ public record RecipeBook(SortedSet<Identifier> unlocked) {
    * @return the new book
    */
   public RecipeBook giveAll(RecipeSet recipes) {
-    return Skeleton.throwNotImplemented();
+    return give(recipes.all().stream().map(Recipe::id).toList());
   }
 
   /**
@@ -48,7 +64,9 @@ public record RecipeBook(SortedSet<Identifier> unlocked) {
    * @return the new book
    */
   public RecipeBook take(Collection<Identifier> recipes) {
-    return Skeleton.throwNotImplemented();
+    TreeSet<Identifier> result = new TreeSet<>(unlocked);
+    result.removeAll(recipes);
+    return new RecipeBook(result);
   }
 
   /**
@@ -58,7 +76,7 @@ public record RecipeBook(SortedSet<Identifier> unlocked) {
    * @return {@code true} when unlocked
    */
   public boolean contains(Identifier recipe) {
-    return Skeleton.throwNotImplemented();
+    return unlocked.contains(recipe);
   }
 
   /**
@@ -69,6 +87,6 @@ public record RecipeBook(SortedSet<Identifier> unlocked) {
    * @return {@code true} when the rule is off, or when the rule is on and the recipe is unlocked
    */
   public boolean mayCraft(Identifier recipe, boolean limitedCrafting) {
-    return Skeleton.throwNotImplemented();
+    return !limitedCrafting || contains(recipe);
   }
 }

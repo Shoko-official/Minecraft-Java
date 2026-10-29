@@ -29,6 +29,6 @@ public record ShapelessRecipe(
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.CRAFTING;
   }
 }

@@ -2,6 +2,7 @@ package dev.shoko.minecraft.item.recipe.match;
 
 import dev.shoko.minecraft.item.stack.ItemStack;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * The stacks of a crafting grid, 2x2 for the player window or 3x3 for the crafting table (RC-R16).
@@ -14,6 +15,22 @@ import java.util.List;
 public record CraftingGrid(int width, int height, List<ItemStack> stacks) {
 
   /**
+   * Copies the cells.
+   *
+   * @param width the number of columns
+   * @param height the number of rows
+   * @param stacks the cells in row-major order
+   * @throws IllegalArgumentException when the number of cells is not {@code width * height}
+   */
+  public CraftingGrid {
+    if (stacks.size() != width * height) {
+      throw new IllegalArgumentException(
+          "a " + width + "x" + height + " grid needs " + width * height + " cells");
+    }
+    stacks = List.copyOf(stacks);
+  }
+
+  /**
    * Reads one cell.
    *
    * @param x the column, from 0 to {@code width - 1}
@@ -22,6 +39,6 @@ public record CraftingGrid(int width, int height, List<ItemStack> stacks) {
    * @throws IndexOutOfBoundsException when the cell is outside the grid
    */
   public ItemStack get(int x, int y) {
-    return Skeleton.throwNotImplemented();
+    return stacks.get(Objects.checkIndex(x, width) + Objects.checkIndex(y, height) * width);
   }
 }

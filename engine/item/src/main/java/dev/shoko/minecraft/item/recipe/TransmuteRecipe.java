@@ -38,6 +38,6 @@ public record TransmuteRecipe(
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.CRAFTING;
   }
 }

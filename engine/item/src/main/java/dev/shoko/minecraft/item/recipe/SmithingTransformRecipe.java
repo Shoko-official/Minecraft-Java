@@ -24,6 +24,6 @@ public record SmithingTransformRecipe(
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.SMITHING;
   }
 }

@@ -21,6 +21,6 @@ public record StonecuttingRecipe(Identifier id, Ingredient ingredient, ItemStack
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.STONECUTTING;
   }
 }

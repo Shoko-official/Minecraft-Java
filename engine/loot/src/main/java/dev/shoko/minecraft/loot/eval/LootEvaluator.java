@@ -2,6 +2,7 @@ package dev.shoko.minecraft.loot.eval;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.LootFinding;
 import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
@@ -26,8 +27,8 @@ import java.util.Optional;
  */
 public final class LootEvaluator {
 
-  /** Bound on the stacks one stack is split into, far above what any table asks for. */
-  private static final int MAX_SPLIT_STACKS = 1_000_000;
+  /** Bound on the stacks a draw gives back, after the split (LT-R74e). */
+  private static final long MAX_STACKS = 1_000_000L;
 
   private LootEvaluator() {}
 
@@ -40,6 +41,16 @@ public final class LootEvaluator {
    */
   public static LootResult evaluate(LootTable table, LootContext context) {
     TableDraw draw = new TableDraw(context);
+    context
+        .data()
+        .tables()
+        .tables()
+        .forEach(
+            (id, loaded) -> {
+              if (loaded.equals(table)) {
+                draw.enter(id);
+              }
+            });
     return result(draw.table(table, 0, "$"), draw);
   }
 
@@ -94,6 +105,11 @@ public final class LootEvaluator {
         "rolls",
         () -> {
           long rolls = pool.rolls().sample(context);
+          if (rolls > TableDraw.MAX_ROLLS) {
+            throw new LootBudgetException("a pool asks for " + rolls + " rolls");
+          }
+          // The bonus comes from the luck of the context, an input and not data: it is bounded by
+          // the cap of the pool without an error (LT-R74a, discussed in the report).
           float bonus = pool.bonusRolls().sample(context) * context.luck();
           if (!Float.isNaN(bonus)) {
             rolls +=
@@ -111,23 +127,29 @@ public final class LootEvaluator {
   }
 
   private static LootResult result(List<ItemStack> drawn, TableDraw draw) {
+    long needed = 0;
+    for (ItemStack stack : drawn) {
+      if (!stack.isEmpty()) {
+        needed += ((long) stack.count() + stack.maxStackSize() - 1) / stack.maxStackSize();
+      }
+    }
+    if (needed > MAX_STACKS) {
+      throw new LootBudgetException("a draw gives " + needed + " stacks, above " + MAX_STACKS);
+    }
     List<ItemStack> stacks = new ArrayList<>();
     for (ItemStack stack : drawn) {
-      if (stack.isEmpty()) {
-        continue;
+      if (!stack.isEmpty()) {
+        stacks.addAll(split(stack));
       }
-      stacks.addAll(split(stack));
     }
     return new LootResult(List.copyOf(stacks), List.copyOf(draw.findings()));
   }
 
   /** Splits a stack above its maximum into stacks of the maximum and a rest (LT-R54). */
   static List<ItemStack> split(ItemStack stack) {
-    int max = stack.maxStackSize();
-    if (stack.count() <= max) {
+    if (stack.count() <= stack.maxStackSize()) {
       return List.of(stack);
     }
-    long capped = Math.min(stack.count(), (long) max * MAX_SPLIT_STACKS);
-    return stack.stacksFor((int) capped);
+    return stack.stacksFor(stack.count());
   }
 }

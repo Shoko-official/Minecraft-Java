@@ -164,12 +164,19 @@ final class ConditionEvaluator {
       return ABSENT;
     }
     Vec3 at = origin.get();
-    BlockPos pos =
-        new BlockPos(
-            (int) Math.floor(at.x()) + check.offsetX(),
-            (int) Math.floor(at.y()) + check.offsetY(),
-            (int) Math.floor(at.z()) + check.offsetZ());
+    // Long arithmetic: a block outside the int range is not looked up, it never wraps (LT-R35).
+    long x = (long) Math.floor(at.x()) + check.offsetX();
+    long y = (long) Math.floor(at.y()) + check.offsetY();
+    long z = (long) Math.floor(at.z()) + check.offsetZ();
+    if (!fitsInt(x) || !fitsInt(y) || !fitsInt(z)) {
+      return NOT_MATCHED;
+    }
+    BlockPos pos = new BlockPos((int) x, (int) y, (int) z);
     return of(check.predicate().matches(context, pos));
+  }
+
+  private static boolean fitsInt(long value) {
+    return value >= Integer.MIN_VALUE && value <= Integer.MAX_VALUE;
   }
 
   private static ConditionResult weather(LootCondition.WeatherCheck check, LootContext context) {

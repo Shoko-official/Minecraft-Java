@@ -1,8 +1,9 @@
 package dev.shoko.minecraft.loot.number;
 
-import dev.shoko.minecraft.core.math.WeightedSelection;
 import dev.shoko.minecraft.core.random.RandomSource;
+import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.random.Weights;
 import java.util.Arrays;
 import java.util.List;
 import java.util.OptionalInt;
@@ -59,7 +60,10 @@ final class IntSampler {
   }
 
   private static int binomial(IntProvider.Binomial binomial, LootContext context, int depth) {
-    int trials = Math.min(sample(binomial.n(), context, depth), MAX_TRIALS);
+    int trials = sample(binomial.n(), context, depth);
+    if (trials > MAX_TRIALS) {
+      throw new LootBudgetException("binomial with " + trials + " trials");
+    }
     float probability = FloatSampler.sample(binomial.p(), context, depth);
     RandomSource random = context.random();
     int successes = 0;
@@ -75,7 +79,7 @@ final class IntSampler {
       List<WeightedEntry<IntProvider>> distribution, LootContext context, int depth) {
     int[] weights = distribution.stream().mapToInt(WeightedEntry::weight).toArray();
     RandomSource random = context.random();
-    OptionalInt picked = WeightedSelection.weightedPick(weights, random::nextInt);
+    OptionalInt picked = Weights.pick(weights, random);
     if (picked.isEmpty()) {
       return 0;
     }

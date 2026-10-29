@@ -29,18 +29,11 @@ final class ModifierActions {
                   stack, random.options(), random.onlyCompatible(), context),
               ModifierCause.APPLIED);
       case ModifierAction.EnchantWithLevels levels -> enchantWithLevels(levels, stack, context);
-      case ModifierAction.CopyState copy ->
-          counted(ComponentActions.copyState(copy, stack, context), stack);
+      case ModifierAction.CopyState copy -> ComponentActions.copyState(copy, stack, context);
       case ModifierAction.CopyComponents copy ->
-          counted(ComponentActions.copyComponents(copy, stack, context), stack);
+          ComponentActions.copyComponents(copy, stack, context);
       default -> observed(() -> simple(action, stack, context), context);
     };
-  }
-
-  private static ModifierResult counted(Optional<ItemStack> result, ItemStack original) {
-    return result
-        .map(changed -> new ModifierResult(changed, ModifierCause.APPLIED))
-        .orElseGet(() -> new ModifierResult(original, ModifierCause.PARAMETER_ABSENT));
   }
 
   private static ModifierResult observed(Supplier<ItemStack> action, LootContext context) {

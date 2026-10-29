@@ -246,7 +246,11 @@ public final class Fields {
     return null;
   }
 
-  /** Reports every member nobody read as {@code UNKNOWN_FIELD}. */
+  /**
+   * Reports every member nobody read as {@code UNKNOWN_FIELD}. The decoding is strict (LT-R75): the
+   * table that holds the key is refused, one finding per key. Whether the game ignores unknown keys
+   * instead (H-unknown-ignore) is open, probe PL24; the vanilla data has none.
+   */
   public void finish() {
     if (object == null) {
       return;

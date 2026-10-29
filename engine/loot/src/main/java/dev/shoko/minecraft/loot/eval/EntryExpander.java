@@ -59,6 +59,9 @@ public final class EntryExpander {
 
   /** Expands an entry into {@code out}; tells whether the entry succeeded (LT-R21). */
   private static boolean expand(LootEntry entry, LootContext context, List<LootEntry> out) {
+    if (entry.kind() instanceof LootEntry.Kind.Tag tag && tag.expand()) {
+      return expandTag(entry, tag, context, out);
+    }
     if (!Draws.allHold(context, DrawReason.ENTRY_CONDITION, "entry", entry.conditions())) {
       return false;
     }
@@ -71,7 +74,6 @@ public final class EntryExpander {
         }
         yield true;
       }
-      case LootEntry.Kind.Tag tag when tag.expand() -> expandTag(entry, tag, context, out);
       default -> out.add(entry);
     };
   }
@@ -98,12 +100,23 @@ public final class EntryExpander {
     return true;
   }
 
+  /**
+   * Expands a tag into one child per item. Each child carries its own copy of the condition of the
+   * entry, evaluated separately and in the order of the tag (LT-R22, H-tag-cond-b).
+   */
   private static boolean expandTag(
       LootEntry entry, LootEntry.Kind.Tag tag, LootContext context, List<LootEntry> out) {
     IdOrTagSet members = new IdOrTagSet(ITEM_REGISTRY, List.of(), List.of(tag.tag()), false);
+    boolean any = false;
+    boolean empty = true;
     for (Identifier id : members.members(context.data().registries())) {
       ItemType item = context.data().items().find(id).orElse(null);
-      if (item != null) {
+      if (item == null) {
+        continue;
+      }
+      empty = false;
+      if (Draws.allHold(context, DrawReason.ENTRY_CONDITION, "entry", entry.conditions())) {
+        any = true;
         out.add(
             new LootEntry(
                 List.of(),
@@ -113,6 +126,6 @@ public final class EntryExpander {
                 new LootEntry.Kind.Item(item)));
       }
     }
-    return true;
+    return any || empty;
   }
 }

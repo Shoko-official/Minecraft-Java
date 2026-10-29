@@ -25,6 +25,8 @@ public enum LootFindingCode {
   UNRESOLVED_REFERENCE(Severity.ERROR),
   /** A tag cited by a table or an enchantment that is not loaded. */
   UNRESOLVED_TAG(Severity.ERROR),
+  /** An element that lies on a cycle of references between named elements (LT-R76). */
+  REFERENCE_CYCLE(Severity.ERROR),
   /** A table that references itself, directly (LT-R23). */
   SELF_REFERENCE(Severity.ERROR),
   /** An enchantment identifier that is not in the enchantment registry. */
@@ -33,6 +35,8 @@ public enum LootFindingCode {
   UNAVAILABLE_PARAMETER(Severity.WARNING),
   /** A modifier of the 21 types without behavior, read as the identity (LT-R47). */
   NOT_IMPLEMENTED_MODIFIER(Severity.WARNING),
+  /** The constant weight of an entry is above the cap of 2^20 and counts as 2^20 (LT-R74c). */
+  WEIGHT_CAPPED(Severity.WARNING),
   /** A table referenced at evaluation time that is not loaded: it yields nothing (runtime). */
   TABLE_NOT_FOUND(Severity.WARNING),
   /**

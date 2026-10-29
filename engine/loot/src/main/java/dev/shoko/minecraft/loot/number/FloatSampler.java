@@ -1,8 +1,8 @@
 package dev.shoko.minecraft.loot.number;
 
-import dev.shoko.minecraft.core.math.WeightedSelection;
 import dev.shoko.minecraft.core.random.RandomSource;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.random.Weights;
 import java.util.List;
 import java.util.OptionalInt;
 
@@ -43,7 +43,7 @@ final class FloatSampler {
       List<WeightedEntry<FloatProvider>> distribution, LootContext context, int depth) {
     int[] weights = distribution.stream().mapToInt(WeightedEntry::weight).toArray();
     RandomSource random = context.random();
-    OptionalInt picked = WeightedSelection.weightedPick(weights, random::nextInt);
+    OptionalInt picked = Weights.pick(weights, random);
     if (picked.isEmpty()) {
       return 0f;
     }

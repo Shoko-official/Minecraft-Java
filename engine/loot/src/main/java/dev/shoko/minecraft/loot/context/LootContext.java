@@ -279,6 +279,16 @@ public final class LootContext {
   }
 
   /**
+   * Returns the same context with another observer of the draws, for a caller that counts them.
+   *
+   * @param observer receives one event per random decision
+   * @return the context
+   */
+  public LootContext withObserver(DrawObserver observer) {
+    return new LootContext(data, type, random, values, new Extras(luck, level, chunks, observer));
+  }
+
+  /**
    * Returns the same context with the enchantment parameters of one effect evaluation (EN-R15).
    *
    * @param level the level of the enchantment on the item

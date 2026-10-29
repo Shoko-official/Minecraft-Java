@@ -3,6 +3,7 @@ package dev.shoko.minecraft.loot.number;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.predicate.LootCondition;
 import java.util.List;
 
@@ -66,7 +67,13 @@ public sealed interface IntProvider
    * @throws IllegalStateException when a {@link Reference} names a provider that is not loaded
    */
   default int sample(LootContext context) {
-    return IntSampler.sample(this, context, 0);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return IntSampler.sample(this, context, 0);
+    } finally {
+      budget.exit();
+    }
   }
 
   /**

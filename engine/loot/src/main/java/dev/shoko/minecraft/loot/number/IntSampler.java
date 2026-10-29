@@ -62,6 +62,7 @@ final class IntSampler {
     if (trials > MAX_TRIALS) {
       throw new LootBudgetException("binomial with " + trials + " trials");
     }
+    context.budget().units(Math.max(0, trials));
     float probability = FloatSampler.sample(binomial.p(), context, depth);
     RandomSource random = context.random();
     int successes = 0;

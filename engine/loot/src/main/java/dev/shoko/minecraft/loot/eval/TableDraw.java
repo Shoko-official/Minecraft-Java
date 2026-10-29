@@ -43,7 +43,7 @@ final class TableDraw {
   private final Set<Identifier> active = new HashSet<>();
 
   TableDraw(LootContext caller) {
-    this.context = caller.withBudget(NodeBudget.forDraw());
+    this.context = caller;
   }
 
   List<LootFinding> findings() {
@@ -52,6 +52,17 @@ final class TableDraw {
 
   void enter(Identifier id) {
     active.add(id);
+  }
+
+  /** Draws a root table, within the budget of one call of the entry point. */
+  List<ItemStack> root(LootTable table) {
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return table(table, 0, "$");
+    } finally {
+      budget.exit();
+    }
   }
 
   /** Draws a table: its pools in order, then its modifiers on every stack. No split. */

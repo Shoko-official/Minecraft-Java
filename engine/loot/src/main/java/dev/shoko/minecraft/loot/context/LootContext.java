@@ -293,20 +293,9 @@ public final class LootContext {
   }
 
   /**
-   * Returns the same context with the budget of the work of one root draw.
-   *
-   * @param budget the counters the evaluation charges
-   * @return the context
-   */
-  public LootContext withBudget(NodeBudget budget) {
-    return new LootContext(
-        data, type, random, values, new Extras(luck, level, chunks, observer, budget));
-  }
-
-  /**
    * Returns the counters of the work of the draw this context belongs to (LT-R74d to LT-R74f).
    *
-   * @return the budget, which counts only the chain of references outside a table draw
+   * @return the budget, shared by the contexts derived from this one
    */
   public NodeBudget budget() {
     return budget;
@@ -504,11 +493,7 @@ public final class LootContext {
       Map<ContextKey, Object> copy = new EnumMap<>(ContextKey.class);
       copy.putAll(values);
       return new LootContext(
-          data,
-          type,
-          random,
-          copy,
-          new Extras(luck, level, chunks, observer, NodeBudget.unlimited()));
+          data, type, random, copy, new Extras(luck, level, chunks, observer, new NodeBudget()));
     }
 
     private Builder put(ContextKey key, Object value) {

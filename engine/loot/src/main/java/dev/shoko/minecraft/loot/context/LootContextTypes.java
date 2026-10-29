@@ -2,6 +2,7 @@ package dev.shoko.minecraft.loot.context;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -66,10 +67,12 @@ public final class LootContextTypes {
     return ALL.get(1);
   }
 
+  // EnumSet keeps the order of the keys; an immutable Set.copyOf would iterate in an order that
+  // changes from one run to the next, and the callers that walk the keys would not be repeatable.
   private static Set<ContextKey> keys(ContextKey... keys) {
     Set<ContextKey> set = EnumSet.noneOf(ContextKey.class);
     set.addAll(List.of(keys));
-    return Set.copyOf(set);
+    return Collections.unmodifiableSet(set);
   }
 
   private static final Set<ContextKey> NONE = Set.of();
@@ -171,6 +174,6 @@ public final class LootContextTypes {
     for (Set<ContextKey> set : sets) {
       result.addAll(set);
     }
-    return Set.copyOf(result);
+    return Collections.unmodifiableSet(result);
   }
 }

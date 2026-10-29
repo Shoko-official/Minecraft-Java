@@ -7,6 +7,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Turns the bytes received on a connection into frames: optional decryption, length, optional
@@ -14,6 +15,14 @@ import java.util.Objects;
  * over several calls and several frames may arrive in one call, with the same result (test plan
  * L1). Starts with compression and decryption off. Not thread-safe: one decoder per direction of
  * one connection.
+ *
+ * <p>Two ways to read. {@link #append} stores received bytes untouched and {@link #poll} returns
+ * one frame at a time, reading it with the compression threshold and the decryption in force at
+ * that moment: a connection that sees {@code login_compression} or {@code key} in a frame sets the
+ * new mode before polling the next one, and the bytes that followed in the same read are still
+ * decoded in the new mode. {@link #feed} is the same thing in one call and is only safe when no
+ * packet of the connection changes the reading mode; do not use it around {@code login_compression}
+ * and {@code key}.
  *
  * <p>Rules applied, with the typed failure of each:
  *
@@ -24,9 +33,11 @@ import java.util.Objects;
  *   <li>With compression, a data length of 0 means a plain body, accepted whatever its size (R30 a,
  *       vector I03); a data length from 1 to threshold - 1 is {@code DATA_LENGTH_BELOW_THRESHOLD}
  *       (vector I05); a data length above the decompressed limit is {@code DECOMPRESSED_TOO_LARGE},
- *       before any allocation (R30 d); otherwise the zlib stream must yield exactly that many
- *       bytes, else {@code DECOMPRESSED_SIZE_MISMATCH} (vector I04), and an invalid stream is
- *       {@code CORRUPT_COMPRESSION} with the zlib failure as cause.
+ *       before any allocation (R30 d); otherwise the zlib stream must yield exactly that many bytes
+ *       with nothing after it, else {@code DECOMPRESSED_SIZE_MISMATCH} (vector I04) or {@code
+ *       CORRUPT_COMPRESSION}, and an invalid stream is {@code CORRUPT_COMPRESSION} with the zlib
+ *       failure as cause.
+ *   <li>A packet id that is negative once read is {@code UNKNOWN_PACKET_ID}.
  *   <li>A frame announced but not completed stays buffered, with no error and no frame (vector
  *       I11); the read timeout belongs to the connection.
  * </ul>
@@ -36,6 +47,13 @@ import java.util.Objects;
  */
 public final class FrameDecoder {
 
+  /**
+   * Most payload bytes one {@link #feed} call returns (project choice, R91): the call stops once
+   * the frames it has produced reach this total, the frame that crosses it included, so that a
+   * burst of maximal decompressed frames is never held in memory at once. The rest stays buffered.
+   */
+  public static final int MAX_FEED_PAYLOAD = 1 << 20;
+
   private static final int MAX_LENGTH_BYTES = 3;
   private static final int INITIAL_CAPACITY = 256;
 
@@ -43,6 +61,10 @@ public final class FrameDecoder {
   private byte[] buffer = new byte[INITIAL_CAPACITY];
   private int start;
   private int end;
+
+  /** End of the bytes already decrypted; meaningful only while a cipher is set. */
+  private int decryptedEnd;
+
   private int threshold = -1;
   private StreamCipher cipher;
   private boolean failed;
@@ -72,7 +94,7 @@ public final class FrameDecoder {
   }
 
   /**
-   * Sets the compression threshold for the frames decoded from now on (R28).
+   * Sets the compression threshold for the frames polled from now on (R28).
    *
    * @param threshold 0 or more to expect the compressed format; negative to switch it off
    */
@@ -81,7 +103,8 @@ public final class FrameDecoder {
   }
 
   /**
-   * Switches decryption on for the bytes fed from now on (R31, R32).
+   * Switches decryption on for every byte not yet read as part of a frame (R31, R32). Bytes already
+   * appended after the last returned frame are treated as encrypted.
    *
    * @param cipher the decryptor; kept and continued for the rest of the connection
    * @throws IllegalStateException when decryption is already on
@@ -91,10 +114,66 @@ public final class FrameDecoder {
       throw new IllegalStateException("decryption is already on");
     }
     this.cipher = Objects.requireNonNull(cipher, "cipher");
+    decryptedEnd = start;
   }
 
   /**
-   * Feeds received bytes and returns every frame they complete.
+   * Stores received bytes without decrypting or decompressing them. They are read, with the mode in
+   * force then, by {@link #poll()}.
+   *
+   * @param data the array holding the bytes; not modified, not kept
+   * @param offset index of the first byte
+   * @param length number of bytes
+   * @throws IndexOutOfBoundsException when the range is not inside {@code data}
+   */
+  public void append(byte[] data, int offset, int length) {
+    checkUsable();
+    Objects.checkFromIndexSize(offset, length, data.length);
+    if (start == end) {
+      start = 0;
+      end = 0;
+      decryptedEnd = 0;
+    }
+    if (end + length > buffer.length) {
+      makeRoom(length);
+    }
+    System.arraycopy(data, offset, buffer, end, length);
+    end += length;
+  }
+
+  /**
+   * Returns the next complete frame, read with the compression threshold and the decryption set at
+   * this moment.
+   *
+   * @return the frame, or empty when the buffered bytes do not complete one (no error: the read
+   *     timeout belongs to the connection)
+   * @throws ProtocolException on a malformed frame, see the class description
+   */
+  public Optional<Frame> poll() throws ProtocolException {
+    checkUsable();
+    try {
+      int length = readLength();
+      if (length < 0 || end - start < lengthFieldBytes + length) {
+        return Optional.empty();
+      }
+      int bodyStart = start + lengthFieldBytes;
+      decryptUpTo(bodyStart + length);
+      Frame frame = decodeBody(bodyStart, length);
+      start = bodyStart + length;
+      return Optional.of(frame);
+    } catch (ProtocolException e) {
+      failed = true;
+      throw e;
+    }
+  }
+
+  /**
+   * Appends received bytes and returns the frames they complete, polled one after the other with
+   * the mode in force at this call. At most about {@link #MAX_FEED_PAYLOAD} payload bytes are
+   * returned: when more frames are complete, the call returns after the frame that crosses the cap
+   * and the others stay buffered for the next call (a call with no bytes is enough) or for {@link
+   * #poll()}. Do not use this method around {@code login_compression} and {@code key}: the frames
+   * of one call all share the mode set before it.
    *
    * @param data the array holding the bytes; not modified, not kept
    * @param offset index of the first byte
@@ -105,17 +184,18 @@ public final class FrameDecoder {
    * @throws IndexOutOfBoundsException when the range is not inside {@code data}
    */
   public List<Frame> feed(byte[] data, int offset, int length) throws ProtocolException {
-    if (failed) {
-      throw new IllegalStateException("the decoder failed and cannot be used again");
+    append(data, offset, length);
+    List<Frame> frames = new ArrayList<>();
+    long payload = 0;
+    while (payload < MAX_FEED_PAYLOAD) {
+      Optional<Frame> frame = poll();
+      if (frame.isEmpty()) {
+        break;
+      }
+      frames.add(frame.get());
+      payload += frame.get().payloadLength();
     }
-    Objects.checkFromIndexSize(offset, length, data.length);
-    try {
-      append(data, offset, length);
-      return drain();
-    } catch (ProtocolException e) {
-      failed = true;
-      throw e;
-    }
+    return frames;
   }
 
   /**
@@ -127,38 +207,29 @@ public final class FrameDecoder {
     return end - start;
   }
 
-  /** Copies received bytes into the buffer and decrypts the copy, never the caller's array. */
-  private void append(byte[] data, int offset, int length) {
-    if (start == end) {
-      start = 0;
-      end = 0;
+  private void checkUsable() {
+    if (failed) {
+      throw new IllegalStateException("the decoder failed and cannot be used again");
     }
-    if (end + length > buffer.length) {
-      int live = end - start;
-      long needed = (long) live + length;
-      byte[] target =
-          needed <= buffer.length ? buffer : new byte[(int) Math.max(needed, 2L * live)];
-      System.arraycopy(buffer, start, target, 0, live);
-      buffer = target;
-      start = 0;
-      end = live;
-    }
-    System.arraycopy(data, offset, buffer, end, length);
-    if (cipher != null) {
-      cipher.apply(buffer, end, length);
-    }
-    end += length;
   }
 
-  private List<Frame> drain() throws ProtocolException {
-    List<Frame> frames = new ArrayList<>();
-    while (true) {
-      int length = readLength();
-      if (length < 0 || end - start < lengthFieldBytes + length) {
-        return frames;
-      }
-      frames.add(decodeBody(start + lengthFieldBytes, length));
-      start += lengthFieldBytes + length;
+  /** Makes room for {@code length} more bytes, dropping the bytes already returned. */
+  private void makeRoom(int length) {
+    int live = end - start;
+    long needed = (long) live + length;
+    byte[] target = needed <= buffer.length ? buffer : new byte[(int) Math.max(needed, 2L * live)];
+    System.arraycopy(buffer, start, target, 0, live);
+    decryptedEnd = Math.max(0, decryptedEnd - start);
+    buffer = target;
+    start = 0;
+    end = live;
+  }
+
+  /** Decrypts, in place and in stream order, the buffered bytes up to {@code upTo}. */
+  private void decryptUpTo(int upTo) {
+    if (cipher != null && decryptedEnd < upTo) {
+      cipher.apply(buffer, decryptedEnd, upTo - decryptedEnd);
+      decryptedEnd = upTo;
     }
   }
 
@@ -172,6 +243,7 @@ public final class FrameDecoder {
       if (start + i >= end) {
         return -1;
       }
+      decryptUpTo(start + i + 1);
       int group = buffer[start + i] & 0xff;
       value |= (group & 0x7f) << (7 * i);
       if ((group & 0x80) == 0) {
@@ -226,6 +298,9 @@ public final class FrameDecoder {
       throws ProtocolException {
     PacketReader in = PacketReader.wrap(source, offset, length);
     int id = in.readVarInt();
+    if (id < 0) {
+      throw new ProtocolException(Reason.UNKNOWN_PACKET_ID, "negative packet id " + id);
+    }
     int payloadStart = offset + length - in.remaining();
     return Frame.adopt(id, Arrays.copyOfRange(source, payloadStart, offset + length));
   }

@@ -24,14 +24,23 @@ public final class Frame {
    * @param packetId the VarInt packet id, 0 or more
    * @param payload the bytes after the id; copied
    * @return the frame
+   * @throws IllegalArgumentException when {@code packetId} is negative
    */
   public static Frame of(int packetId, byte[] payload) {
+    if (packetId < 0) {
+      throw new IllegalArgumentException("negative packet id: " + packetId);
+    }
     return new Frame(packetId, payload.clone());
   }
 
   /** Creates a frame that takes ownership of an array nobody else holds. */
   static Frame adopt(int packetId, byte[] payload) {
     return new Frame(packetId, payload);
+  }
+
+  /** Returns the payload size without copying it. */
+  int payloadLength() {
+    return payload.length;
   }
 
   /**

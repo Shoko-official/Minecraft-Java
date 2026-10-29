@@ -19,6 +19,19 @@ public record IntentionPacket(
     int protocolVersion, String serverAddress, int serverPort, ConnectionIntent intent)
     implements Packet {
 
+  private static final int MAX_PORT = 65535;
+
+  /**
+   * Checks the port.
+   *
+   * @throws IllegalArgumentException when {@code serverPort} is not an unsigned short
+   */
+  public IntentionPacket {
+    if (serverPort < 0 || serverPort > MAX_PORT) {
+      throw new IllegalArgumentException("port outside 0 to 65535: " + serverPort);
+    }
+  }
+
   @Override
   public PacketType type() {
     return HandshakeServerbound.INTENTION;

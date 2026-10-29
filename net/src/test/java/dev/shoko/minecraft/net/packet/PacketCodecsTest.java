@@ -189,9 +189,9 @@ class PacketCodecsTest {
   }
 
   @Test
-  void aKnownButUnsupportedPacketIsAnIllegalArgumentNotAProtocolError() {
-    // spec: API contract of decode (IllegalArgumentException when the type exists but is not
-    // supported)
+  void aKnownButUnsupportedPacketIsAProtocolErrorOfReasonUnsupportedPacket() {
+    // spec: R49, R90. The frame comes from the network: its id is in the table but the packet is
+    // not handled in this batch, which is a typed protocol error and not a programming error.
     for (PacketRow row : Golden.packets()) {
       PacketType type =
           PacketRegistry.byName(row.state(), row.direction(), row.name()).orElseThrow();
@@ -199,9 +199,9 @@ class PacketCodecsTest {
         continue;
       }
       Frame frame = Frame.of(row.id(), new byte[0]);
-      assertThrows(
-          IllegalArgumentException.class,
-          () -> PacketCodecs.decode(row.state(), row.direction(), frame));
+      assertFails(
+          () -> PacketCodecs.decode(row.state(), row.direction(), frame),
+          Reason.UNSUPPORTED_PACKET);
     }
   }
 

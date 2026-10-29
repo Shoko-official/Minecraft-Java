@@ -6,7 +6,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.shoko.minecraft.net.ProtocolException;
 import dev.shoko.minecraft.net.frame.Frame;
 import dev.shoko.minecraft.net.registry.PacketRegistry;
-import dev.shoko.minecraft.net.registry.PacketType;
 import dev.shoko.minecraft.net.state.ConnectionState;
 import dev.shoko.minecraft.net.state.PacketDirection;
 import dev.shoko.minecraft.net.testing.Allocation;
@@ -38,18 +37,6 @@ class PacketCodecsAttackTest {
       assertThat(PacketCodecs.decode(state, direction, again)).isEqualTo(packet);
     } catch (ProtocolException typed) {
       assertThat(typed.reason()).isNotNull();
-    } catch (IllegalArgumentException unsupported) {
-      PacketType type = lookupOrNull(state, direction, frame.packetId());
-      assertThat(type).as("an illegal argument needs a known type").isNotNull();
-      assertThat(PacketCodecs.isSupported(type)).isFalse();
-    }
-  }
-
-  private static PacketType lookupOrNull(ConnectionState state, PacketDirection direction, int id) {
-    try {
-      return PacketRegistry.lookup(state, direction, id);
-    } catch (ProtocolException unknown) {
-      return null;
     }
   }
 

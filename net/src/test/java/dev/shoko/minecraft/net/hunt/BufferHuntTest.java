@@ -10,6 +10,9 @@ import dev.shoko.minecraft.net.ProtocolException;
 import dev.shoko.minecraft.net.buffer.PacketReader;
 import dev.shoko.minecraft.net.frame.Frame;
 import dev.shoko.minecraft.net.frame.FrameDecoder;
+import dev.shoko.minecraft.net.packet.PacketCodecs;
+import dev.shoko.minecraft.net.state.ConnectionState;
+import dev.shoko.minecraft.net.state.PacketDirection;
 import dev.shoko.minecraft.net.testing.Buffers;
 import dev.shoko.minecraft.net.testing.Failures;
 import dev.shoko.minecraft.net.testing.Feeds;
@@ -107,5 +110,19 @@ class BufferHuntTest {
           .isNotInstanceOf(IndexOutOfBoundsException.class)
           .isInstanceOfAny(ProtocolException.class, IllegalArgumentException.class);
     }
+  }
+
+  @Test
+  void aWireFrameWithANegativeIdVarIntIsRefusedAsAnUnknownPacketId() throws ProtocolException {
+    // spec: R2, R49. The id 5 bytes "ff ff ff ff 0f" is -1: no packet has it, and no Frame can.
+    FrameDecoder decoder = FrameDecoder.create();
+    ProtocolException refused =
+        Failures.failure(
+            () -> {
+              for (Frame frame : decoder.feed(Hex.bytes("05 ff ff ff ff 0f"), 0, 6)) {
+                PacketCodecs.decode(ConnectionState.STATUS, PacketDirection.SERVERBOUND, frame);
+              }
+            });
+    assertThat(refused.reason()).isEqualTo(ProtocolException.Reason.UNKNOWN_PACKET_ID);
   }
 }

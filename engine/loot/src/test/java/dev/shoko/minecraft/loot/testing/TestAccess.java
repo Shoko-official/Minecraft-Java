@@ -66,6 +66,7 @@ public final class TestAccess implements RegistryAccess {
         .withTag("item", "bow_materials", "stick")
         .withTag("item", "trident_materials", "iron_ingot")
         .withTag("item", "test_gems", "diamond", "emerald", "iron_ingot")
+        .withTag("item", "duo", "stone", "dirt")
         .withTag("item", "empty_tag")
         .withTag("item", "enchantable/sharp_weapon", "diamond_sword", "diamond_axe")
         .withTag("item", "enchantable/melee_weapon", "diamond_sword")

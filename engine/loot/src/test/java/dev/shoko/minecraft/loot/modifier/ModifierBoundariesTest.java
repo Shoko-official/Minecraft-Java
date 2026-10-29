@@ -283,4 +283,72 @@ class ModifierBoundariesTest {
     assertThat(lootingResult(0, random).count()).isEqualTo(1);
     assertThat(random.steps()).isZero();
   }
+
+  private static ModifierAction lootingOf(float count) {
+    return new ModifierAction.EnchantedCountIncrease(
+        new FloatProvider.Constant(count), Identifier.minecraft("looting"), 0);
+  }
+
+  private static ItemStack runLooting(float count, int level, ItemStack stack) {
+    return ModifierApplier.apply(
+            Tables.modifier(lootingOf(count)), stack, withLooting(level, ScriptedRandom.of()))
+        .stack();
+  }
+
+  @Test
+  void provisionalTheLootingBonusThatSumsToInfinitySaturatesInsteadOfWrappingToZero() {
+    // spec: LT-R43, LT-R74e: 3.0e38 x 3 levels is +infinity as a float; the quantity is bounded
+    // (the maximum of a stack or of an int) or the call fails with the typed error, never 0
+    ItemStack beef = LootItems.stack("beef");
+    Throwable thrown =
+        org.assertj.core.api.Assertions.catchThrowable(() -> runLooting(3.0e38f, 3, beef));
+    if (thrown != null) {
+      assertThat(thrown).isInstanceOf(dev.shoko.minecraft.loot.LootBudgetException.class);
+      return;
+    }
+    assertThat(runLooting(3.0e38f, 3, beef).count()).isGreaterThanOrEqualTo(beef.maxStackSize());
+  }
+
+  @Test
+  void provisionalTheLootingBonusAtTheHighestEnchantmentLevelDrawsTheCountThatManyTimes() {
+    // spec: LT-R43 (one draw per level), EN-R10 (levels up to 255): the cap of 100000 draws of the
+    // code cannot be reached through a weapon, because a level above 255 is not a valid component
+    ScriptedRandom random = ScriptedRandom.repeating(0.5, 300);
+    ItemStack result =
+        ModifierApplier.apply(
+                Tables.modifier(uniformLooting(1f, 3f)),
+                LootItems.stack("beef"),
+                withLooting(255, random))
+            .stack();
+    assertThat(random.steps()).isEqualTo(255);
+    assertThat(result.count()).isEqualTo(1 + 2 * 255);
+  }
+
+  private static LootContext withRadius(float radius) {
+    return Ctx.builder(dev.shoko.minecraft.core.random.Lcg48Random.ofSeed(4))
+        .explosionRadius(radius)
+        .build();
+  }
+
+  @Test
+  void provisionalTheDecayOfAPileOfExactlyTenMillionUnitsPasses() {
+    // spec: LT-R41, LT-R74e (cap of 10000000 units for one pile), radius 4: about a quarter stays
+    ItemStack pile = LootItems.stack("stone", 10_000_000);
+    ItemStack kept =
+        ModifierApplier.apply(
+                Tables.modifier(new ModifierAction.ExplosionDecay()), pile, withRadius(4f))
+            .stack();
+    assertThat(kept.count()).isBetween(2_300_000, 2_700_000);
+  }
+
+  @Test
+  void provisionalTheDecayOfAPileOfTenMillionAndOneUnitsFailsWithTheTypedError() {
+    // spec: LT-R41, LT-R74e: one unit over the cap fails before the loop
+    ItemStack pile = LootItems.stack("stone", 10_000_001);
+    org.assertj.core.api.Assertions.assertThatThrownBy(
+            () ->
+                ModifierApplier.apply(
+                    Tables.modifier(new ModifierAction.ExplosionDecay()), pile, withRadius(4f)))
+        .isInstanceOf(dev.shoko.minecraft.loot.LootBudgetException.class);
+  }
 }

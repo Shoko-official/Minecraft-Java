@@ -165,4 +165,47 @@ class ReferenceGraphTest {
     assertThat(codesFor(result, "predicate", "b")).contains(LootFindingCode.REFERENCE_CYCLE);
     assertThat(codesFor(result, "predicate", "fine")).isEmpty();
   }
+
+  @Test
+  void provisionalTheDiagnosticOfACycleNamesAnElementOfTheCycle() {
+    // spec: LT-R76 (the cycle diagnostic identifies the element concerned: the identifier of an
+    // element that takes part in the cycle; the full chain is not promised)
+    Map<String, String> files = base();
+    files.put("predicate/a", "{'type':'minecraft:all_of','terms':['minecraft:b']}");
+    files.put("predicate/b", "{'type':'minecraft:any_of','terms':['minecraft:a']}");
+    LootLoadResult result = load(files);
+    List<String> messages =
+        result.findings().stream()
+            .filter(f -> f.finding().code() == LootFindingCode.REFERENCE_CYCLE)
+            .map(f -> f.finding().message())
+            .toList();
+    assertThat(messages).isNotEmpty();
+    assertThat(messages)
+        .allSatisfy(message -> assertThat(message).containsAnyOf("minecraft:a", "minecraft:b"));
+  }
+
+  @Test
+  void provisionalTheDiagnosticOfATableCycleNamesATableOfTheCycle() {
+    // spec: LT-R76 (loot_table cycle, same rule)
+    Map<String, String> files = base();
+    files.put(
+        "loot_table/blocks/ta",
+        "{'type':'minecraft:block','pools':[{'rolls':1,'entries':[{'type':'minecraft:loot_table',"
+            + "'value':'minecraft:blocks/tb'}]}]}");
+    files.put(
+        "loot_table/blocks/tb",
+        "{'type':'minecraft:block','pools':[{'rolls':1,'entries':[{'type':'minecraft:loot_table',"
+            + "'value':'minecraft:blocks/ta'}]}]}");
+    LootLoadResult result = load(files);
+    List<String> messages =
+        result.findings().stream()
+            .filter(f -> f.finding().code() == LootFindingCode.REFERENCE_CYCLE)
+            .map(f -> f.finding().message())
+            .toList();
+    assertThat(messages).isNotEmpty();
+    assertThat(messages)
+        .allSatisfy(
+            message ->
+                assertThat(message).containsAnyOf("minecraft:blocks/ta", "minecraft:blocks/tb"));
+  }
 }

@@ -5,21 +5,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.shoko.minecraft.core.random.Lcg48Random;
 import dev.shoko.minecraft.data.id.Identifier;
-import dev.shoko.minecraft.item.recipe.RecipeSet;
 import dev.shoko.minecraft.loot.LootBudgetException;
-import dev.shoko.minecraft.loot.assembly.LootDataLoader;
 import dev.shoko.minecraft.loot.assembly.LootLoadResult;
 import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.loot.number.IntProvider;
 import dev.shoko.minecraft.loot.predicate.LootCondition;
 import dev.shoko.minecraft.loot.table.LootTable;
 import dev.shoko.minecraft.loot.testing.Ctx;
-import dev.shoko.minecraft.loot.testing.LootItems;
-import dev.shoko.minecraft.loot.testing.MiniDatapack;
+import dev.shoko.minecraft.loot.testing.NamedDags;
 import dev.shoko.minecraft.loot.testing.Tables;
 import dev.shoko.minecraft.loot.testing.WatchedRandom;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -37,13 +33,6 @@ class NodeBudgetTest {
   private static final long WORK_LIMIT = 40_000_000L;
   private static final String TABLE = "blocks/uses";
 
-  private static LootLoadResult load(Map<String, String> files) {
-    Map<String, String> all = new LinkedHashMap<>(MiniDatapack.enchantmentFiles());
-    all.putAll(files);
-    return LootDataLoader.load(
-        MiniDatapack.load(all), LootItems.catalog(), RecipeSet.of(new LinkedHashMap<>()));
-  }
-
   private static LootContext context(LootLoadResult loaded, WatchedRandom random) {
     return LootContext.builder(loaded.data(), Ctx.ANY, random).build();
   }
@@ -58,35 +47,6 @@ class NodeBudgetTest {
         + ",'entries':[{'type':'minecraft:item','name':'minecraft:stone'}]}]}";
   }
 
-  private static Map<String, String> predicateDag(
-      int levels, String operator, String leaf, String suffix) {
-    Map<String, String> files = new LinkedHashMap<>();
-    for (int i = 0; i < levels; i++) {
-      String next = "'minecraft:" + suffix + (i + 1) + "'";
-      files.put(
-          "predicate/" + suffix + i,
-          "{'type':'minecraft:" + operator + "','terms':[" + next + "," + next + "]}");
-    }
-    files.put("predicate/" + suffix + levels, leaf);
-    return files;
-  }
-
-  private static Map<String, String> providerDag(
-      int levels, String operator, String leaf, String registry, String prefix) {
-    Map<String, String> files = new LinkedHashMap<>();
-    for (int i = 0; i < levels; i++) {
-      String next = "'minecraft:" + prefix + (i + 1) + "'";
-      files.put(
-          registry + "/" + prefix + i,
-          "{'type':'minecraft:" + operator + "','inputs':[" + next + "," + next + "]}");
-    }
-    files.put(registry + "/" + prefix + levels, leaf);
-    return files;
-  }
-
-  private static final String FALSE_LEAF = "{'type':'minecraft:random_chance','chance':0.0}";
-  private static final String TRUE_LEAF = "{'type':'minecraft:random_chance','chance':1.0}";
-
   private static LootResult draw(LootLoadResult loaded, WatchedRandom random) {
     return LootEvaluator.evaluate(Identifier.minecraft(TABLE), context(loaded, random));
   }
@@ -94,9 +54,9 @@ class NodeBudgetTest {
   @Test
   void provisionalANamedPredicateDagOfFortyLevelsEndsInABudgetError() {
     // spec: LT-R74f (2^40 evaluations of the leaf without the budget), LT-R74g
-    Map<String, String> files = predicateDag(40, "any_of", FALSE_LEAF, "p");
+    Map<String, String> files = NamedDags.predicateDag(40, "any_of", NamedDags.FALSE_LEAF, "p");
     files.put("loot_table/" + TABLE, tableWith("'rolls':1,'condition':['minecraft:p0']"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(loaded.data().tables().find(Identifier.minecraft(TABLE))).isPresent();
     assertThatThrownBy(() -> draw(loaded, watched())).isInstanceOf(LootBudgetException.class);
   }
@@ -105,10 +65,10 @@ class NodeBudgetTest {
   void provisionalANamedIntegerProviderDagOfFortyLevelsEndsInABudgetError() {
     // spec: LT-R74f (providers reached by named references are nodes), LT-R74g
     Map<String, String> files =
-        providerDag(
+        NamedDags.providerDag(
             40, "max", "{'type':'minecraft:uniform','min':0,'max':1}", "context_int_provider", "q");
     files.put("loot_table/" + TABLE, tableWith("'rolls':'minecraft:q0'"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(loaded.data().tables().find(Identifier.minecraft(TABLE))).isPresent();
     assertThatThrownBy(() -> draw(loaded, watched())).isInstanceOf(LootBudgetException.class);
   }
@@ -117,14 +77,14 @@ class NodeBudgetTest {
   void provisionalANamedFloatProviderDagOfFortyLevelsEndsInABudgetError() {
     // spec: LT-R74f, LT-R74g (the float family has its own sampler)
     Map<String, String> files =
-        providerDag(
+        NamedDags.providerDag(
             40,
             "avg",
             "{'type':'minecraft:uniform','min':0.0,'max':1.0}",
             "context_float_provider",
             "f");
     files.put("loot_table/" + TABLE, tableWith("'rolls':1,'bonus_rolls':'minecraft:f0'"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(loaded.data().tables().find(Identifier.minecraft(TABLE))).isPresent();
     assertThatThrownBy(() -> draw(loaded, watched())).isInstanceOf(LootBudgetException.class);
   }
@@ -133,9 +93,9 @@ class NodeBudgetTest {
   void provisionalAWideDagUnderTheBudgetIsEvaluatedWithoutError() {
     // spec: LT-R74f (about 2^16 nodes are far under the 1000000 of the budget): all_of of true
     // leaves keeps the pool, so that the result proves that the condition was fully evaluated
-    Map<String, String> files = predicateDag(15, "all_of", TRUE_LEAF, "w");
+    Map<String, String> files = NamedDags.predicateDag(15, "all_of", NamedDags.TRUE_LEAF, "w");
     files.put("loot_table/" + TABLE, tableWith("'rolls':1,'condition':['minecraft:w0']"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(draw(loaded, watched()).stacks()).hasSize(1);
   }
 
@@ -143,10 +103,10 @@ class NodeBudgetTest {
   void provisionalAWideIntegerProviderDagUnderTheBudgetIsEvaluatedWithoutError() {
     // spec: LT-R74f
     Map<String, String> files =
-        providerDag(
+        NamedDags.providerDag(
             14, "max", "{'type':'minecraft:uniform','min':1,'max':1}", "context_int_provider", "v");
     files.put("loot_table/" + TABLE, tableWith("'rolls':'minecraft:v0'"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(draw(loaded, watched()).stacks()).hasSize(1);
   }
 
@@ -154,9 +114,9 @@ class NodeBudgetTest {
   void provisionalNestedNodesCountEvenWhenTheTopLevelDecisionsAreFew() {
     // spec: LT-R74f (nested conditions are nodes): one pool, one condition at the top, about 2^21
     // nodes below it; the leaves draw 2^20 numbers, far under the limit of the watch
-    Map<String, String> files = predicateDag(20, "any_of", FALSE_LEAF, "n");
+    Map<String, String> files = NamedDags.predicateDag(20, "any_of", NamedDags.FALSE_LEAF, "n");
     files.put("loot_table/" + TABLE, tableWith("'rolls':1,'condition':['minecraft:n0']"));
-    LootLoadResult loaded = load(files);
+    LootLoadResult loaded = NamedDags.load(files);
     assertThat(loaded.data().tables().find(Identifier.minecraft(TABLE))).isPresent();
     assertThatThrownBy(() -> draw(loaded, watched())).isInstanceOf(LootBudgetException.class);
   }
@@ -180,7 +140,9 @@ class NodeBudgetTest {
     }
     assertThat(fails(low)).isFalse();
     assertThat(fails(low + 1)).isTrue();
-    assertThat(low).isBetween(1_000_000 - 16, 1_000_000);
+    // 5 nodes besides the conditions: the pool, its rolls, its bonus_rolls, the weighted
+    // selection and the table (accounting of the code at the time of writing, provisional)
+    assertThat(low).isEqualTo(1_000_000 - 5);
   }
 
   private static boolean fails(int conditions) {

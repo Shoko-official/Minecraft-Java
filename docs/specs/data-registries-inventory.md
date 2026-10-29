@@ -2,7 +2,7 @@
 
 Statut : brouillon
 Jalon : M2
-Risque : B
+Risque : A (comme `data-datapack-loading.md`)
 
 ## Périmètre
 

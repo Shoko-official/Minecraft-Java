@@ -14,8 +14,8 @@ Cible : Minecraft Java 26.3 (data version 5023 et protocole 777, confirmés par 
 
 | Module | Responsabilité | Dépendances directes |
 |---|---|---|
-| `engine/core` | RNG (legacy, xoroshiro, positionnel), `Mth` et tables, identifiants, NBT (binaire et SNBT), géométrie, utilitaires | rien |
-| `engine/data` | Infrastructure de chargement des datapacks : sources et priorités, arbres JSON, registres et références, combinateurs de codecs, tags (ADR 0005) | core |
+| `engine/core` | RNG (legacy, xoroshiro, positionnel), `Mth` et tables, NBT (binaire et SNBT), géométrie, utilitaires | rien |
+| `engine/data` | Infrastructure de chargement des datapacks : sources et priorités, arbres JSON, identifiants, registres et références, combinateurs de codecs, tags (ADR 0005) | core |
 | `engine/world` | Blocs et états, sections et palettes, chunks, heightmaps, lumière, fluides, ticks planifiés et aléatoires, stockage Anvil | data |
 | `engine/item` | Objets et composants, inventaires, recettes, algorithmes purs de clic de menu et de reconnaissance de recettes, références aux fournisseurs et prédicats (leur évaluation est dans `loot`, ADR 0004) | data |
 | `engine/loot` | Tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, sélection et coûts de la table d'enchantement, de l'enclume et de la meule, ports de contexte `EntityView` et `ActionSink` (ADR 0004) | world, item |

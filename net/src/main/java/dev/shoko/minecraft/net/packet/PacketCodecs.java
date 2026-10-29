@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.net.packet;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
 import dev.shoko.minecraft.net.buffer.PacketReader;
 import dev.shoko.minecraft.net.buffer.PacketWriter;
 import dev.shoko.minecraft.net.frame.Frame;
@@ -51,18 +52,19 @@ public final class PacketCodecs {
    * @param frame the frame
    * @return the packet
    * @throws ProtocolException with {@code UNKNOWN_PACKET_ID} when the id is not in the table of the
-   *     pair (R49), the failure of the field that is malformed (string or array too long, invalid
-   *     UTF-8 or identifier, bad NBT, unknown intention, truncated payload), or {@code
-   *     TRAILING_BYTES} when bytes remain after the last field
-   * @throws IllegalArgumentException when the packet type of the id exists but is not supported
-   *     (see {@link #isSupported(PacketType)})
+   *     pair (R49), {@code UNSUPPORTED_PACKET} when the id exists but the packet is not supported
+   *     (see {@link #isSupported(PacketType)}; the frame comes from the network, so this is a
+   *     protocol error and not a programming error), the failure of the field that is malformed
+   *     (string or array too long, invalid UTF-8 or identifier, bad NBT, unknown intention,
+   *     truncated payload), or {@code TRAILING_BYTES} when bytes remain after the last field
    */
   public static Packet decode(ConnectionState state, PacketDirection direction, Frame frame)
       throws ProtocolException {
     PacketType type = PacketRegistry.lookup(state, direction, frame.packetId());
     FieldDecoder decoder = DECODERS.get(type);
     if (decoder == null) {
-      throw new IllegalArgumentException("packet type not supported yet: " + type.packetName());
+      throw new ProtocolException(
+          Reason.UNSUPPORTED_PACKET, "packet not supported yet: " + type.packetName());
     }
     PacketReader in = frame.reader();
     Packet packet = decoder.decode(in);

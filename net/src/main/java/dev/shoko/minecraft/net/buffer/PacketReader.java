@@ -374,10 +374,14 @@ public final class PacketReader {
    *
    * @param bits the number of bits, 0 or more
    * @return the bit set; bits beyond {@code bits} in the last byte are ignored
+   * @throws IllegalArgumentException when {@code bits} is negative
    * @throws ProtocolException with {@code UNEXPECTED_END}
    */
   public BitSet readFixedBitSet(int bits) throws ProtocolException {
-    int length = (int) (((long) Math.max(bits, 0) + 7) / 8);
+    if (bits < 0) {
+      throw new IllegalArgumentException("negative bit count: " + bits);
+    }
+    int length = (int) (((long) bits + 7) / 8);
     int at = take(length);
     BitSet set = BitSet.valueOf(Arrays.copyOfRange(data, at, at + length));
     if (set.length() > bits) {

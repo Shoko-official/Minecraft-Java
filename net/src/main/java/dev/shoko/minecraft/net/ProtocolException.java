@@ -67,7 +67,12 @@ public final class ProtocolException extends Exception {
     /** A packet id that is not in the table of the current state and direction (R2, R49). */
     UNKNOWN_PACKET_ID,
     /** A packet that is not allowed in the current connection state (R34, R49). */
-    PACKET_NOT_ALLOWED
+    PACKET_NOT_ALLOWED,
+    /**
+     * A packet id of the table whose fields this module does not decode yet; the play packets come
+     * in a second batch (R2, R49).
+     */
+    UNSUPPORTED_PACKET
   }
 
   private final Reason reason;

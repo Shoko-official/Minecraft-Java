@@ -14,8 +14,12 @@ final class FieldLimits {
   /** Bytes with no documented maximum are bounded by the frame (R27, R90). */
   static final int BYTES = PacketWriter.DEFAULT_MAX_SIZE;
 
-  /** Arrays with no documented maximum are bounded by the bytes left in the frame (R90). */
-  static final int ARRAY = Integer.MAX_VALUE;
+  /**
+   * Elements of one array of a registry or tags packet, which have no documented maximum: a project
+   * choice (R90, R91) far above real data (35 723 block states, R61) that keeps a small frame from
+   * announcing millions of boxed elements.
+   */
+  static final int ARRAY = 1_000_000;
 
   private FieldLimits() {}
 }

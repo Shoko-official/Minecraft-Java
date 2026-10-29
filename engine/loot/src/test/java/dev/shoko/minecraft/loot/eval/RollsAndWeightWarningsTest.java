@@ -102,6 +102,76 @@ class RollsAndWeightWarningsTest {
     }
   }
 
+  private static LootPool rollsPool(int rolls, float bonus) {
+    return Tables.poolWith(
+        List.of(), new IntProvider.Constant(rolls), bonus, List.of(), Tables.empty(1));
+  }
+
+  private static int rolls(int rolls, float bonus, float luck) {
+    return LootEvaluator.rolls(
+        rollsPool(rolls, bonus), Ctx.builder(ScriptedRandom.of()).luck(luck).build());
+  }
+
+  @Test
+  void provisionalANegativeLuckNeverReducesTheNumberOfRolls() {
+    // spec: LT-R74i (floor(bonus x luck) is brought back to 0 before the sum), probe PL7
+    for (float luck : new float[] {-0.5f, -1f, -5f, -100f, -1e9f, -Float.MAX_VALUE}) {
+      assertThat(rolls(3, 1f, luck)).as("luck %s", luck).isEqualTo(3);
+      assertThat(rolls(1, 2f, luck)).as("luck %s", luck).isEqualTo(1);
+      assertThat(rolls(0, 1f, luck)).as("luck %s", luck).isZero();
+    }
+  }
+
+  @Test
+  void provisionalANegativeBonusRollsNeverReduceTheNumberOfRolls() {
+    // spec: LT-R74i (the clamp applies to the product, whichever factor is negative)
+    assertThat(rolls(3, -1f, 4f)).isEqualTo(3);
+    assertThat(rolls(3, -2.5f, 1f)).isEqualTo(3);
+    assertThat(rolls(3, Float.NEGATIVE_INFINITY, 1f)).isEqualTo(3);
+  }
+
+  @Test
+  void provisionalAPositiveProductOfTwoNegativeFactorsStillAddsRolls() {
+    // spec: LT-R19b, LT-R74i (only a negative product is brought back to 0)
+    assertThat(rolls(3, -1f, -2f)).isEqualTo(5);
+  }
+
+  @Test
+  void provisionalANaNBonusIsBroughtBackToZeroBeforeTheSum() {
+    // spec: LT-R74i (negative or NaN)
+    assertThat(rolls(3, Float.NaN, 2f)).isEqualTo(3);
+    assertThat(rolls(3, 1f, Float.NaN)).isEqualTo(3);
+    assertThat(rolls(3, 0f, Float.POSITIVE_INFINITY)).isEqualTo(3);
+    assertThat(rolls(3, 1f, Float.NEGATIVE_INFINITY)).isEqualTo(3);
+  }
+
+  @Test
+  void provisionalANegativeRollsValueStillGivesZeroWhateverTheBonus() {
+    // spec: LT-R6, LT-R74i (the clamp is on the bonus only, not on rolls)
+    assertThat(rolls(-2, 1f, -5f)).isZero();
+    assertThat(rolls(-2, 1f, 1f)).isZero();
+  }
+
+  @Test
+  void provisionalTheClampedBonusIsAddedBeforeTheCapOf4096() {
+    // spec: LT-R74a, LT-R74i (the sum is bounded to 4096, the bonus is at least 0)
+    assertThat(rolls(4000, 1f, 50f)).isEqualTo(4050);
+    assertThat(rolls(4000, 1f, 1000f)).isEqualTo(4096);
+    assertThat(rolls(4096, 1f, 1f)).isEqualTo(4096);
+    assertThat(rolls(4096, 1f, -1000f)).isEqualTo(4096);
+  }
+
+  @Test
+  void provisionalANegativeLuckKeepsTheNumberOfStacksOfTheRolls() {
+    // spec: LT-R74i, probe PL7 (the number of draws does not go under rolls)
+    LootTable table =
+        Tables.table(
+            Tables.poolWith(
+                List.of(), new IntProvider.Constant(2), 1f, List.of(), Tables.item("stone")));
+    LootContext context = Ctx.builder(ScriptedRandom.of()).luck(-4f).build();
+    assertThat(LootEvaluator.evaluate(table, context).stacks()).hasSize(2);
+  }
+
   @Test
   void provisionalAHugeBonusDrawsTheCappedNumberOfRollsAndNothingFails() {
     // spec: LT-R74a: a whole table drawn with luck 1e9 gives 4096 empty rolls, no stack, no error

@@ -18,6 +18,6 @@ public record LootTables(SequencedMap<Identifier, LootTable> tables) {
    * @return the table, empty when it is not loaded
    */
   public Optional<LootTable> find(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(tables.get(id));
   }
 }

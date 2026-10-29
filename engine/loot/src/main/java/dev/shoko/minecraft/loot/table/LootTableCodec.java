@@ -4,8 +4,10 @@ import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.item.registry.ItemCatalog;
+import dev.shoko.minecraft.loot.Findings;
 import dev.shoko.minecraft.loot.LootDecoding;
 import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.encode.TableJson;
 import dev.shoko.minecraft.loot.predicate.NamedPredicates;
 import java.util.List;
 
@@ -30,7 +32,9 @@ public final class LootTableCodec {
    */
   public static LootDecoding<LootTable> decode(
       JsonNode node, RegistryAccess access, ItemCatalog items) {
-    return Skeleton.throwNotImplemented();
+    Findings findings = new Findings();
+    LootTable table = new TableReader(access, items, findings).table(node);
+    return findings.result(table);
   }
 
   /**
@@ -41,7 +45,7 @@ public final class LootTableCodec {
    * @return compact JSON
    */
   public static String encode(LootTable table) {
-    return Skeleton.throwNotImplemented();
+    return TableJson.encode(table);
   }
 
   /**
@@ -59,6 +63,6 @@ public final class LootTableCodec {
    */
   public static List<LootFinding> checkReferences(
       Identifier self, LootTable table, LootTables known, NamedPredicates predicates) {
-    return Skeleton.throwNotImplemented();
+    return new TableReferences(self, known, predicates).check(table);
   }
 }

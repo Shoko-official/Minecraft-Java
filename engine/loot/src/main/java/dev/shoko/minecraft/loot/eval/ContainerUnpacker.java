@@ -1,8 +1,19 @@
 package dev.shoko.minecraft.loot.eval;
 
 import dev.shoko.minecraft.item.container.LootBinding;
+import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.loot.port.RandomSequenceStore;
+import dev.shoko.minecraft.loot.random.ChosenRandom;
+import dev.shoko.minecraft.loot.random.DrawReason;
+import dev.shoko.minecraft.loot.random.Draws;
+import dev.shoko.minecraft.loot.random.LootRandom;
+import dev.shoko.minecraft.loot.table.LootTable;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Unpacks a container that carries a loot table (LT-R68 to LT-R70). The caller removes {@code
@@ -33,6 +44,47 @@ public final class ContainerUnpacker {
       int containerSize,
       LootContext context,
       RandomSequenceStore sequences) {
-    return Skeleton.throwNotImplemented();
+    LootTable table = context.data().tables().find(binding.table()).orElse(null);
+    List<ItemStack> slots = new ArrayList<>(Collections.nCopies(containerSize, ItemStack.empty()));
+    if (table == null) {
+      return new UnpackResult(
+          List.copyOf(slots),
+          List.of(
+              new LootFinding(
+                  LootFindingCode.TABLE_NOT_FOUND,
+                  "$",
+                  "table is not loaded: " + binding.table())));
+    }
+    long seed = binding.seeded() ? binding.seed() : 0L;
+    ChosenRandom chosen =
+        LootRandom.choose(seed, table.randomSequence(), sequences, context.random());
+    LootContext drawn = context.withRandom(chosen.source());
+    LootResult result = LootEvaluator.evaluate(table, drawn);
+    place(result.stacks(), slots, drawn);
+    return new UnpackResult(List.copyOf(slots), result.findings());
+  }
+
+  /** Puts each stack in a free slot chosen uniformly, in order; stacks beyond the size are lost. */
+  private static void place(List<ItemStack> stacks, List<ItemStack> slots, LootContext context) {
+    List<Integer> free = new ArrayList<>();
+    for (int slot = 0; slot < slots.size(); slot++) {
+      free.add(slot);
+    }
+    for (ItemStack stack : stacks) {
+      if (free.isEmpty()) {
+        return;
+      }
+      int index =
+          Draws.observe(
+              context,
+              DrawReason.CONTAINER_PLACEMENT,
+              "container",
+              () -> context.random().nextInt(free.size()));
+      int position = index;
+      int slot = free.get(position);
+      free.set(position, free.getLast());
+      free.removeLast();
+      slots.set(slot, stack);
+    }
   }
 }

@@ -16,6 +16,10 @@ public final class WeightMath {
    * @return the effective weight; 0 means the entry is never chosen
    */
   public static int effectiveWeight(int weight, int quality, float luck) {
-    return Skeleton.throwNotImplemented();
+    float bonus = quality * luck;
+    double floored = Float.isNaN(bonus) ? 0.0 : Math.floor(bonus);
+    long total =
+        (long) weight + (long) Math.max(-Integer.MAX_VALUE, Math.min(Integer.MAX_VALUE, floored));
+    return (int) Math.max(0L, Math.min(Integer.MAX_VALUE, total));
   }
 }

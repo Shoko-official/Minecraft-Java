@@ -1,12 +1,20 @@
 package dev.shoko.minecraft.loot.eval;
 
+import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.item.registry.ItemType;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
+import dev.shoko.minecraft.loot.random.DrawReason;
+import dev.shoko.minecraft.loot.random.Draws;
 import dev.shoko.minecraft.loot.table.LootEntry;
 import dev.shoko.minecraft.loot.table.LootPool;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Turns the entries of a pool into the candidates of one roll (LT-R20 to LT-R22). */
 public final class EntryExpander {
+
+  private static final Identifier ITEM_REGISTRY = Identifier.minecraft("item");
 
   private EntryExpander() {}
 
@@ -24,7 +32,16 @@ public final class EntryExpander {
    * @return the candidates in the order of the pool
    */
   public static List<Candidate> candidates(LootPool pool, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    List<Candidate> candidates = new ArrayList<>();
+    for (LootEntry entry : pool.entries()) {
+      for (LootEntry simple : expand(entry, context)) {
+        int weight = WeightMath.effectiveWeight(simple.weight(), simple.quality(), context.luck());
+        if (weight > 0) {
+          candidates.add(new Candidate(simple, weight));
+        }
+      }
+    }
+    return candidates;
   }
 
   /**
@@ -35,6 +52,67 @@ public final class EntryExpander {
    * @return the simple entries it stands for, empty when its conditions fail
    */
   public static List<LootEntry> expand(LootEntry entry, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    List<LootEntry> out = new ArrayList<>();
+    expand(entry, context, out);
+    return out;
+  }
+
+  /** Expands an entry into {@code out}; tells whether the entry succeeded (LT-R21). */
+  private static boolean expand(LootEntry entry, LootContext context, List<LootEntry> out) {
+    if (!Draws.allHold(context, DrawReason.ENTRY_CONDITION, "entry", entry.conditions())) {
+      return false;
+    }
+    return switch (entry.kind()) {
+      case LootEntry.Kind.Alternatives alternatives -> alternatives(alternatives, context, out);
+      case LootEntry.Kind.Sequence sequence -> sequence(sequence, context, out);
+      case LootEntry.Kind.Group group -> {
+        for (LootEntry child : group.children()) {
+          expand(child, context, out);
+        }
+        yield true;
+      }
+      case LootEntry.Kind.Tag tag when tag.expand() -> expandTag(entry, tag, context, out);
+      default -> out.add(entry);
+    };
+  }
+
+  private static boolean alternatives(
+      LootEntry.Kind.Alternatives alternatives, LootContext context, List<LootEntry> out) {
+    for (LootEntry child : alternatives.children()) {
+      List<LootEntry> chosen = new ArrayList<>();
+      if (expand(child, context, chosen)) {
+        out.addAll(chosen);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean sequence(
+      LootEntry.Kind.Sequence sequence, LootContext context, List<LootEntry> out) {
+    for (LootEntry child : sequence.children()) {
+      if (!expand(child, context, out)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean expandTag(
+      LootEntry entry, LootEntry.Kind.Tag tag, LootContext context, List<LootEntry> out) {
+    IdOrTagSet members = new IdOrTagSet(ITEM_REGISTRY, List.of(), List.of(tag.tag()), false);
+    for (Identifier id : members.members(context.data().registries())) {
+      ItemType item = context.data().items().find(id).orElse(null);
+      if (item != null) {
+        out.add(
+            new LootEntry(
+                List.of(),
+                entry.weight(),
+                entry.quality(),
+                entry.modifiers(),
+                new LootEntry.Kind.Item(item)));
+      }
+    }
+    return true;
   }
 }

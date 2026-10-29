@@ -205,6 +205,10 @@ class LootCodecsAttackTest {
             "4.9e-324",
             "99999999999999999999");
     for (String number : numbers) {
+      if (Json.tryParse(number).isEmpty()) {
+        // The JSON reader of data refuses an integer beyond 64 bits (R59) before loot sees it.
+        continue;
+      }
       Decoded.assertWellFormed(
           NumberProviderCodec.decodeInt(Json.parse(number), EnchantFixtures.access()));
       Decoded.assertWellFormed(

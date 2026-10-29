@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.item.menu.click;
 
 import dev.shoko.minecraft.item.menu.MenuLayout;
+import java.util.List;
 
 /**
  * Applies clicks to the state of one menu type (IC-R40a to IC-R47b). Stateless: the state is an
@@ -14,7 +15,13 @@ import dev.shoko.minecraft.item.menu.MenuLayout;
  */
 public final class MenuEngine {
 
-  private MenuEngine() {}
+  private final MenuLayout layout;
+  private final MenuPorts ports;
+
+  private MenuEngine(MenuLayout layout, MenuPorts ports) {
+    this.layout = layout;
+    this.ports = ports;
+  }
 
   /**
    * Creates an engine for a menu type.
@@ -24,7 +31,7 @@ public final class MenuEngine {
    * @return the engine
    */
   public static MenuEngine of(MenuLayout layout, MenuPorts ports) {
-    return Skeleton.throwNotImplemented();
+    return new MenuEngine(layout, ports);
   }
 
   /**
@@ -36,6 +43,29 @@ public final class MenuEngine {
    * @throws IllegalArgumentException when the state does not have the slots of the layout
    */
   public ClickResult click(MenuState state, ClickOperation operation) {
-    return Skeleton.throwNotImplemented();
+    if (state.slots().size() != layout.slotCount()) {
+      throw new IllegalArgumentException(
+          "the state has " + state.slots().size() + " slots, the layout " + layout.slotCount());
+    }
+    Workspace ws = new Workspace(layout, ports, state);
+    ClickEffect effect = apply(ws, operation);
+    if (effect != ClickEffect.APPLIED) {
+      return new ClickResult(state, List.of(), effect);
+    }
+    return new ClickResult(ws.toState(), ws.thrown(), ClickEffect.APPLIED);
+  }
+
+  private static ClickEffect apply(Workspace ws, ClickOperation operation) {
+    return switch (operation) {
+      case ClickOperation.Pickup op -> PickupClick.run(ws, op.slot(), op.button());
+      case ClickOperation.QuickMove op -> QuickMove.run(ws, op.slot());
+      case ClickOperation.SwapWithHotbar op ->
+          SwapClick.withHotbar(ws, op.slot(), op.hotbarIndex());
+      case ClickOperation.SwapWithOffhand op -> SwapClick.withOffhand(ws, op.slot());
+      case ClickOperation.Throw op -> ThrowClick.fromSlot(ws, op.slot(), op.wholeStack());
+      case ClickOperation.ClickOutside op -> ThrowClick.fromCursor(ws, op.button());
+      case ClickOperation.Drag op -> DragClick.run(ws, op.button(), op.slots());
+      case ClickOperation.DoubleClick op -> GatherClick.run(ws, op.slot());
+    };
   }
 }

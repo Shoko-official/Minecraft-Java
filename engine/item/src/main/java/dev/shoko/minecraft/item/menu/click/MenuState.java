@@ -10,4 +10,15 @@ import java.util.List;
  * @param slots every slot of the menu in index order, empty stacks for empty slots, unmodifiable
  * @param cursor the stack held by the player, empty when none
  */
-public record MenuState(List<ItemStack> slots, ItemStack cursor) {}
+public record MenuState(List<ItemStack> slots, ItemStack cursor) {
+
+  /**
+   * Copies the slots.
+   *
+   * @param slots every slot of the menu in index order
+   * @param cursor the stack held by the player
+   */
+  public MenuState {
+    slots = List.copyOf(slots);
+  }
+}

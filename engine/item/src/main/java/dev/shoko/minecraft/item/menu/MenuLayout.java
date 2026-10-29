@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.item.menu;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -13,12 +14,22 @@ import java.util.List;
 public record MenuLayout(Identifier menuType, List<SlotRole> roles) {
 
   /**
+   * Copies the roles.
+   *
+   * @param menuType the {@code menu} registry entry
+   * @param roles the role of each slot
+   */
+  public MenuLayout {
+    roles = List.copyOf(roles);
+  }
+
+  /**
    * Returns the total number of slots.
    *
    * @return the size of {@link #roles()}
    */
   public int slotCount() {
-    return Skeleton.throwNotImplemented();
+    return roles.size();
   }
 
   /**
@@ -28,7 +39,18 @@ public record MenuLayout(Identifier menuType, List<SlotRole> roles) {
    * @return the maximal runs of consecutive indices with that role, empty when there is none
    */
   public List<SlotRange> ranges(SlotRole role) {
-    return Skeleton.throwNotImplemented();
+    List<SlotRange> ranges = new ArrayList<>();
+    int start = -1;
+    for (int slot = 0; slot <= roles.size(); slot++) {
+      boolean inRun = slot < roles.size() && roles.get(slot) == role;
+      if (inRun && start < 0) {
+        start = slot;
+      } else if (!inRun && start >= 0) {
+        ranges.add(new SlotRange(start, slot));
+        start = -1;
+      }
+    }
+    return List.copyOf(ranges);
   }
 
   /**
@@ -37,6 +59,6 @@ public record MenuLayout(Identifier menuType, List<SlotRole> roles) {
    * @return {@code false} for the lectern only
    */
   public boolean includesPlayerInventory() {
-    return Skeleton.throwNotImplemented();
+    return roles.contains(SlotRole.PLAYER_MAIN);
   }
 }

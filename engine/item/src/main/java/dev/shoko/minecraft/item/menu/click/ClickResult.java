@@ -13,4 +13,16 @@ import java.util.List;
  * @param thrown the stacks thrown to the ground, in order, empty when none
  * @param effect what the click did
  */
-public record ClickResult(MenuState state, List<ItemStack> thrown, ClickEffect effect) {}
+public record ClickResult(MenuState state, List<ItemStack> thrown, ClickEffect effect) {
+
+  /**
+   * Copies the thrown stacks.
+   *
+   * @param state the state after the click
+   * @param thrown the stacks thrown to the ground
+   * @param effect what the click did
+   */
+  public ClickResult {
+    thrown = List.copyOf(thrown);
+  }
+}

@@ -65,6 +65,6 @@ Les adresses suivent le schéma `https://minecraft.wiki/w/<Titre_de_la_page>` (l
 
 Ces sources ne sont pas sous CC BY-NC-SA 3.0 ; leurs conditions propres ne sont pas établies par ce dépôt et sont à vérifier avant toute reprise de texte.
 
-- `world-anvil-region.md` : ancienne page « Map Format » de wiki.vg (miroir `wikivg.booky.dev`), bibliothèque lz4-java (code source public, consulté pour le format de trame), spécifications publiques de LZ4 et de XXH32, RFC 1950 et RFC 1952.
+- `world-anvil-region.md` : ancienne page « Map Format » de wiki.vg (miroir `wikivg.booky.dev`), bibliothèque lz4-java (code source public, consulté pour le format de trame), spécifications publiques de LZ4 et de XXH32, RFC 1950 et RFC 1952 ; page « Naming Files, Paths, and Namespaces » de la documentation Microsoft (https://learn.microsoft.com/en-us/windows/win32/fileio/naming-a-file, consultée le 2026-10-29 : noms réservés de périphériques DOS, noms finissant par un point).
 - `core-nbt.md` : documentation de l'API Java SE (`java.io.DataInput`), RFC 1950 et RFC 1952.
 - Les données extraites du jeu de référence (D) appartiennent à leur titulaire et restent hors du dépôt (ADR 0003).

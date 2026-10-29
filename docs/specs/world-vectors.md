@@ -518,6 +518,18 @@ Variantes `wrong_pos`, `bad_offset` et `offset_beyond` de RG3, même procédure 
 
 Variantes `root_named`, `trailing_bytes`, `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb`, `compression_127` de RG4, même procédure que PB1. Attendus provisoires (notre moteur) : `root_named` et `trailing_bytes` PRÉSENTS (bedrock à y = -64) ; `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb` ABSENTS, donc régénérés (dirt à y = -63) ; `compression_127` REFUSÉ (l'attente W expire). Relever le comportement réel et le journal du serveur (chunk régénéré, chunk non chargé, arrêt, mémoire consommée pour `bomb`), puis, après `save-all flush`, si l'enregistrement d'origine de l'index 1023 de `r.-1.-1.mca` a été conservé ou écrasé : un écrasement par le serveur justifie AR-R30 a et b ; une conservation les fait passer à REFUSÉ.
 
+### PR7 : chemin de dimension avec un séparateur (AR-R34, R35)
+
+Datapack de sonde produit à la volée comme DP6 de `dim-definitions-portals-vectors.md` (jamais commité), avec `data/probe/dimension/a/b.json` (dimension plate), de sorte que l'identifiant est `probe:a/b`. Démarrage, puis :
+
+```
+execute in probe:a/b run forceload add 0 0
+W(0, 0)
+save-all flush
+```
+
+Relever : la réponse de `forceload` (identifiant accepté ou refusé), le journal du serveur, et la liste récursive de `world/dimensions/probe/`. Attendu provisoire (notre moteur) : l'identifiant est refusé et aucun dossier n'est créé. Le serveur peut en décider autrement : identifiant accepté avec des dossiers imbriqués `dimensions/probe/a/b/region/`, identifiant accepté avec un dossier unique dont le nom encode le `/`, ou identifiant refusé. Critère de succès : l'arborescence relevée tranche entre ces trois cas ; les deux premiers font réviser AR-R34 et AR-R35 pour accepter l'identifiant.
+
 ## Annexe : `world_ref.py`
 
 ```python

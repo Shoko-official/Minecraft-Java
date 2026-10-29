@@ -10,6 +10,8 @@ import dev.shoko.minecraft.loot.testing.Ctx;
 import dev.shoko.minecraft.loot.testing.CustomEnchants;
 import dev.shoko.minecraft.loot.testing.LootItems;
 import dev.shoko.minecraft.loot.testing.Sets;
+import dev.shoko.minecraft.loot.testing.WatchedRandom;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.junit.jupiter.api.Test;
@@ -115,6 +117,74 @@ class TableBookTest {
           EnchantmentSelection.enchantRandomly(
               LootItems.stack("book"), Sets.anyEnchantment(), true, context);
       assertThat(LootItems.storedOf(result)).hasSize(1);
+    }
+  }
+
+  private static final class Recorded {
+    final int size;
+    final List<String> calls;
+
+    Recorded(int size, List<String> calls) {
+      this.size = size;
+      this.calls = calls;
+    }
+  }
+
+  private static Recorded recordedOffer(LootData data, ItemStack stack, long seed) {
+    WatchedRandom random = WatchedRandom.recording(Lcg48Random.ofSeed(seed));
+    EnchantOffer offer = EnchantingTable.offer(stack, 30, 2, random, data);
+    return new Recorded(offer.enchantments().levels().size(), random.calls());
+  }
+
+  @Test
+  void provisionalTheRemovalOfABookOfThreeSelectedIsOneNextIntOfThreeAfterTheLoop() {
+    // spec: EN-R45, H-livre-tirage: with N = 3 selected the book keeps 2; the removal is a single
+    // nextInt(3) taken right after the last decision of the loop (a nextInt(50)), and it is the
+    // last draw of the offer. Recorded: [... nextInt(50), nextInt(3)]
+    int checked = 0;
+    for (long seed = 1; seed <= SEEDS; seed++) {
+      Recorded recorded = recordedOffer(triple(), LootItems.stack("book"), seed);
+      if (recorded.size != 2) {
+        continue;
+      }
+      checked++;
+      List<String> tail = recorded.calls.subList(recorded.calls.size() - 2, recorded.calls.size());
+      assertThat(tail).as("seed %s", seed).containsExactly("nextInt(50)", "nextInt(3)");
+    }
+    assertThat(checked).isGreaterThan(SEEDS / 20);
+  }
+
+  @Test
+  void provisionalABookKeepingOneOfThreeSelectedEndsWithANextIntOfTwoOrNoRemovalAtAll() {
+    // spec: EN-R45, H-livre-tirage: N = 2 gives 1 through a single nextInt(2) after the loop; N = 1
+    // makes no removal draw, so the offer ends on the last decision of the loop (nextInt(50))
+    int removed = 0;
+    int untouched = 0;
+    for (long seed = 1; seed <= SEEDS; seed++) {
+      Recorded recorded = recordedOffer(triple(), LootItems.stack("book"), seed);
+      if (recorded.size != 1) {
+        continue;
+      }
+      String last = recorded.calls.getLast();
+      assertThat(last).as("seed %s", seed).isIn("nextInt(50)", "nextInt(2)");
+      if (last.equals("nextInt(2)")) {
+        removed++;
+        assertThat(recorded.calls.get(recorded.calls.size() - 2)).isEqualTo("nextInt(50)");
+      } else {
+        untouched++;
+      }
+    }
+    assertThat(removed).isGreaterThan(SEEDS / 20);
+    assertThat(untouched).isGreaterThan(SEEDS / 20);
+  }
+
+  @Test
+  void provisionalASwordOfTheTableEndsOnTheLastDecisionOfTheLoopWithNoRemovalDraw() {
+    // spec: EN-R45 (the removal concerns books only): whatever the sword keeps, its offer ends on
+    // the nextInt(50) of the loop
+    for (long seed = 1; seed <= SEEDS; seed++) {
+      Recorded recorded = recordedOffer(triple(), LootItems.stack("diamond_sword"), seed);
+      assertThat(recorded.calls.getLast()).as("seed %s", seed).isEqualTo("nextInt(50)");
     }
   }
 }

@@ -230,4 +230,57 @@ class ModifierBoundariesTest {
     assertThat(result.count()).isEqualTo(2);
     assertThat(random.steps()).isZero();
   }
+
+  private static ModifierAction uniformLooting(float min, float max) {
+    return new ModifierAction.EnchantedCountIncrease(
+        new FloatProvider.Uniform(new FloatProvider.Constant(min), new FloatProvider.Constant(max)),
+        Identifier.minecraft("looting"),
+        0);
+  }
+
+  private static ItemStack lootingResult(int level, ScriptedRandom random) {
+    return ModifierApplier.apply(
+            Tables.modifier(uniformLooting(1f, 3f)),
+            LootItems.stack("beef"),
+            withLooting(level, random))
+        .stack();
+  }
+
+  @Test
+  void provisionalTheLootingBonusDrawsTheCountOncePerLevel() {
+    // spec: LT-R43, H-eci-a (the number of draws of count equals the level; H-eci-b would draw once
+    // and multiply): uniform 1 to 3 at level 3 takes 3 draws, 1.5 + 2.0 + 2.75 = 6.25 rounded
+    // down to 6, added to the stack of 1
+    ScriptedRandom random = ScriptedRandom.of(0.25, 0.5, 0.875);
+    assertThat(lootingResult(3, random).count()).isEqualTo(7);
+    assertThat(random.steps()).isEqualTo(3);
+    assertThat(random.remaining()).isZero();
+  }
+
+  @Test
+  void provisionalTheLootingBonusDrawsAsManyTimesAsTheLevel() {
+    // spec: LT-R43, H-eci-a
+    for (int level = 1; level <= 5; level++) {
+      ScriptedRandom random = ScriptedRandom.repeating(0.5, 10);
+      ItemStack result = lootingResult(level, random);
+      assertThat(random.steps()).as("level %s", level).isEqualTo(level);
+      assertThat(result.count()).as("level %s", level).isEqualTo(1 + 2 * level);
+    }
+  }
+
+  @Test
+  void provisionalTheLootingBonusSumsDistinctDrawsNotOneDrawTimesTheLevel() {
+    // spec: LT-R43, H-eci-a: draws 0.0 then 0.999 at level 2 give 1.0 + 2.998 = 3.998, so +3; one
+    // draw of 0.0 times the level 2 (H-eci-b) would give +2
+    ScriptedRandom random = ScriptedRandom.of(0.0, 0.999);
+    assertThat(lootingResult(2, random).count()).isEqualTo(4);
+  }
+
+  @Test
+  void provisionalTheLootingBonusAtLevelZeroDrawsNothingWithAnAttackerWithoutTheEnchantment() {
+    // spec: LT-R43, H-eci0-a (level 0: no draw, the stack is unchanged)
+    ScriptedRandom random = ScriptedRandom.of();
+    assertThat(lootingResult(0, random).count()).isEqualTo(1);
+    assertThat(random.steps()).isZero();
+  }
 }

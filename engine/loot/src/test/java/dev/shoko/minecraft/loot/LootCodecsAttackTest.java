@@ -196,19 +196,9 @@ class LootCodecsAttackTest {
   void numbersAtTheLimitsAreRefusedOrAcceptedCleanly() {
     // spec: LT-R6 (rolls), LT-R39 (set_count), EN-R10 (levels up to 255)
     List<String> numbers =
-        List.of(
-            "2147483647",
-            "-2147483648",
-            "2147483648",
-            "1e308",
-            "-0.0",
-            "4.9e-324",
-            "99999999999999999999");
+        List.of("2147483647", "-2147483648", "2147483648", "1e308", "-0.0", "4.9e-324");
     for (String number : numbers) {
-      if (Json.tryParse(number).isEmpty()) {
-        // The JSON reader of data refuses an integer beyond 64 bits (R59) before loot sees it.
-        continue;
-      }
+      assertThat(Json.tryParse(number)).as(number).isPresent();
       Decoded.assertWellFormed(
           NumberProviderCodec.decodeInt(Json.parse(number), EnchantFixtures.access()));
       Decoded.assertWellFormed(
@@ -220,5 +210,23 @@ class LootCodecsAttackTest {
               EnchantFixtures.access(),
               LootItems.catalog()));
     }
+  }
+
+  @Test
+  void integersBeyondSixtyFourBitsAreRefusedByTheJsonReaderBeforeLootSeesThem() {
+    // spec: data-datapack-loading R59 (an integer that does not fit 64 bits is refused when the
+    // file is read), LT-R6: the numbers below are never given to the loot decoders
+    for (String number :
+        List.of(
+            "99999999999999999999",
+            "-99999999999999999999",
+            "9223372036854775808",
+            "-9223372036854775809",
+            "18446744073709551616")) {
+      assertThat(Json.tryParse(number)).as(number).isEmpty();
+      assertThat(Json.tryParse("{\"rolls\":" + number + "}")).as(number).isEmpty();
+    }
+    assertThat(Json.tryParse("9223372036854775807")).isPresent();
+    assertThat(Json.tryParse("-9223372036854775808")).isPresent();
   }
 }

@@ -121,4 +121,27 @@ class AnvilHuntTest {
                 false);
     assertThat(m.levelCost()).isEqualTo(2);
   }
+
+  private static ItemStack worn(String path, int damage) {
+    return stack(path)
+        .withComponent(WellKnownComponents.DAMAGE, new ComponentValue(new IntTag(damage)));
+  }
+
+  @Test
+  void provisionalAMergeOfItemsBrokenPastTheMaximumStaysBetweenZeroAndTheMaximum() {
+    // spec: EN-R42b (remaining = max(0, max_damage - damage), result in [0, max_damage]), real
+    // definitions: the diamond sword has 1561 durability, the bonus is floor(12 percent) = 187
+    int max = 1561;
+    var both =
+        (AnvilResult.Output)
+            run(worn("diamond_sword", 2000), worn("diamond_sword", 2000), "", false);
+    assertThat(both.result().damage()).isEqualTo(max - 187);
+    var intact =
+        (AnvilResult.Output) run(worn("diamond_sword", 5000), worn("diamond_sword", 0), "", false);
+    assertThat(intact.result().damage()).isZero();
+    var viaSacrifice =
+        (AnvilResult.Output)
+            run(worn("diamond_sword", 1000), worn("diamond_sword", Integer.MAX_VALUE), "", false);
+    assertThat(viaSacrifice.result().damage()).isEqualTo(max - (561 + 187));
+  }
 }

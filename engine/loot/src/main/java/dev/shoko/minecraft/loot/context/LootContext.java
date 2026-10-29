@@ -4,6 +4,7 @@ import dev.shoko.minecraft.core.coord.BlockPos;
 import dev.shoko.minecraft.core.coord.ChunkPos;
 import dev.shoko.minecraft.core.coord.Vec3;
 import dev.shoko.minecraft.core.random.RandomSource;
+import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.stack.ItemStack;
 import dev.shoko.minecraft.loot.assembly.LootData;
 import dev.shoko.minecraft.loot.port.EntityView;
@@ -11,6 +12,9 @@ import dev.shoko.minecraft.loot.random.DrawObserver;
 import dev.shoko.minecraft.world.block.BlockState;
 import dev.shoko.minecraft.world.chunk.BlockEntityData;
 import dev.shoko.minecraft.world.chunk.Chunk;
+import java.util.EnumMap;
+import java.util.EnumSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
@@ -29,7 +33,43 @@ import java.util.function.Function;
  */
 public final class LootContext {
 
-  private LootContext() {}
+  private static final Identifier BLOCK_TYPE = Identifier.minecraft("block");
+
+  private final LootData data;
+  private final LootContextType type;
+  private final RandomSource random;
+  private final Map<ContextKey, Object> values;
+  private final float luck;
+  private final LevelFacts level;
+  private final Function<ChunkPos, Optional<Chunk>> chunks;
+  private final DrawObserver observer;
+
+  private LootContext(
+      LootData data,
+      LootContextType type,
+      RandomSource random,
+      Map<ContextKey, Object> values,
+      Extras extras) {
+    this.data = data;
+    this.type = type;
+    this.random = random;
+    this.values = values;
+    this.luck = extras.luck();
+    this.level = extras.level();
+    this.chunks = extras.chunks();
+    this.observer = extras.observer();
+  }
+
+  /** The parts of a context that are not named parameters. */
+  private record Extras(
+      float luck,
+      LevelFacts level,
+      Function<ChunkPos, Optional<Chunk>> chunks,
+      DrawObserver observer) {}
+
+  private Extras extras() {
+    return new Extras(luck, level, chunks, observer);
+  }
 
   /**
    * Starts a context.
@@ -40,7 +80,7 @@ public final class LootContext {
    * @return a builder with no parameter, luck 0 and no observer
    */
   public static Builder builder(LootData data, LootContextType type, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return new Builder(data, type, random);
   }
 
   /**
@@ -54,7 +94,8 @@ public final class LootContext {
    * @return the context, of type {@code minecraft:block}
    */
   public static LootContext forBlock(LootData data, BlockState machine, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    LootContextType block = LootContextTypes.find(BLOCK_TYPE).orElseThrow();
+    return builder(data, block, random).blockState(machine).build();
   }
 
   /**
@@ -63,7 +104,7 @@ public final class LootContext {
    * @return the data
    */
   public LootData data() {
-    return Skeleton.throwNotImplemented();
+    return data;
   }
 
   /**
@@ -72,7 +113,7 @@ public final class LootContext {
    * @return the type
    */
   public LootContextType type() {
-    return Skeleton.throwNotImplemented();
+    return type;
   }
 
   /**
@@ -81,7 +122,7 @@ public final class LootContext {
    * @return the source
    */
   public RandomSource random() {
-    return Skeleton.throwNotImplemented();
+    return random;
   }
 
   /**
@@ -90,7 +131,7 @@ public final class LootContext {
    * @return the luck, 0 when the caller gave none
    */
   public float luck() {
-    return Skeleton.throwNotImplemented();
+    return luck;
   }
 
   /**
@@ -99,7 +140,7 @@ public final class LootContext {
    * @return the observer, {@link DrawObserver#NONE} when the caller gave none
    */
   public DrawObserver observer() {
-    return Skeleton.throwNotImplemented();
+    return observer;
   }
 
   /**
@@ -109,7 +150,7 @@ public final class LootContext {
    *     time_check} then fail)
    */
   public Optional<LevelFacts> level() {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(level);
   }
 
   /**
@@ -119,7 +160,10 @@ public final class LootContext {
    * @return the chunk, empty when the caller gave no chunk source or the chunk is not loaded
    */
   public Optional<Chunk> chunkAt(BlockPos pos) {
-    return Skeleton.throwNotImplemented();
+    if (chunks == null) {
+      return Optional.empty();
+    }
+    return chunks.apply(new ChunkPos(Math.floorDiv(pos.x(), 16), Math.floorDiv(pos.z(), 16)));
   }
 
   /**
@@ -128,7 +172,7 @@ public final class LootContext {
    * @return the origin, empty when absent
    */
   public Optional<Vec3> origin() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.ORIGIN, Vec3.class);
   }
 
   /**
@@ -138,7 +182,7 @@ public final class LootContext {
    * @return the entity, empty when the parameter is absent
    */
   public Optional<EntityView> entity(EntityTarget target) {
-    return Skeleton.throwNotImplemented();
+    return read(target.contextKey(), EntityView.class);
   }
 
   /**
@@ -147,7 +191,7 @@ public final class LootContext {
    * @return the damage source, empty when absent
    */
   public Optional<DamageSourceData> damageSource() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.DAMAGE_SOURCE, DamageSourceData.class);
   }
 
   /**
@@ -156,7 +200,7 @@ public final class LootContext {
    * @return the tool, empty when absent
    */
   public Optional<ItemStack> tool() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.TOOL, ItemStack.class);
   }
 
   /**
@@ -165,7 +209,7 @@ public final class LootContext {
    * @return the state, empty when absent
    */
   public Optional<BlockState> blockState() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.BLOCK_STATE, BlockState.class);
   }
 
   /**
@@ -174,7 +218,7 @@ public final class LootContext {
    * @return the block entity, empty when absent
    */
   public Optional<BlockEntityData> blockEntity() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.BLOCK_ENTITY, BlockEntityData.class);
   }
 
   /**
@@ -183,7 +227,9 @@ public final class LootContext {
    * @return the radius, empty when absent
    */
   public OptionalDouble explosionRadius() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.EXPLOSION_RADIUS, Float.class)
+        .map(radius -> OptionalDouble.of(radius))
+        .orElse(OptionalDouble.empty());
   }
 
   /**
@@ -192,7 +238,9 @@ public final class LootContext {
    * @return the level, empty when absent
    */
   public OptionalInt enchantmentLevel() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.ENCHANTMENT_LEVEL, Integer.class)
+        .map(value -> OptionalInt.of(value))
+        .orElse(OptionalInt.empty());
   }
 
   /**
@@ -201,7 +249,7 @@ public final class LootContext {
    * @return whether the enchantment is active, empty when absent
    */
   public Optional<Boolean> enchantmentActive() {
-    return Skeleton.throwNotImplemented();
+    return read(ContextKey.ENCHANTMENT_ACTIVE, Boolean.class);
   }
 
   /**
@@ -210,7 +258,13 @@ public final class LootContext {
    * @return the missing keys, empty when the context is complete
    */
   public Set<ContextKey> missingRequiredKeys() {
-    return Skeleton.throwNotImplemented();
+    Set<ContextKey> missing = EnumSet.noneOf(ContextKey.class);
+    for (ContextKey key : type.required()) {
+      if (!values.containsKey(key)) {
+        missing.add(key);
+      }
+    }
+    return missing;
   }
 
   /**
@@ -221,7 +275,7 @@ public final class LootContext {
    * @return the context
    */
   public LootContext withRandom(RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return new LootContext(data, type, random, values, extras());
   }
 
   /**
@@ -233,13 +287,51 @@ public final class LootContext {
    * @return the context
    */
   public LootContext withEnchantment(int level, boolean active, ItemStack tool) {
-    return Skeleton.throwNotImplemented();
+    Map<ContextKey, Object> copy = new EnumMap<>(ContextKey.class);
+    copy.putAll(values);
+    copy.put(ContextKey.ENCHANTMENT_LEVEL, level);
+    copy.put(ContextKey.ENCHANTMENT_ACTIVE, active);
+    copy.put(ContextKey.TOOL, tool);
+    return new LootContext(data, type, random, copy, extras());
+  }
+
+  /**
+   * Returns the same context with the enchantment level and active flag of one effect evaluation,
+   * leaving the tool as it is.
+   *
+   * @param level the level of the enchantment on the item
+   * @param active whether the enchantment is active in the slot
+   * @return the context
+   */
+  public LootContext withEnchantment(int level, boolean active) {
+    Map<ContextKey, Object> copy = new EnumMap<>(ContextKey.class);
+    copy.putAll(values);
+    copy.put(ContextKey.ENCHANTMENT_LEVEL, level);
+    copy.put(ContextKey.ENCHANTMENT_ACTIVE, active);
+    return new LootContext(data, type, random, copy, extras());
+  }
+
+  private <T> Optional<T> read(ContextKey key, Class<T> kind) {
+    return Optional.ofNullable(values.get(key)).map(kind::cast);
   }
 
   /** Builds a {@link LootContext}. Not thread-safe; use once. */
   public static final class Builder {
 
-    private Builder() {}
+    private final LootData data;
+    private final LootContextType type;
+    private final RandomSource random;
+    private final Map<ContextKey, Object> values = new EnumMap<>(ContextKey.class);
+    private float luck;
+    private LevelFacts level;
+    private Function<ChunkPos, Optional<Chunk>> chunks;
+    private DrawObserver observer = DrawObserver.NONE;
+
+    private Builder(LootData data, LootContextType type, RandomSource random) {
+      this.data = data;
+      this.type = type;
+      this.random = random;
+    }
 
     /**
      * Sets {@link ContextKey#ORIGIN}.
@@ -248,7 +340,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder origin(Vec3 origin) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.ORIGIN, origin);
     }
 
     /**
@@ -259,7 +351,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder entity(EntityTarget target, EntityView entity) {
-      return Skeleton.throwNotImplemented();
+      return put(target.contextKey(), entity);
     }
 
     /**
@@ -269,7 +361,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder damageSource(DamageSourceData source) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.DAMAGE_SOURCE, source);
     }
 
     /**
@@ -279,7 +371,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder tool(ItemStack tool) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.TOOL, tool);
     }
 
     /**
@@ -289,7 +381,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder blockState(BlockState state) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.BLOCK_STATE, state);
     }
 
     /**
@@ -299,7 +391,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder blockEntity(BlockEntityData blockEntity) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.BLOCK_ENTITY, blockEntity);
     }
 
     /**
@@ -309,7 +401,7 @@ public final class LootContext {
      * @return this builder
      */
     public Builder explosionRadius(float radius) {
-      return Skeleton.throwNotImplemented();
+      return put(ContextKey.EXPLOSION_RADIUS, radius);
     }
 
     /**
@@ -320,7 +412,8 @@ public final class LootContext {
      * @return this builder
      */
     public Builder enchantment(int level, boolean active) {
-      return Skeleton.throwNotImplemented();
+      put(ContextKey.ENCHANTMENT_LEVEL, level);
+      return put(ContextKey.ENCHANTMENT_ACTIVE, active);
     }
 
     /**
@@ -330,7 +423,8 @@ public final class LootContext {
      * @return this builder
      */
     public Builder luck(float luck) {
-      return Skeleton.throwNotImplemented();
+      this.luck = luck;
+      return this;
     }
 
     /**
@@ -340,7 +434,8 @@ public final class LootContext {
      * @return this builder
      */
     public Builder level(LevelFacts facts) {
-      return Skeleton.throwNotImplemented();
+      this.level = facts;
+      return this;
     }
 
     /**
@@ -350,7 +445,8 @@ public final class LootContext {
      * @return this builder
      */
     public Builder chunks(Function<ChunkPos, Optional<Chunk>> chunks) {
-      return Skeleton.throwNotImplemented();
+      this.chunks = chunks;
+      return this;
     }
 
     /**
@@ -360,7 +456,8 @@ public final class LootContext {
      * @return this builder
      */
     public Builder observer(DrawObserver observer) {
-      return Skeleton.throwNotImplemented();
+      this.observer = observer;
+      return this;
     }
 
     /**
@@ -370,7 +467,14 @@ public final class LootContext {
      * @return the context
      */
     public LootContext build() {
-      return Skeleton.throwNotImplemented();
+      Map<ContextKey, Object> copy = new EnumMap<>(ContextKey.class);
+      copy.putAll(values);
+      return new LootContext(data, type, random, copy, new Extras(luck, level, chunks, observer));
+    }
+
+    private Builder put(ContextKey key, Object value) {
+      values.put(key, value);
+      return this;
     }
   }
 }

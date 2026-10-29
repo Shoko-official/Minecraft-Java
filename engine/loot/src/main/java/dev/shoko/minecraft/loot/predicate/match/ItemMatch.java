@@ -4,6 +4,7 @@ import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.Map;
 import java.util.SequencedMap;
 
 /**
@@ -33,6 +34,21 @@ public record ItemMatch(
    * @return {@code true} when it matches
    */
   public boolean matches(ItemStack stack, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    if (stack.isEmpty()
+        || !items.contains(stack.type().id(), access)
+        || !count.contains(stack.count())) {
+      return false;
+    }
+    for (Map.Entry<Identifier, JsonNode> entry : componentPredicates.entrySet()) {
+      if (!ComponentPredicates.matches(entry.getKey(), entry.getValue(), stack, access)) {
+        return false;
+      }
+    }
+    for (Identifier component : exactComponents.keySet()) {
+      if (stack.component(component).isEmpty()) {
+        return false;
+      }
+    }
+    return true;
   }
 }

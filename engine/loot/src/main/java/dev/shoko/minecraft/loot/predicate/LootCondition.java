@@ -58,7 +58,7 @@ public sealed interface LootCondition
    * @return the answer and its cause
    */
   default ConditionResult test(LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return ConditionEvaluator.test(this, context, 0);
   }
 
   /**

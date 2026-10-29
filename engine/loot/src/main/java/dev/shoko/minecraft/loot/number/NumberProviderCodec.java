@@ -4,13 +4,24 @@ import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.loader.ElementRegistryData;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
+import dev.shoko.minecraft.loot.Findings;
 import dev.shoko.minecraft.loot.LootDecoding;
+import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.LootFindingCode;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.SequencedMap;
 
 /**
  * Decodes number providers from their JSON form (LT-R50). A number is a constant, an object has a
  * {@code type} among the registered types, a string is a reference to a named provider. Findings
  * carry the JSON path.
+ *
+ * <p>Shapes not shown by the data (provisional): {@code add}, {@code mul}, {@code min}, {@code max}
+ * and {@code avg} read an {@code inputs} list, {@code sub}, {@code div}, {@code mod}, {@code pow},
+ * {@code floor_div} and {@code floor_mod} read {@code left} and {@code right}, the unary operators
+ * and the conversions read {@code argument}.
  */
 public final class NumberProviderCodec {
 
@@ -26,7 +37,7 @@ public final class NumberProviderCodec {
    *     it once every provider is read ({@code UNRESOLVED_REFERENCE})
    */
   public static LootDecoding<IntProvider> decodeInt(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return new Decoders(access).ints.decode(node);
   }
 
   /**
@@ -37,7 +48,7 @@ public final class NumberProviderCodec {
    * @return the provider; failures as in {@link #decodeInt}, with the 28 float types
    */
   public static LootDecoding<FloatProvider> decodeFloat(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return new Decoders(access).floats.decode(node);
   }
 
   /**
@@ -51,7 +62,26 @@ public final class NumberProviderCodec {
    */
   public static LootDecoding<NumberProviderSet> decodeSet(
       ElementRegistryData ints, ElementRegistryData floats, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    Findings findings = new Findings();
+    SequencedMap<Identifier, IntProvider> intMap = new LinkedHashMap<>();
+    for (Map.Entry<Identifier, JsonNode> element : ints.elements().entrySet()) {
+      LootDecoding<IntProvider> decoded = decodeInt(element.getValue(), access);
+      findings.addAll(prefixed(element.getKey(), decoded.findings()));
+      if (decoded instanceof LootDecoding.Success<IntProvider> success) {
+        intMap.put(element.getKey(), success.value());
+      }
+    }
+    SequencedMap<Identifier, FloatProvider> floatMap = new LinkedHashMap<>();
+    for (Map.Entry<Identifier, JsonNode> element : floats.elements().entrySet()) {
+      LootDecoding<FloatProvider> decoded = decodeFloat(element.getValue(), access);
+      findings.addAll(prefixed(element.getKey(), decoded.findings()));
+      if (decoded instanceof LootDecoding.Success<FloatProvider> success) {
+        floatMap.put(element.getKey(), success.value());
+      }
+    }
+    NumberProviderSet set = new NumberProviderSet(intMap, floatMap);
+    findings.addAll(ProviderReferences.unresolved(set));
+    return findings.result(set);
   }
 
   /**
@@ -61,6 +91,21 @@ public final class NumberProviderCodec {
    * @return the type identifiers in registry order
    */
   public static List<Identifier> registeredTypes(boolean floats) {
-    return Skeleton.throwNotImplemented();
+    return (floats ? Decoders.FLOAT_TYPES : Decoders.INT_TYPES)
+        .stream().map(Identifier::minecraft).toList();
+  }
+
+  private static List<LootFinding> prefixed(Identifier element, List<LootFinding> findings) {
+    return findings.stream()
+        .map(f -> new LootFinding(f.code(), f.path(), element + ": " + f.message()))
+        .toList();
+  }
+
+  /** Marks that a reference problem belongs to a named element. */
+  static LootFinding unresolved(Identifier owner, Identifier target) {
+    return new LootFinding(
+        LootFindingCode.UNRESOLVED_REFERENCE,
+        "$",
+        owner + " references missing provider " + target);
   }
 }

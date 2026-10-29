@@ -1,7 +1,9 @@
 package dev.shoko.minecraft.loot.predicate.match;
 
+import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.world.block.BlockState;
+import java.util.Map;
 import java.util.SequencedMap;
 
 /**
@@ -24,6 +26,16 @@ public record BlockMatch(IdOrTagSet blocks, SequencedMap<String, String> state) 
    * @return {@code true} when it matches
    */
   public boolean matches(BlockState candidate, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    Identifier id = Identifier.tryParse(candidate.block().id()).orElse(null);
+    if (id == null || !blocks.contains(id, access)) {
+      return false;
+    }
+    for (Map.Entry<String, String> expected : state.entrySet()) {
+      if (candidate.block().property(expected.getKey()).isEmpty()
+          || !candidate.value(expected.getKey()).equals(expected.getValue())) {
+        return false;
+      }
+    }
+    return true;
   }
 }

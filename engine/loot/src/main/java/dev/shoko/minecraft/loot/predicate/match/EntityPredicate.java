@@ -153,6 +153,11 @@ public record EntityPredicate(List<Check> checks) {
    * @return {@code true} when every check holds
    */
   public boolean matches(EntityView entity, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    for (Check check : checks) {
+      if (!EntityChecks.holds(check, entity, context)) {
+        return false;
+      }
+    }
+    return true;
   }
 }

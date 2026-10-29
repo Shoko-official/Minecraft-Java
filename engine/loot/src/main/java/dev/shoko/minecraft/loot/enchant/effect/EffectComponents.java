@@ -19,6 +19,6 @@ public record EffectComponents(SequencedMap<Identifier, EffectComponentValue> co
    * @return the value, empty when the enchantment has no such component
    */
   public Optional<EffectComponentValue> get(Identifier component) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(components.get(component));
   }
 }

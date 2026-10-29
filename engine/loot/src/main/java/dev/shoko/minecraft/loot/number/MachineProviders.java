@@ -1,10 +1,12 @@
 package dev.shoko.minecraft.loot.number;
 
 import dev.shoko.minecraft.core.random.RandomSource;
+import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.reference.BrewingFuelRef;
 import dev.shoko.minecraft.item.reference.CompostRef;
 import dev.shoko.minecraft.item.reference.FuelRef;
 import dev.shoko.minecraft.loot.assembly.LootData;
+import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.world.block.BlockState;
 
 /**
@@ -30,7 +32,7 @@ public final class MachineProviders {
    * @throws IllegalStateException when the provider is not loaded
    */
   public static int burnTime(LootData data, FuelRef fuel, BlockState machine, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return intProvider(data, fuel.burnTime()).sample(LootContext.forBlock(data, machine, random));
   }
 
   /**
@@ -45,7 +47,8 @@ public final class MachineProviders {
    */
   public static float cookingSpeed(
       LootData data, FuelRef fuel, BlockState machine, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return floatProvider(data, fuel.speedMultiplier())
+        .sample(LootContext.forBlock(data, machine, random));
   }
 
   /**
@@ -61,7 +64,8 @@ public final class MachineProviders {
    */
   public static int compostLayers(
       LootData data, CompostRef compost, BlockState composter, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return intProvider(data, compost.layers())
+        .sample(LootContext.forBlock(data, composter, random));
   }
 
   /**
@@ -76,7 +80,8 @@ public final class MachineProviders {
    */
   public static float brewingSpeed(
       LootData data, BrewingFuelRef fuel, BlockState stand, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return floatProvider(data, fuel.speedMultiplier())
+        .sample(LootContext.forBlock(data, stand, random));
   }
 
   /**
@@ -91,6 +96,18 @@ public final class MachineProviders {
    */
   public static int brewingUses(
       LootData data, BrewingFuelRef fuel, BlockState stand, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    return intProvider(data, fuel.uses()).sample(LootContext.forBlock(data, stand, random));
+  }
+
+  private static IntProvider intProvider(LootData data, Identifier id) {
+    return data.numbers()
+        .intProvider(id)
+        .orElseThrow(() -> new IllegalStateException("provider not loaded: " + id));
+  }
+
+  private static FloatProvider floatProvider(LootData data, Identifier id) {
+    return data.numbers()
+        .floatProvider(id)
+        .orElseThrow(() -> new IllegalStateException("provider not loaded: " + id));
   }
 }

@@ -35,6 +35,21 @@ public enum SlotGroup {
    * @return {@code true} when the group covers it
    */
   public boolean contains(EquipmentSlot slot) {
-    return Skeleton.throwNotImplemented();
+    return switch (this) {
+      case MAINHAND -> slot == EquipmentSlot.MAINHAND;
+      case OFFHAND -> slot == EquipmentSlot.OFFHAND;
+      case HAND -> slot == EquipmentSlot.MAINHAND || slot == EquipmentSlot.OFFHAND;
+      case HEAD -> slot == EquipmentSlot.HEAD;
+      case CHEST -> slot == EquipmentSlot.CHEST;
+      case LEGS -> slot == EquipmentSlot.LEGS;
+      case FEET -> slot == EquipmentSlot.FEET;
+      case ARMOR ->
+          slot == EquipmentSlot.HEAD
+              || slot == EquipmentSlot.CHEST
+              || slot == EquipmentSlot.LEGS
+              || slot == EquipmentSlot.FEET;
+      case ANY -> true;
+      case BODY -> slot == EquipmentSlot.BODY;
+    };
   }
 }

@@ -74,7 +74,7 @@ public sealed interface FloatProvider
    * @throws IllegalStateException when a {@link Reference} names a provider that is not loaded
    */
   default float sample(LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return FloatSampler.sample(this, context, 0);
   }
 
   /**

@@ -19,6 +19,6 @@ public record NamedPredicates(SequencedMap<Identifier, LootCondition> predicates
    * @return the condition, empty when it is not loaded (a reference to it is an error, LT-R61b)
    */
   public Optional<LootCondition> find(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(predicates.get(id));
   }
 }

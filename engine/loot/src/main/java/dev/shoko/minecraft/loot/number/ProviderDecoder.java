@@ -140,11 +140,11 @@ final class ProviderDecoder<T> {
       return family.arithmetic(type, operands(fields, findings));
     }
     if (type.equals("pow")) {
-      // LT-R79 (provisional): pow reads base and exponent.
-      return family.arithmetic(
-          type,
-          new ArrayList<>(
-              List.of(child(fields, "base", findings), child(fields, "exponent", findings))));
+      // LT-R79 (provisional): pow reads base and exponent; a missing one is a finding.
+      List<T> operands = new ArrayList<>();
+      operands.add(child(fields, "base", findings));
+      operands.add(child(fields, "exponent", findings));
+      return family.arithmetic(type, operands);
     }
     if (BINARY.contains(type)) {
       List<T> operands = new ArrayList<>();

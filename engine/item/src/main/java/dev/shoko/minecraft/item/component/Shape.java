@@ -21,8 +21,13 @@ sealed interface Shape {
    */
   record IdSet() implements Shape {}
 
-  /** An integer that fits an {@code Int}. */
-  record IntS() implements Shape {}
+  /**
+   * An integer that fits an {@code Int} and lies in a range.
+   *
+   * @param min the smallest value accepted
+   * @param max the largest value accepted
+   */
+  record IntS(int min, int max) implements Shape {}
 
   /** A number read as a double, then converted to a {@code Float} (IC-R13). */
   record FloatS() implements Shape {}

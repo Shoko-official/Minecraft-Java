@@ -31,7 +31,12 @@ final class ShapeTable {
   private static final Shape STR = new Str();
   private static final Shape IDENT = new Ident();
   private static final Shape ID_SET = new IdSet();
-  private static final Shape INT = new IntS();
+  private static final Shape INT = new IntS(Integer.MIN_VALUE, Integer.MAX_VALUE);
+  private static final Shape NON_NEGATIVE = new IntS(0, Integer.MAX_VALUE);
+
+  /** IC-R22 (provisional): an enchantment level lies in 1 to 255. */
+  private static final Shape LEVEL = new IntS(1, 255);
+
   private static final Shape FLOAT = new FloatS();
   private static final Shape DOUBLE = new DoubleS();
   private static final Shape BOOL = new BoolS();
@@ -110,13 +115,13 @@ final class ShapeTable {
         Map.entry("consumable", consumable()),
         Map.entry("container", new ListOf(obj(req("slot", INT), req("item", COMPOUND)))),
         Map.entry("cooking_fuel", obj(req("burn_time", IDENT), req("speed_multiplier", IDENT))),
-        Map.entry("damage", INT),
+        Map.entry("damage", NON_NEGATIVE),
         Map.entry("damage_resistant", obj(req("types", ID_SET))),
         Map.entry("death_protection", obj(opt("death_effects", COMPOUND_LIST))),
         Map.entry("debug_stick_state", COMPOUND),
         Map.entry("enchantable", obj(req("value", INT))),
         Map.entry("enchantment_glint_override", BOOL),
-        Map.entry("enchantments", new MapOf(INT)),
+        Map.entry("enchantments", new MapOf(LEVEL)),
         Map.entry("entity_data", COMPOUND),
         Map.entry("equippable", equippable()),
         Map.entry("fireworks", obj(opt("flight_duration", INT), opt("explosions", ANY_LIST))),
@@ -152,11 +157,11 @@ final class ShapeTable {
         Map.entry("repairable", obj(req("items", ID_SET))),
         Map.entry("sign_text_back", signText()),
         Map.entry("sign_text_front", signText()),
-        Map.entry("stored_enchantments", new MapOf(INT)),
+        Map.entry("stored_enchantments", new MapOf(LEVEL)),
         Map.entry("suspicious_stew_effects", COMPOUND_LIST),
         Map.entry("tool", tool()),
         Map.entry("tooltip_display", COMPOUND),
-        Map.entry("use_cooldown", obj(req("seconds", FLOAT), opt("cooldown_group", IDENT))),
+        Map.entry("use_cooldown", obj(opt("seconds", FLOAT))),
         Map.entry(
             "use_effects",
             obj(
@@ -175,8 +180,7 @@ final class ShapeTable {
   /** Types absent from the prototypes (IC-R9b, provisional). */
   private static Map<String, Shape> documented() {
     return Map.ofEntries(
-        Map.entry(
-            "trim", obj(req("material", ANY), req("pattern", ANY), opt("show_in_tooltip", BOOL))),
+        Map.entry("trim", obj(req("material", ANY), req("pattern", ANY))),
         Map.entry("unbreakable", COMPOUND),
         Map.entry("custom_data", COMPOUND),
         Map.entry("custom_model_data", COMPOUND),

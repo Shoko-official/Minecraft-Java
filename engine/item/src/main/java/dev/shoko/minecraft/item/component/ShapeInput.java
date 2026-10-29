@@ -39,6 +39,12 @@ interface ShapeInput<T> {
   /** The value of an {@link Kind#INTEGER} or {@link Kind#DECIMAL}. */
   double decimal(T value);
 
+  /**
+   * The bits of the float that a number stands for: those of a float tag as they are, the nearest
+   * float for any other number.
+   */
+  int floatBits(T value);
+
   /** The value of a {@link Kind#BOOLEAN}. */
   boolean bool(T value);
 

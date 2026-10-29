@@ -27,6 +27,10 @@ public enum FindingCode {
   NON_POSITIVE_COUNT(Severity.WARNING),
   /** A slot index of a container list outside the container, or a missing or mistyped slot. */
   INVALID_SLOT(Severity.WARNING),
+  /**
+   * A key given twice once normalized, such as {@code sharpness} and {@code minecraft:sharpness}.
+   */
+  DUPLICATE_KEY(Severity.ERROR),
   /** The command text form of a stack is malformed (IC-R29). */
   TEXT_SYNTAX(Severity.ERROR),
   /** Nested stacks deeper than the supported depth (IC-R23, probe PI4). */

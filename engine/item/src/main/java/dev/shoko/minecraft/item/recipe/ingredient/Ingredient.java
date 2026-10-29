@@ -1,8 +1,10 @@
 package dev.shoko.minecraft.item.recipe.ingredient;
 
+import dev.shoko.minecraft.data.registry.Holder;
 import dev.shoko.minecraft.data.registry.HolderSet;
 import dev.shoko.minecraft.item.registry.ItemType;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.List;
 
 /**
  * The items a recipe slot accepts (RC-R9, RC-R17). Only the item is tested, never the components of
@@ -13,13 +15,15 @@ import dev.shoko.minecraft.item.stack.ItemStack;
  */
 public record Ingredient(HolderSet<ItemType> items) {
 
+  private static final Ingredient NONE = new Ingredient(HolderSet.list(List.of()));
+
   /**
    * Returns the ingredient of an empty cell of a shaped pattern: it accepts only the empty stack.
    *
    * @return the empty-cell ingredient
    */
   public static Ingredient none() {
-    return Skeleton.throwNotImplemented();
+    return NONE;
   }
 
   /**
@@ -28,7 +32,7 @@ public record Ingredient(HolderSet<ItemType> items) {
    * @return {@code true} for {@link #none()}
    */
   public boolean isNone() {
-    return Skeleton.throwNotImplemented();
+    return items == NONE.items;
   }
 
   /**
@@ -40,6 +44,17 @@ public record Ingredient(HolderSet<ItemType> items) {
    * @throws IllegalStateException when the ingredient is a tag that is not loaded
    */
   public boolean matches(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    if (isNone()) {
+      return stack.isEmpty();
+    }
+    if (stack.isEmpty()) {
+      return false;
+    }
+    for (Holder<ItemType> holder : items.holders()) {
+      if (holder.id().orElseGet(() -> holder.value().id()).equals(stack.type().id())) {
+        return true;
+      }
+    }
+    return false;
   }
 }

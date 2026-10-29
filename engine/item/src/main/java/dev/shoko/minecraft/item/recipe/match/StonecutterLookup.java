@@ -1,14 +1,21 @@
 package dev.shoko.minecraft.item.recipe.match;
 
+import dev.shoko.minecraft.item.recipe.Recipe;
 import dev.shoko.minecraft.item.recipe.RecipeSet;
+import dev.shoko.minecraft.item.recipe.RecipeType;
 import dev.shoko.minecraft.item.recipe.StonecuttingRecipe;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.ArrayList;
 import java.util.List;
 
 /** Lists the stonecutter recipes offered for an input (RC-R38). Each use consumes one unit. */
 public final class StonecutterLookup {
 
-  private StonecutterLookup() {}
+  private final RecipeSet recipes;
+
+  private StonecutterLookup(RecipeSet recipes) {
+    this.recipes = recipes;
+  }
 
   /**
    * Creates a lookup.
@@ -17,7 +24,7 @@ public final class StonecutterLookup {
    * @return the lookup
    */
   public static StonecutterLookup of(RecipeSet recipes) {
-    return Skeleton.throwNotImplemented();
+    return new StonecutterLookup(recipes);
   }
 
   /**
@@ -28,6 +35,15 @@ public final class StonecutterLookup {
    *     RC-R38, probe PR5), empty for an empty stack or an input nothing cuts
    */
   public List<StonecuttingRecipe> recipesFor(ItemStack input) {
-    return Skeleton.throwNotImplemented();
+    List<StonecuttingRecipe> offered = new ArrayList<>();
+    if (input.isEmpty()) {
+      return offered;
+    }
+    for (Recipe recipe : recipes.ofType(RecipeType.STONECUTTING)) {
+      if (recipe instanceof StonecuttingRecipe cutting && cutting.ingredient().matches(input)) {
+        offered.add(cutting);
+      }
+    }
+    return offered;
   }
 }

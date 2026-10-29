@@ -24,6 +24,6 @@ public record BrewingRecipe(Identifier id, BrewingInput input, Ingredient reagen
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.BREWING;
   }
 }

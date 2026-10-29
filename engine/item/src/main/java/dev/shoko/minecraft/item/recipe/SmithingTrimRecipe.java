@@ -24,6 +24,6 @@ public record SmithingTrimRecipe(
    */
   @Override
   public RecipeType type() {
-    return Skeleton.throwNotImplemented();
+    return RecipeType.SMITHING;
   }
 }

@@ -1,9 +1,15 @@
 package dev.shoko.minecraft.item.recipe;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.SequencedMap;
+import java.util.TreeMap;
 
 /**
  * The loaded recipes, in resolution order. When several recipes of one machine accept the same
@@ -12,7 +18,22 @@ import java.util.SequencedMap;
  */
 public final class RecipeSet {
 
-  private RecipeSet() {}
+  private final List<Recipe> all;
+  // Lookup only: never iterated, so its order is not observable.
+  private final Map<Identifier, Recipe> byId;
+  private final Map<RecipeType, List<Recipe>> byType;
+
+  private RecipeSet(List<Recipe> all, Map<Identifier, Recipe> byId) {
+    this.all = all;
+    this.byId = byId;
+    Map<RecipeType, List<Recipe>> grouped = new EnumMap<>(RecipeType.class);
+    for (RecipeType type : RecipeType.values()) {
+      grouped.put(type, new ArrayList<>());
+    }
+    all.forEach(recipe -> grouped.get(recipe.type()).add(recipe));
+    grouped.replaceAll((type, recipes) -> Collections.unmodifiableList(recipes));
+    this.byType = grouped;
+  }
 
   /**
    * Builds a set.
@@ -22,7 +43,15 @@ public final class RecipeSet {
    * @throws IllegalArgumentException when a key differs from the identifier of its recipe
    */
   public static RecipeSet of(SequencedMap<Identifier, Recipe> recipes) {
-    return Skeleton.throwNotImplemented();
+    Map<Identifier, Recipe> sorted = new TreeMap<>();
+    recipes.forEach(
+        (id, recipe) -> {
+          if (!id.equals(recipe.id())) {
+            throw new IllegalArgumentException("key " + id + " holds the recipe " + recipe.id());
+          }
+          sorted.put(id, recipe);
+        });
+    return new RecipeSet(List.copyOf(sorted.values()), new HashMap<>(sorted));
   }
 
   /**
@@ -31,7 +60,7 @@ public final class RecipeSet {
    * @return the size, 2042 for the reference data
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return all.size();
   }
 
   /**
@@ -41,7 +70,7 @@ public final class RecipeSet {
    * @return the recipe, or empty when none has this identifier
    */
   public Optional<Recipe> get(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(byId.get(id));
   }
 
   /**
@@ -50,7 +79,7 @@ public final class RecipeSet {
    * @return the recipes, unmodifiable
    */
   public List<Recipe> all() {
-    return Skeleton.throwNotImplemented();
+    return all;
   }
 
   /**
@@ -60,6 +89,6 @@ public final class RecipeSet {
    * @return the recipes, unmodifiable
    */
   public List<Recipe> ofType(RecipeType type) {
-    return Skeleton.throwNotImplemented();
+    return byType.get(type);
   }
 }

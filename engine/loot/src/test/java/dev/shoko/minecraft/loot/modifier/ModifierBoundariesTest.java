@@ -351,4 +351,18 @@ class ModifierBoundariesTest {
                     Tables.modifier(new ModifierAction.ExplosionDecay()), pile, withRadius(4f)))
         .isInstanceOf(dev.shoko.minecraft.loot.LootBudgetException.class);
   }
+
+  @Test
+  void provisionalALootingBonusThatSumsToNaNAddsNothing() {
+    // spec: LT-R43, LT-R74e: a NaN sum adds 0, the stack is unchanged
+    ItemStack beef = LootItems.stack("beef", 5);
+    assertThat(runLooting(Float.NaN, 3, beef).count()).isEqualTo(5);
+  }
+
+  @Test
+  void provisionalALootingBonusThatSumsToMinusInfinityEmptiesTheStack() {
+    // spec: LT-R43, LT-R74e: -infinity saturates downward, the count is 0 (never wrapped upward)
+    ItemStack beef = LootItems.stack("beef", 5);
+    assertThat(runLooting(Float.NEGATIVE_INFINITY, 3, beef).count()).isZero();
+  }
 }

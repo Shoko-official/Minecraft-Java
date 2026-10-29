@@ -6,6 +6,7 @@ import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.LootFinding;
 import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.port.RandomSequenceStore;
 import dev.shoko.minecraft.loot.random.ChosenRandom;
 import dev.shoko.minecraft.loot.random.DrawReason;
@@ -98,6 +99,16 @@ public final class LootEvaluator {
    * @return the number of rolls, 0 or more
    */
   public static int rolls(LootPool pool, LootContext context) {
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return drawRolls(pool, context);
+    } finally {
+      budget.exit();
+    }
+  }
+
+  private static int drawRolls(LootPool pool, LootContext context) {
     return Draws.observe(
         context,
         DrawReason.POOL_ROLLS,

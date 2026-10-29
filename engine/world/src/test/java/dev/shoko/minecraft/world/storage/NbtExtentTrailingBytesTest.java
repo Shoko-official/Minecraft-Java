@@ -82,121 +82,125 @@ class NbtExtentTrailingBytesTest {
     };
   }
 
+  private static Arguments shape(String name, byte[] tag) {
+    return Arguments.of(name, tag);
+  }
+
+  private static Arguments listShape(String name, int elementType, int count) {
+    return shape(name, tag(TYPE_LIST, "extra", listHeader(elementType, count)));
+  }
+
   // The shapes of a document that stress the measure of the root.
   static Stream<Arguments> documents() {
-    Stream<Arguments> negativeFixedLists =
+    return Stream.of(negativeLists(), emptyAndOddLists(), strings(), nested(), sized())
+        .flatMap(stream -> stream);
+  }
+
+  private static Stream<Arguments> negativeLists() {
+    return IntStream.rangeClosed(TYPE_BYTE, 6)
+        .boxed()
+        .flatMap(
+            type ->
+                Stream.of(
+                    listShape("list of type " + type + " of length -1", type, -1),
+                    listShape(
+                        "list of type " + type + " of length MIN_VALUE", type, Integer.MIN_VALUE)));
+  }
+
+  private static Stream<Arguments> emptyAndOddLists() {
+    return Stream.of(
+        listShape("list of Int of length 0", TYPE_INT, 0),
+        listShape("list of Compound of length -1", TYPE_COMPOUND, -1),
+        listShape("list of End of length -1", 0, -1),
+        shape(
+            "list of Int of length 1",
+            tag(
+                TYPE_LIST,
+                "extra",
+                out -> {
+                  listHeader(TYPE_INT, 1).write(out);
+                  out.writeInt(7);
+                })));
+  }
+
+  private static Stream<Arguments> strings() {
+    return Stream.of(
+        shape("string of 32767 bytes", tag(TYPE_STRING, "extra", stringOf(32_767))),
+        shape("string of 32768 bytes", tag(TYPE_STRING, "extra", stringOf(32_768))),
+        shape("string of 40000 bytes", tag(TYPE_STRING, "extra", stringOf(40_000))),
+        shape("string of 65535 bytes", tag(TYPE_STRING, "extra", stringOf(65_535))),
+        shape("key of 40000 bytes", tag(TYPE_BYTE, "k".repeat(40_000), out -> out.writeByte(1))),
+        shape("key of 65535 bytes", tag(TYPE_BYTE, "k".repeat(65_535), out -> out.writeByte(1))));
+  }
+
+  private static Stream<Arguments> nested() {
+    return Stream.of(
+        shape(
+            "list of two lists of Int of length -1",
+            tag(
+                TYPE_LIST,
+                "extra",
+                out -> {
+                  listHeader(TYPE_LIST, 2).write(out);
+                  listHeader(TYPE_INT, -1).write(out);
+                  listHeader(TYPE_INT, -1).write(out);
+                })),
+        shape(
+            "list of list of list of Long of length -1",
+            tag(
+                TYPE_LIST,
+                "extra",
+                out -> {
+                  listHeader(TYPE_LIST, 1).write(out);
+                  listHeader(TYPE_LIST, 1).write(out);
+                  listHeader(4, -1).write(out);
+                })),
+        shape(
+            "list of Compound holding a negative list and a long string",
+            tag(
+                TYPE_LIST,
+                "extra",
+                out -> {
+                  listHeader(TYPE_COMPOUND, 2).write(out);
+                  for (int element = 0; element < 2; element++) {
+                    out.write(tag(TYPE_LIST, "inner", listHeader(TYPE_INT, -1)));
+                    out.write(tag(TYPE_STRING, "text", stringOf(33_000)));
+                    out.writeByte(0);
+                  }
+                })));
+  }
+
+  private static Stream<Arguments> sized() {
+    return Stream.concat(
         IntStream.rangeClosed(TYPE_BYTE, 6)
-            .boxed()
-            .flatMap(
+            .mapToObj(
                 type ->
-                    Stream.of(
-                        Arguments.of(
-                            "list of type " + type + " of length -1",
-                            tag(TYPE_LIST, "extra", listHeader(type, -1))),
-                        Arguments.of(
-                            "list of type " + type + " of length MIN_VALUE",
-                            tag(TYPE_LIST, "extra", listHeader(type, Integer.MIN_VALUE)))));
-    Stream<Arguments> others =
+                    shape(
+                        "list of type " + type + " of length 3",
+                        tag(
+                            TYPE_LIST,
+                            "extra",
+                            out -> {
+                              listHeader(type, 3).write(out);
+                              out.write(new byte[3 * FIXED_SIZE[type]]);
+                            }))),
         Stream.of(
-            Arguments.of(
-                "list of Int of length 0", tag(TYPE_LIST, "extra", listHeader(TYPE_INT, 0))),
-            Arguments.of(
-                "list of Int of length 1",
-                tag(
-                    TYPE_LIST,
-                    "extra",
-                    out -> {
-                      listHeader(TYPE_INT, 1).write(out);
-                      out.writeInt(7);
-                    })),
-            Arguments.of(
-                "list of Compound of length -1",
-                tag(TYPE_LIST, "extra", listHeader(TYPE_COMPOUND, -1))),
-            Arguments.of("list of End of length -1", tag(TYPE_LIST, "extra", listHeader(0, -1))),
-            Arguments.of("string of 32767 bytes", tag(TYPE_STRING, "extra", stringOf(32_767))),
-            Arguments.of("string of 32768 bytes", tag(TYPE_STRING, "extra", stringOf(32_768))),
-            Arguments.of("string of 40000 bytes", tag(TYPE_STRING, "extra", stringOf(40_000))),
-            Arguments.of("string of 65535 bytes", tag(TYPE_STRING, "extra", stringOf(65_535))),
-            Arguments.of(
-                "key of 40000 bytes", tag(TYPE_BYTE, "k".repeat(40_000), out -> out.writeByte(1))),
-            Arguments.of(
-                "key of 65535 bytes", tag(TYPE_BYTE, "k".repeat(65_535), out -> out.writeByte(1))),
-            Arguments.of(
-                "list of two lists of Int of length -1",
-                tag(
-                    TYPE_LIST,
-                    "extra",
-                    out -> {
-                      listHeader(TYPE_LIST, 2).write(out);
-                      listHeader(TYPE_INT, -1).write(out);
-                      listHeader(TYPE_INT, -1).write(out);
-                    })),
-            Arguments.of(
-                "list of list of list of Long of length -1",
-                tag(
-                    TYPE_LIST,
-                    "extra",
-                    out -> {
-                      listHeader(TYPE_LIST, 1).write(out);
-                      listHeader(TYPE_LIST, 1).write(out);
-                      listHeader(4, -1).write(out);
-                    })),
-            Arguments.of(
-                "list of Compound holding a negative list and a long string",
-                tag(
-                    TYPE_LIST,
-                    "extra",
-                    out -> {
-                      listHeader(TYPE_COMPOUND, 2).write(out);
-                      for (int element = 0; element < 2; element++) {
-                        out.write(tag(TYPE_LIST, "inner", listHeader(TYPE_INT, -1)));
-                        out.write(tag(TYPE_STRING, "text", stringOf(33_000)));
-                        out.writeByte(0);
-                      }
-                    })));
-    Stream<Arguments> sized =
-        Stream.concat(
-            IntStream.rangeClosed(TYPE_BYTE, 6)
-                .mapToObj(
-                    type ->
-                        Arguments.of(
-                            "list of type " + type + " of length 3",
-                            tag(
-                                TYPE_LIST,
-                                "extra",
-                                out -> {
-                                  listHeader(type, 3).write(out);
-                                  out.write(new byte[3 * FIXED_SIZE[type]]);
-                                }))),
-            Stream.of(
-                Arguments.of(
-                    "byte array of 3",
-                    tag(
-                        7,
-                        "extra",
-                        out -> {
-                          out.writeInt(3);
-                          out.write(new byte[3]);
-                        })),
-                Arguments.of(
-                    "int array of 3",
-                    tag(
-                        11,
-                        "extra",
-                        out -> {
-                          out.writeInt(3);
-                          out.write(new byte[12]);
-                        })),
-                Arguments.of(
-                    "long array of 3",
-                    tag(
-                        12,
-                        "extra",
-                        out -> {
-                          out.writeInt(3);
-                          out.write(new byte[24]);
-                        }))));
-    return Stream.of(negativeFixedLists, others, sized).flatMap(stream -> stream);
+            arrayShape("byte array of 3", 7, 3),
+            arrayShape("int array of 3", 11, 12),
+            arrayShape("long array of 3", 12, 24)));
+  }
+
+  // An array tag of 3 elements whose payload takes this many bytes.
+  private static Arguments arrayShape(String name, int type, int payloadBytes) {
+    return shape(
+        name,
+        tag(
+            type,
+            "extra",
+            out -> {
+              out.writeInt(3);
+              out.write(new byte[payloadBytes]);
+            }));
   }
 
   private Chunk loadClean(byte[] nbt, boolean expectTrailingWarning) throws Exception {

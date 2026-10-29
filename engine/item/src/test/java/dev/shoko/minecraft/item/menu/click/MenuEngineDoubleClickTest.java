@@ -112,7 +112,7 @@ class MenuEngineDoubleClickTest {
     ClickResult result = doubleClick(before);
 
     assertThat(cursor(result.state())).isEqualTo("ender_pearl:16");
-    assertThat(at(result.state(), 3)).isEqualTo("-");
-    assertThat(at(result.state(), 4)).isEqualTo("ender_pearl:4");
+    assertThat(at(result.state(), 3)).isEqualTo("ender_pearl:4");
+    assertThat(at(result.state(), 4)).isEqualTo("ender_pearl:10");
   }
 }

@@ -21,7 +21,7 @@ import java.util.SequencedMap;
  * <p>Shapes not shown by the data (provisional): {@code add}, {@code mul}, {@code min}, {@code max}
  * and {@code avg} read an {@code inputs} list, {@code sub}, {@code div}, {@code mod}, {@code pow},
  * {@code floor_div} and {@code floor_mod} read {@code left} and {@code right}, the unary operators
- * and the conversions read {@code argument}.
+ * and the conversions read {@code input} (LT-R79, provisional).
  */
 public final class NumberProviderCodec {
 

@@ -179,6 +179,6 @@ final class ProviderJson {
       return typed(
           name, "left", encode.apply(operands.get(0)), "right", encode.apply(operands.get(1)));
     }
-    return typed(name, "argument", encode.apply(operands.get(0)));
+    return typed(name, "input", encode.apply(operands.get(0)));
   }
 }

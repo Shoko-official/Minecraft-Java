@@ -148,7 +148,7 @@ final class ProviderDecoder<T> {
     }
     if (UNARY.contains(type) && !type.startsWith("from_")) {
       List<T> operands = new ArrayList<>();
-      operands.add(child(fields, "argument", findings));
+      operands.add(child(fields, "input", findings));
       return family.arithmetic(type, operands);
     }
     return family.special(type, fields, findings, this);

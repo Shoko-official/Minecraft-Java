@@ -10,4 +10,15 @@ import java.util.List;
  * @param findings the problems of every file, in recipe identifier order then in the order they
  *     were made; the recipes with an {@code ERROR} finding are absent from {@code recipes}
  */
-public record RecipeLoadResult(RecipeSet recipes, List<RecipeLoadFinding> findings) {}
+public record RecipeLoadResult(RecipeSet recipes, List<RecipeLoadFinding> findings) {
+
+  /**
+   * Copies the findings.
+   *
+   * @param recipes the recipes that decoded
+   * @param findings the problems of every file
+   */
+  public RecipeLoadResult {
+    findings = List.copyOf(findings);
+  }
+}

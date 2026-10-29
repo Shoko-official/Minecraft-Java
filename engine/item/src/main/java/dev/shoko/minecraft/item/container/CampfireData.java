@@ -11,4 +11,18 @@ import java.util.List;
  * @param cookingTotalTimes {@code CookingTotalTimes}, an Int_Array of 4
  */
 public record CampfireData(
-    List<ItemStack> slots, List<Integer> cookingTimes, List<Integer> cookingTotalTimes) {}
+    List<ItemStack> slots, List<Integer> cookingTimes, List<Integer> cookingTotalTimes) {
+
+  /**
+   * Copies the lists.
+   *
+   * @param slots the four cooking slots
+   * @param cookingTimes {@code CookingTimes}
+   * @param cookingTotalTimes {@code CookingTotalTimes}
+   */
+  public CampfireData {
+    slots = List.copyOf(slots);
+    cookingTimes = List.copyOf(cookingTimes);
+    cookingTotalTimes = List.copyOf(cookingTotalTimes);
+  }
+}

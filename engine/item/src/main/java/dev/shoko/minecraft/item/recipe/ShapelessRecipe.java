@@ -23,6 +23,19 @@ public record ShapelessRecipe(
     implements Recipe {
 
   /**
+   * Copies the ingredients.
+   *
+   * @param id the recipe identifier
+   * @param group the recipe book group
+   * @param category the recipe book category
+   * @param ingredients one to nine ingredients
+   * @param result the result
+   */
+  public ShapelessRecipe {
+    ingredients = List.copyOf(ingredients);
+  }
+
+  /**
    * Returns {@link RecipeType#CRAFTING}.
    *
    * @return the type

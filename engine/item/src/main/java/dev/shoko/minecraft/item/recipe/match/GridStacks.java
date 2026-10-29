@@ -1,9 +1,11 @@
 package dev.shoko.minecraft.item.recipe.match;
 
 import dev.shoko.minecraft.core.nbt.CompoundTag;
-import dev.shoko.minecraft.core.nbt.IntTag;
+import dev.shoko.minecraft.core.nbt.DoubleTag;
+import dev.shoko.minecraft.core.nbt.FloatTag;
 import dev.shoko.minecraft.core.nbt.ListTag;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.NumericTag;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.component.ComponentChange;
 import dev.shoko.minecraft.item.component.ComponentPatch;
@@ -61,15 +63,17 @@ final class GridStacks {
         .orElse(0);
   }
 
-  /** An integer field of a compound component, a default when absent or not an integer. */
+  /** An integer field of a compound component (any integer tag), a default otherwise. */
   static int intField(ItemStack stack, Identifier component, String field, int fallback) {
     return stack
         .component(component)
         .map(ComponentValue::tag)
         .filter(CompoundTag.class::isInstance)
         .flatMap(tag -> ((CompoundTag) tag).get(field))
-        .filter(IntTag.class::isInstance)
-        .map(tag -> ((IntTag) tag).value())
+        .filter(NumericTag.class::isInstance)
+        .map(NumericTag.class::cast)
+        .filter(number -> !(number instanceof FloatTag || number instanceof DoubleTag))
+        .map(number -> Math.clamp(number.longValue(), Integer.MIN_VALUE, Integer.MAX_VALUE))
         .orElse(fallback);
   }
 

@@ -61,11 +61,7 @@ final class SpecialReader {
       parts.put(name, reader.ingredient(part(root, name, path), path + "." + name));
     }
     return new SpecialRecipe(
-        id,
-        RecipeReader.group(root, path),
-        kind,
-        parts,
-        reader.derivableResult(root.get("result"), path + ".result"));
+        id, RecipeReader.group(root, path), kind, parts, reader.derivableResult(root, path));
   }
 
   /** A part is a field of the file, or a field of the {@code shapes} object. */

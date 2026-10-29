@@ -12,4 +12,16 @@ import java.util.List;
  *     the item has no {@code use_remainder}; where it goes (the cell, the inventory, the ground) is
  *     decided by {@code game} (RC-R23)
  */
-public record Consumption(List<ItemStack> grid, List<ItemStack> remainders) {}
+public record Consumption(List<ItemStack> grid, List<ItemStack> remainders) {
+
+  /**
+   * Copies the lists.
+   *
+   * @param grid the cells after consumption
+   * @param remainders the stack left by each cell
+   */
+  public Consumption {
+    grid = List.copyOf(grid);
+    remainders = List.copyOf(remainders);
+  }
+}

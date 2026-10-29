@@ -2,11 +2,23 @@ package dev.shoko.minecraft.net.buffer;
 
 import dev.shoko.minecraft.core.coord.BlockPos;
 import dev.shoko.minecraft.core.coord.Vec3;
+import dev.shoko.minecraft.core.nbt.NbtException;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.binary.NbtCompression;
+import dev.shoko.minecraft.core.nbt.binary.NbtReader;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -19,7 +31,20 @@ import java.util.UUID;
  */
 public final class PacketReader {
 
-  private PacketReader() {}
+  private static final int MAX_VAR_INT_BYTES = 5;
+  private static final int MAX_VAR_LONG_BYTES = 10;
+  private static final int MAX_IDENTIFIER_CHARS = 32767;
+  private static final NbtReader NBT_READER = NbtReader.of(NbtCompression.NONE);
+
+  private final byte[] data;
+  private int position;
+  private final int end;
+
+  private PacketReader(byte[] data, int position, int end) {
+    this.data = data;
+    this.position = position;
+    this.end = end;
+  }
 
   /**
    * Creates a reader over a payload.
@@ -31,7 +56,8 @@ public final class PacketReader {
    * @throws IndexOutOfBoundsException when the range is not inside {@code data}
    */
   public static PacketReader wrap(byte[] data, int offset, int length) {
-    return Skeleton.throwNotImplemented();
+    Objects.checkFromIndexSize(offset, length, data.length);
+    return new PacketReader(data, offset, offset + length);
   }
 
   /**
@@ -41,7 +67,7 @@ public final class PacketReader {
    * @return the reader
    */
   public static PacketReader wrap(byte[] data) {
-    return Skeleton.throwNotImplemented();
+    return new PacketReader(data, 0, data.length);
   }
 
   /**
@@ -50,7 +76,7 @@ public final class PacketReader {
    * @return the remaining byte count, 0 or more
    */
   public int remaining() {
-    return Skeleton.throwNotImplemented();
+    return end - position;
   }
 
   /**
@@ -59,7 +85,10 @@ public final class PacketReader {
    * @throws ProtocolException with {@code TRAILING_BYTES} when bytes remain
    */
   public void requireFullyConsumed() throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (position != end) {
+      throw new ProtocolException(
+          Reason.TRAILING_BYTES, (end - position) + " bytes left after the last field");
+    }
   }
 
   /**
@@ -69,7 +98,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public boolean readBoolean() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return data[take(1)] != 0;
   }
 
   /**
@@ -79,7 +108,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public byte readByte() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return data[take(1)];
   }
 
   /**
@@ -89,7 +118,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public int readUnsignedByte() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return data[take(1)] & 0xff;
   }
 
   /**
@@ -99,7 +128,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public short readShort() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return (short) readUnsignedShort();
   }
 
   /**
@@ -109,7 +138,8 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public int readUnsignedShort() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int at = take(2);
+    return ((data[at] & 0xff) << 8) | (data[at + 1] & 0xff);
   }
 
   /**
@@ -119,7 +149,11 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public int readInt() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int at = take(4);
+    return ((data[at] & 0xff) << 24)
+        | ((data[at + 1] & 0xff) << 16)
+        | ((data[at + 2] & 0xff) << 8)
+        | (data[at + 3] & 0xff);
   }
 
   /**
@@ -129,7 +163,12 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public long readLong() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int at = take(8);
+    long value = 0;
+    for (int i = 0; i < 8; i++) {
+      value = (value << 8) | (data[at + i] & 0xff);
+    }
+    return value;
   }
 
   /**
@@ -139,7 +178,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public float readFloat() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return Float.intBitsToFloat(readInt());
   }
 
   /**
@@ -149,7 +188,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public double readDouble() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return Double.longBitsToDouble(readLong());
   }
 
   /**
@@ -162,7 +201,15 @@ public final class PacketReader {
    *     continuation bit (vector N21), or {@code UNEXPECTED_END} when the payload ends first
    */
   public int readVarInt() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int value = 0;
+    for (int i = 0; i < MAX_VAR_INT_BYTES; i++) {
+      int group = readUnsignedByte();
+      value |= (group & 0x7f) << (7 * i);
+      if ((group & 0x80) == 0) {
+        return value;
+      }
+    }
+    throw new ProtocolException(Reason.VAR_INT_TOO_BIG, "VarInt of more than 5 bytes");
   }
 
   /**
@@ -173,7 +220,15 @@ public final class PacketReader {
    *     continuation bit, or {@code UNEXPECTED_END} when the payload ends first
    */
   public long readVarLong() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    long value = 0;
+    for (int i = 0; i < MAX_VAR_LONG_BYTES; i++) {
+      int group = readUnsignedByte();
+      value |= (long) (group & 0x7f) << (7 * i);
+      if ((group & 0x80) == 0) {
+        return value;
+      }
+    }
+    throw new ProtocolException(Reason.VAR_INT_TOO_BIG, "VarLong of more than 10 bytes");
   }
 
   /**
@@ -186,7 +241,21 @@ public final class PacketReader {
    *     bytes are read), {@code INVALID_UTF8} or {@code UNEXPECTED_END}
    */
   public String readString(int maxChars) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int length = readVarInt();
+    if (length < 0) {
+      throw new ProtocolException(Reason.NEGATIVE_LENGTH, "negative string length " + length);
+    }
+    if (length > 3L * maxChars + 3) {
+      throw new ProtocolException(
+          Reason.STRING_TOO_LONG, "string of " + length + " bytes, limit " + maxChars + " chars");
+    }
+    int at = take(length);
+    String text = decodeUtf8(at, length);
+    if (text.length() > maxChars) {
+      throw new ProtocolException(
+          Reason.STRING_TOO_LONG, "string of " + text.length() + " units, limit " + maxChars);
+    }
+    return text;
   }
 
   /**
@@ -197,7 +266,10 @@ public final class PacketReader {
    *     or any failure of {@link #readString(int)}
    */
   public Identifier readIdentifier() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    String text = readString(MAX_IDENTIFIER_CHARS);
+    return Identifier.tryParse(text)
+        .orElseThrow(
+            () -> new ProtocolException(Reason.INVALID_IDENTIFIER, "invalid identifier: " + text));
   }
 
   /**
@@ -207,7 +279,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public UUID readUuid() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return new UUID(readLong(), readLong());
   }
 
   /**
@@ -220,7 +292,15 @@ public final class PacketReader {
    *     allocation
    */
   public ByteBlob readPrefixedBytes(int maxLength) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int length = readVarInt();
+    if (length < 0) {
+      throw new ProtocolException(Reason.NEGATIVE_LENGTH, "negative byte length " + length);
+    }
+    if (length > maxLength) {
+      throw new ProtocolException(Reason.BYTES_TOO_LONG, length + " bytes, limit " + maxLength);
+    }
+    int at = take(length);
+    return ByteBlob.of(Arrays.copyOfRange(data, at, at + length));
   }
 
   /**
@@ -232,7 +312,13 @@ public final class PacketReader {
    *     remain
    */
   public ByteBlob readRemainingBytes(int maxLength) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int length = end - position;
+    if (length > maxLength) {
+      throw new ProtocolException(
+          Reason.BYTES_TOO_LONG, length + " bytes remain, limit " + maxLength);
+    }
+    int at = take(length);
+    return ByteBlob.of(Arrays.copyOfRange(data, at, at + length));
   }
 
   /**
@@ -243,7 +329,9 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} at the end of the payload
    */
   public BlockPos readPosition() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    long packed = readLong();
+    return new BlockPos(
+        (int) (packed >> 38), (int) (packed << 52 >> 52), (int) (packed << 26 >> 38));
   }
 
   /**
@@ -254,7 +342,7 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END} or {@code VAR_INT_TOO_BIG}
    */
   public Vec3 readLpVec3() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return LpVec3Codec.read(this);
   }
 
   /**
@@ -265,7 +353,18 @@ public final class PacketReader {
    *     compared with the bytes left before any allocation
    */
   public BitSet readBitSet() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int count = readVarInt();
+    if (count < 0) {
+      throw new ProtocolException(Reason.NEGATIVE_LENGTH, "negative bit set size " + count);
+    }
+    if (8L * count > remaining()) {
+      throw new ProtocolException(Reason.UNEXPECTED_END, count + " longs announced, fewer left");
+    }
+    long[] words = new long[count];
+    for (int i = 0; i < count; i++) {
+      words[i] = readLong();
+    }
+    return BitSet.valueOf(words);
   }
 
   /**
@@ -277,7 +376,13 @@ public final class PacketReader {
    * @throws ProtocolException with {@code UNEXPECTED_END}
    */
   public BitSet readFixedBitSet(int bits) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int length = (int) (((long) Math.max(bits, 0) + 7) / 8);
+    int at = take(length);
+    BitSet set = BitSet.valueOf(Arrays.copyOfRange(data, at, at + length));
+    if (set.length() > bits) {
+      set.clear(bits, set.length());
+    }
+    return set;
   }
 
   /**
@@ -288,7 +393,9 @@ public final class PacketReader {
    *     the value is malformed or is the End byte alone, which {@link #readNbtOrAbsent()} accepts
    */
   public NbtTag readNbt() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return readNbtOrAbsent()
+        .orElseThrow(
+            () -> new ProtocolException(Reason.INVALID_NBT, "End tag where a value is required"));
   }
 
   /**
@@ -298,7 +405,14 @@ public final class PacketReader {
    * @throws ProtocolException with {@code INVALID_NBT}, caused by the {@code NbtException}
    */
   public Optional<NbtTag> readNbtOrAbsent() throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    var source = new OneByteSource(data, position, end);
+    try {
+      return NBT_READER.readUnnamed(source);
+    } catch (NbtException e) {
+      throw new ProtocolException(Reason.INVALID_NBT, "malformed network NBT", e);
+    } finally {
+      position += source.consumed();
+    }
   }
 
   /**
@@ -314,7 +428,21 @@ public final class PacketReader {
    */
   public <T> List<T> readPrefixedArray(int maxLength, ElementReader<T> element)
       throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    int count = readVarInt();
+    if (count < 0) {
+      throw new ProtocolException(Reason.NEGATIVE_LENGTH, "negative array size " + count);
+    }
+    if (count > maxLength) {
+      throw new ProtocolException(Reason.ARRAY_TOO_LONG, count + " elements, limit " + maxLength);
+    }
+    if (count > remaining()) {
+      throw new ProtocolException(Reason.UNEXPECTED_END, count + " elements announced, fewer left");
+    }
+    List<T> values = new ArrayList<>(count);
+    for (int i = 0; i < count; i++) {
+      values.add(element.read(this));
+    }
+    return Collections.unmodifiableList(values);
   }
 
   /**
@@ -326,6 +454,30 @@ public final class PacketReader {
    * @throws ProtocolException on a malformed value or {@code UNEXPECTED_END}
    */
   public <T> Optional<T> readPrefixedOptional(ElementReader<T> element) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    return readBoolean() ? Optional.of(element.read(this)) : Optional.empty();
+  }
+
+  /** Reserves {@code count} bytes and returns the index of the first one. */
+  private int take(int count) throws ProtocolException {
+    if (count > end - position) {
+      throw new ProtocolException(
+          Reason.UNEXPECTED_END, "need " + count + " bytes, " + (end - position) + " left");
+    }
+    int at = position;
+    position += count;
+    return at;
+  }
+
+  private String decodeUtf8(int at, int length) throws ProtocolException {
+    try {
+      return StandardCharsets.UTF_8
+          .newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT)
+          .decode(ByteBuffer.wrap(data, at, length))
+          .toString();
+    } catch (CharacterCodingException e) {
+      throw new ProtocolException(Reason.INVALID_UTF8, "string is not valid UTF-8", e);
+    }
   }
 }

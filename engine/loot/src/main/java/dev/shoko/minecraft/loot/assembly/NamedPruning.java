@@ -44,7 +44,11 @@ final class NamedPruning {
     for (Map.Entry<Ref, List<Ref>> entry : edges.entrySet()) {
       Ref node = entry.getKey();
       if (cyclic.contains(node)) {
-        removed.put(node, finding(LootFindingCode.REFERENCE_CYCLE, "part of a reference cycle"));
+        removed.put(
+            node,
+            finding(
+                LootFindingCode.REFERENCE_CYCLE,
+                registry(node.kind()) + " " + node.id() + " is part of a reference cycle"));
       } else {
         entry.getValue().stream()
             .filter(target -> !edges.containsKey(target))

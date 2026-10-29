@@ -8,9 +8,9 @@ import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.LootFinding;
 import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.modifier.ModifierApplier;
 import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
-import dev.shoko.minecraft.loot.random.DrawObserver;
 import dev.shoko.minecraft.loot.random.DrawReason;
 import dev.shoko.minecraft.loot.random.Draws;
 import dev.shoko.minecraft.loot.random.Weights;
@@ -35,31 +35,15 @@ final class TableDraw {
   /** Bound on the rolls of a pool (LT-R74a). */
   static final int MAX_ROLLS = 4096;
 
-  /**
-   * Budget of one draw (LT-R74f): the decisions reported while drawing, conditions, rolls,
-   * selections and modifiers. Far above the data of the game, far below the product of the caps.
-   */
-  private static final long MAX_DECISIONS = 1_000_000L;
-
   /** Bound on a weight, so that the sum of the weights of a roll cannot overflow. */
   private static final int MAX_WEIGHT = 1 << 20;
 
   private final LootContext context;
-  private long decisions;
   private final List<LootFinding> findings = new ArrayList<>();
   private final Set<Identifier> active = new HashSet<>();
 
   TableDraw(LootContext caller) {
-    DrawObserver outer = caller.observer();
-    this.context =
-        caller.withObserver(
-            event -> {
-              if (++decisions > MAX_DECISIONS) {
-                throw new LootBudgetException(
-                    "a draw made more than " + MAX_DECISIONS + " decisions");
-              }
-              outer.onDraw(event);
-            });
+    this.context = caller.withBudget(NodeBudget.forDraw());
   }
 
   List<LootFinding> findings() {
@@ -80,6 +64,7 @@ final class TableDraw {
   }
 
   private void pool(LootPool pool, List<ItemStack> out, int depth, String path) {
+    context.budget().node();
     if (!Draws.allHold(context, DrawReason.POOL_CONDITION, path, pool.conditions())) {
       return;
     }
@@ -91,6 +76,7 @@ final class TableDraw {
   }
 
   private List<ItemStack> roll(LootPool pool, int depth, String path) {
+    context.budget().node();
     List<Candidate> candidates = EntryExpander.candidates(pool, context);
     Candidate chosen =
         Draws.observe(context, DrawReason.ENTRY_SELECTION, path, () -> select(candidates));

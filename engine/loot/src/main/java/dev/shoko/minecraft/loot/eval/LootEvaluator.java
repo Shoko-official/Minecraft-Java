@@ -15,6 +15,7 @@ import dev.shoko.minecraft.loot.table.LootPool;
 import dev.shoko.minecraft.loot.table.LootTable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -39,18 +40,16 @@ public final class LootEvaluator {
    * @param context the context; its source is consumed
    * @return the stacks and the runtime findings
    */
+  // The registry holds the instance it was given: an identity match costs a pointer compare per
+  // table, where a deep equals of every table would walk them all at each draw.
+  @SuppressWarnings("ReferenceEquality")
   public static LootResult evaluate(LootTable table, LootContext context) {
     TableDraw draw = new TableDraw(context);
-    context
-        .data()
-        .tables()
-        .tables()
-        .forEach(
-            (id, loaded) -> {
-              if (loaded.equals(table)) {
-                draw.enter(id);
-              }
-            });
+    for (Map.Entry<Identifier, LootTable> loaded : context.data().tables().tables().entrySet()) {
+      if (loaded.getValue() == table) {
+        draw.enter(loaded.getKey());
+      }
+    }
     return result(draw.table(table, 0, "$"), draw);
   }
 

@@ -19,9 +19,10 @@ import java.util.SequencedMap;
  * carry the JSON path.
  *
  * <p>Shapes not shown by the data (provisional): {@code add}, {@code mul}, {@code min}, {@code max}
- * and {@code avg} read an {@code inputs} list, {@code sub}, {@code div}, {@code mod}, {@code pow},
- * {@code floor_div} and {@code floor_mod} read {@code left} and {@code right}, the unary operators
- * and the conversions read {@code input} (LT-R79, provisional).
+ * and {@code avg} read an {@code inputs} list, {@code sub}, {@code div}, {@code mod}, {@code
+ * floor_div} and {@code floor_mod} read {@code left} and {@code right}, {@code pow} reads {@code
+ * base} and {@code exponent}, the unary operators and the conversions read {@code input} (LT-R79,
+ * provisional).
  */
 public final class NumberProviderCodec {
 

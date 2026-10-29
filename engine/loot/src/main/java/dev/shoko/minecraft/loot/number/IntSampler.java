@@ -11,15 +11,13 @@ import java.util.OptionalInt;
 /** Evaluation of {@link IntProvider} trees (LT-R50 to LT-R53). */
 final class IntSampler {
 
-  /** Bound on chained references, so that a cycle of named providers ends in a typed error. */
-  static final int MAX_REFERENCE_DEPTH = 64;
-
   /** Bound on the trials of a binomial, far above what any data asks for. */
   static final int MAX_TRIALS = 100_000;
 
   private IntSampler() {}
 
   static int sample(IntProvider provider, LootContext context, int depth) {
+    context.budget().node();
     return switch (provider) {
       case IntProvider.Constant constant -> constant.value();
       case IntProvider.Uniform uniform -> uniform(uniform, context, depth);
@@ -97,16 +95,18 @@ final class IntSampler {
   }
 
   private static int reference(IntProvider.Reference reference, LootContext context, int depth) {
-    if (depth >= MAX_REFERENCE_DEPTH) {
-      throw new IllegalStateException("provider references nested too deep: " + reference.id());
-    }
     IntProvider named =
         context
             .data()
             .numbers()
             .intProvider(reference.id())
             .orElseThrow(() -> new IllegalStateException("provider not loaded: " + reference.id()));
-    return sample(named, context, depth + 1);
+    context.budget().enterReference();
+    try {
+      return sample(named, context, depth + 1);
+    } finally {
+      context.budget().exitReference();
+    }
   }
 
   private static int arithmetic(IntProvider.Arithmetic node, LootContext context, int depth) {

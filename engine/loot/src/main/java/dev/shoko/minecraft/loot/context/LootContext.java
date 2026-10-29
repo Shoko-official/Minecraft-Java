@@ -43,6 +43,7 @@ public final class LootContext {
   private final LevelFacts level;
   private final Function<ChunkPos, Optional<Chunk>> chunks;
   private final DrawObserver observer;
+  private final NodeBudget budget;
 
   private LootContext(
       LootData data,
@@ -58,6 +59,7 @@ public final class LootContext {
     this.level = extras.level();
     this.chunks = extras.chunks();
     this.observer = extras.observer();
+    this.budget = extras.budget();
   }
 
   /** The parts of a context that are not named parameters. */
@@ -65,10 +67,11 @@ public final class LootContext {
       float luck,
       LevelFacts level,
       Function<ChunkPos, Optional<Chunk>> chunks,
-      DrawObserver observer) {}
+      DrawObserver observer,
+      NodeBudget budget) {}
 
   private Extras extras() {
-    return new Extras(luck, level, chunks, observer);
+    return new Extras(luck, level, chunks, observer, budget);
   }
 
   /**
@@ -285,7 +288,28 @@ public final class LootContext {
    * @return the context
    */
   public LootContext withObserver(DrawObserver observer) {
-    return new LootContext(data, type, random, values, new Extras(luck, level, chunks, observer));
+    return new LootContext(
+        data, type, random, values, new Extras(luck, level, chunks, observer, budget));
+  }
+
+  /**
+   * Returns the same context with the budget of the work of one root draw.
+   *
+   * @param budget the counters the evaluation charges
+   * @return the context
+   */
+  public LootContext withBudget(NodeBudget budget) {
+    return new LootContext(
+        data, type, random, values, new Extras(luck, level, chunks, observer, budget));
+  }
+
+  /**
+   * Returns the counters of the work of the draw this context belongs to (LT-R74d to LT-R74f).
+   *
+   * @return the budget, which counts only the chain of references outside a table draw
+   */
+  public NodeBudget budget() {
+    return budget;
   }
 
   /**
@@ -479,7 +503,12 @@ public final class LootContext {
     public LootContext build() {
       Map<ContextKey, Object> copy = new EnumMap<>(ContextKey.class);
       copy.putAll(values);
-      return new LootContext(data, type, random, copy, new Extras(luck, level, chunks, observer));
+      return new LootContext(
+          data,
+          type,
+          random,
+          copy,
+          new Extras(luck, level, chunks, observer, NodeBudget.unlimited()));
     }
 
     private Builder put(ContextKey key, Object value) {

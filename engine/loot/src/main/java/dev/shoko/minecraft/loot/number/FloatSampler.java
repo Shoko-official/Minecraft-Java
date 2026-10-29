@@ -12,6 +12,7 @@ final class FloatSampler {
   private FloatSampler() {}
 
   static float sample(FloatProvider provider, LootContext context, int depth) {
+    context.budget().node();
     return switch (provider) {
       case FloatProvider.Constant constant -> constant.value();
       case FloatProvider.Uniform uniform -> uniform(uniform, context, depth);
@@ -62,16 +63,18 @@ final class FloatSampler {
 
   private static float reference(
       FloatProvider.Reference reference, LootContext context, int depth) {
-    if (depth >= IntSampler.MAX_REFERENCE_DEPTH) {
-      throw new IllegalStateException("provider references nested too deep: " + reference.id());
-    }
     FloatProvider named =
         context
             .data()
             .numbers()
             .floatProvider(reference.id())
             .orElseThrow(() -> new IllegalStateException("provider not loaded: " + reference.id()));
-    return sample(named, context, depth + 1);
+    context.budget().enterReference();
+    try {
+      return sample(named, context, depth + 1);
+    } finally {
+      context.budget().exitReference();
+    }
   }
 
   private static float arithmetic(FloatProvider.Arithmetic node, LootContext context, int depth) {

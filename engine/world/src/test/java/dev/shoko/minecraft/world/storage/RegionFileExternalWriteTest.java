@@ -4,6 +4,7 @@ import static dev.shoko.minecraft.world.support.RegionFixtures.CHUNK_A;
 import static dev.shoko.minecraft.world.support.RegionFixtures.INDEX_A;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import dev.shoko.minecraft.world.ReadResult;
 import dev.shoko.minecraft.world.support.Chunks;
 import dev.shoko.minecraft.world.support.Hex;
 import dev.shoko.minecraft.world.support.RegionFixtures;
@@ -148,5 +149,31 @@ class RegionFileExternalWriteTest {
 
     assertThat(Files.exists(folder.resolve("c.-1.-1.mcc"))).isTrue();
     assertThat(readBack()).hasSize(LARGEST_INTERNAL + 10);
+  }
+
+  @Test
+  void aStaleTemporaryOfTheMccFileIsRemovedByTheNextExternalWrite() throws IOException {
+    // spec: AR-R36 (a leftover of an interrupted write is deleted before the next one)
+    Files.write(folder.resolve("c.-1.-1.mcc.tmp"), new byte[] {1, 2, 3});
+    byte[] nbt = randomBytes(LARGEST_INTERNAL + 10, 11L);
+
+    write(nbt, RegionCompression.NONE);
+
+    assertThat(RegionFixtures.names(folder)).containsExactly("c.-1.-1.mcc", "r.-1.-1.mca");
+    assertThat(RegionFixtures.read(folder.resolve("c.-1.-1.mcc"))).isEqualTo(nbt);
+    assertThat(readBack()).isEqualTo(nbt);
+  }
+
+  @Test
+  void aStaleTemporaryIsNeverReadAsTheStreamOfAChunk() throws IOException {
+    // spec: AR-R36 (the reader ignores .tmp files): a record asking for the .mcc does not take the
+    // temporary when the final file is missing
+    write(randomBytes(LARGEST_INTERNAL + 10, 12L), RegionCompression.NONE);
+    Path mcc = folder.resolve("c.-1.-1.mcc");
+    Files.move(mcc, folder.resolve("c.-1.-1.mcc.tmp"));
+
+    try (RegionFile file = RegionFixtures.open(folder)) {
+      assertThat(file.read(CHUNK_A)).isInstanceOf(ReadResult.Refused.class);
+    }
   }
 }

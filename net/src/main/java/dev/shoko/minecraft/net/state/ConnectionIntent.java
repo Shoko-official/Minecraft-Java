@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.net.state;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
 
 /** The intention field of the handshake, which selects the next state (R34). */
 public enum ConnectionIntent {
@@ -46,6 +47,11 @@ public enum ConnectionIntent {
    *     vector I07)
    */
   public static ConnectionIntent fromId(int id) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    for (ConnectionIntent intent : values()) {
+      if (intent.id == id) {
+        return intent;
+      }
+    }
+    throw new ProtocolException(Reason.UNKNOWN_INTENTION, "unknown intention " + id);
   }
 }

@@ -1,7 +1,13 @@
 package dev.shoko.minecraft.net.state;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
 import dev.shoko.minecraft.net.packet.Packet;
+import dev.shoko.minecraft.net.packet.handshake.IntentionPacket;
+import dev.shoko.minecraft.net.registry.ConfigurationServerbound;
+import dev.shoko.minecraft.net.registry.LoginServerbound;
+import dev.shoko.minecraft.net.registry.PacketType;
+import dev.shoko.minecraft.net.registry.PlayServerbound;
 
 /**
  * Tracks the state of one connection from the packets that cross it. The same machine serves a
@@ -23,6 +29,8 @@ import dev.shoko.minecraft.net.packet.Packet;
  */
 public final class ConnectionStateMachine {
 
+  private ConnectionState state = ConnectionState.HANDSHAKE;
+
   private ConnectionStateMachine() {}
 
   /**
@@ -31,7 +39,7 @@ public final class ConnectionStateMachine {
    * @return a machine in {@link ConnectionState#HANDSHAKE}
    */
   public static ConnectionStateMachine start() {
-    return Skeleton.throwNotImplemented();
+    return new ConnectionStateMachine();
   }
 
   /**
@@ -40,7 +48,7 @@ public final class ConnectionStateMachine {
    * @return the state
    */
   public ConnectionState state() {
-    return Skeleton.throwNotImplemented();
+    return state;
   }
 
   /**
@@ -52,6 +60,28 @@ public final class ConnectionStateMachine {
    *     the current state (R49); the state is then unchanged
    */
   public ConnectionState advance(Packet packet) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    PacketType type = packet.type();
+    if (type.state() != state) {
+      throw new ProtocolException(
+          Reason.PACKET_NOT_ALLOWED, type.packetName() + " is not a " + state + " packet");
+    }
+    state = nextState(packet, type);
+    return state;
+  }
+
+  private ConnectionState nextState(Packet packet, PacketType type) {
+    if (packet instanceof IntentionPacket intention) {
+      return intention.intent().nextState();
+    }
+    if (type == LoginServerbound.LOGIN_ACKNOWLEDGED) {
+      return ConnectionState.CONFIGURATION;
+    }
+    if (type == ConfigurationServerbound.FINISH_CONFIGURATION) {
+      return ConnectionState.PLAY;
+    }
+    if (type == PlayServerbound.CONFIGURATION_ACKNOWLEDGED) {
+      return ConnectionState.CONFIGURATION;
+    }
+    return state;
   }
 }

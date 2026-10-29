@@ -1,10 +1,20 @@
 package dev.shoko.minecraft.loot.eval;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.loot.port.RandomSequenceStore;
+import dev.shoko.minecraft.loot.random.ChosenRandom;
+import dev.shoko.minecraft.loot.random.DrawReason;
+import dev.shoko.minecraft.loot.random.Draws;
+import dev.shoko.minecraft.loot.random.LootRandom;
 import dev.shoko.minecraft.loot.table.LootPool;
 import dev.shoko.minecraft.loot.table.LootTable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 
 /**
  * Draws a loot table. Hypothesis H-flow (LT-R19a to LT-R19d): for each pool in order, evaluate its
@@ -16,6 +26,9 @@ import dev.shoko.minecraft.loot.table.LootTable;
  */
 public final class LootEvaluator {
 
+  /** Bound on the stacks one stack is split into, far above what any table asks for. */
+  private static final int MAX_SPLIT_STACKS = 1_000_000;
+
   private LootEvaluator() {}
 
   /**
@@ -26,7 +39,8 @@ public final class LootEvaluator {
    * @return the stacks and the runtime findings
    */
   public static LootResult evaluate(LootTable table, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    TableDraw draw = new TableDraw(context);
+    return result(draw.table(table, 0, "$"), draw);
   }
 
   /**
@@ -37,7 +51,13 @@ public final class LootEvaluator {
    * @return the stacks; empty with a {@code TABLE_NOT_FOUND} finding when the table is not loaded
    */
   public static LootResult evaluate(Identifier id, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    Optional<LootTable> table = context.data().tables().find(id);
+    if (table.isEmpty()) {
+      return notFound(id);
+    }
+    TableDraw draw = new TableDraw(context);
+    draw.enter(id);
+    return result(draw.table(table.get(), 0, "$"), draw);
   }
 
   /**
@@ -53,7 +73,9 @@ public final class LootEvaluator {
    */
   public static LootResult evaluateTopLevel(
       LootTable table, LootContext context, long explicitSeed, RandomSequenceStore sequences) {
-    return Skeleton.throwNotImplemented();
+    ChosenRandom chosen =
+        LootRandom.choose(explicitSeed, table.randomSequence(), sequences, context.random());
+    return evaluate(table, context.withRandom(chosen.source()));
   }
 
   /**
@@ -66,6 +88,46 @@ public final class LootEvaluator {
    * @return the number of rolls, 0 or more
    */
   public static int rolls(LootPool pool, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return Draws.observe(
+        context,
+        DrawReason.POOL_ROLLS,
+        "rolls",
+        () -> {
+          long rolls = pool.rolls().sample(context);
+          float bonus = pool.bonusRolls().sample(context) * context.luck();
+          if (!Float.isNaN(bonus)) {
+            rolls +=
+                (long) Math.floor(Math.max(-Integer.MAX_VALUE, Math.min(Integer.MAX_VALUE, bonus)));
+          }
+          return (int) Math.max(0, Math.min(TableDraw.MAX_ROLLS, rolls));
+        });
+  }
+
+  private static LootResult notFound(Identifier id) {
+    return new LootResult(
+        List.of(),
+        List.of(
+            new LootFinding(LootFindingCode.TABLE_NOT_FOUND, "$", "table is not loaded: " + id)));
+  }
+
+  private static LootResult result(List<ItemStack> drawn, TableDraw draw) {
+    List<ItemStack> stacks = new ArrayList<>();
+    for (ItemStack stack : drawn) {
+      if (stack.isEmpty()) {
+        continue;
+      }
+      stacks.addAll(split(stack));
+    }
+    return new LootResult(List.copyOf(stacks), List.copyOf(draw.findings()));
+  }
+
+  /** Splits a stack above its maximum into stacks of the maximum and a rest (LT-R54). */
+  static List<ItemStack> split(ItemStack stack) {
+    int max = stack.maxStackSize();
+    if (stack.count() <= max) {
+      return List.of(stack);
+    }
+    long capped = Math.min(stack.count(), (long) max * MAX_SPLIT_STACKS);
+    return stack.stacksFor((int) capped);
   }
 }

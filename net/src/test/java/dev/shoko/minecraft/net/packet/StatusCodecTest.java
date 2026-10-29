@@ -146,7 +146,7 @@ class StatusCodecTest {
     // spec: R2 (status: 2 clientbound, 2 serverbound), R49
     assertFails(() -> decode(STATE, SERVERBOUND, 2, ""), Reason.UNKNOWN_PACKET_ID);
     assertFails(() -> decode(STATE, CLIENTBOUND, 2, ""), Reason.UNKNOWN_PACKET_ID);
-    assertFails(() -> decode(STATE, CLIENTBOUND, -1, ""), Reason.UNKNOWN_PACKET_ID);
+    assertFails(() -> decode(STATE, CLIENTBOUND, 99, ""), Reason.UNKNOWN_PACKET_ID);
   }
 
   @Test

@@ -11,14 +11,16 @@ import dev.shoko.minecraft.net.testing.Hex;
 import dev.shoko.minecraft.net.testing.Wire;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 // spec: net-protocol-777 R28 (compression applies to "tous les paquets suivants"), R31 and R32
-// (encryption starts right after key, the next bytes are encrypted), test plan L1 (the result does
-// not depend on how the bytes are cut). The receiver reacts to a frame between two reads, as a
-// connection does when it sees login_compression or key: a frame that completes in the same read
-// as the frame that changes the state must still be read with the new state.
+// (encryption starts right after key, the next bytes are encrypted), R30 d and R91 (volume), test
+// plan L1 (the result does not depend on how the bytes are cut). The receiver stores the bytes with
+// append and reads one frame at a time with poll, reacting between two polls as a connection does
+// when it sees login_compression or key: a frame that is already buffered when the frame that
+// changes the mode is read must still be read with the new mode.
 class FrameStateChangeHuntTest {
 
   private static final byte[] SECRET = Hex.ramp(16);
@@ -40,18 +42,18 @@ class FrameStateChangeHuntTest {
   }
 
   /**
-   * Cuts the wire in chunks of {@code chunk} bytes, reacting to every frame as soon as it is out: a
-   * client reacts to login_compression, a server to key.
+   * Cuts the wire in chunks of {@code chunk} bytes, appends each chunk, then polls every frame it
+   * completes, reacting after each one: a client to login_compression, a server to key.
    */
   private static List<Frame> receive(byte[] wire, int chunk, boolean client)
       throws ProtocolException {
     FrameDecoder decoder = FrameDecoder.create();
     List<Frame> all = new ArrayList<>();
     for (int position = 0; position < wire.length; position += chunk) {
-      int length = Math.min(chunk, wire.length - position);
-      for (Frame frame : decoder.feed(wire, position, length)) {
-        all.add(frame);
-        react(frame, decoder, client);
+      decoder.append(wire, position, Math.min(chunk, wire.length - position));
+      for (Optional<Frame> frame = decoder.poll(); frame.isPresent(); frame = decoder.poll()) {
+        all.add(frame.get());
+        react(frame.get(), decoder, client);
       }
     }
     return all;
@@ -80,11 +82,9 @@ class FrameStateChangeHuntTest {
 
   @Test
   @Timeout(30)
-  void provisionalLoginCompressionAndTheNextCompressedFrameInOneSegmentAreReadAlike()
+  void loginCompressionAndTheNextCompressedFrameInOneSegmentAreReadAlike()
       throws ProtocolException {
-    // spec: R28, R32. Today feed() decodes every complete frame of a call with the state it had at
-    // the call: the second frame is read as a plain frame (silent corruption) when both arrive in
-    // one segment, and correctly when they arrive apart.
+    // spec: R28, R32. login_compression and a compressed frame arrive in one segment.
     byte[] bigPayload = Hex.filled('x', 400);
     List<Frame> expected =
         List.of(
@@ -93,27 +93,27 @@ class FrameStateChangeHuntTest {
             Frame.of(4, Hex.ramp(10)));
     byte[] wire = clientWire(bigPayload);
     assertThat(receive(wire, 1, CLIENT)).as("byte by byte").isEqualTo(expected);
-    for (int chunk : new int[] {2, 3, 5, 8, 13, wire.length}) {
+    for (int chunk : new int[] {2, 3, 5, 7, 8, 13, 20, 30, 64, wire.length}) {
       assertThat(receive(wire, chunk, CLIENT)).as("chunks of %d", chunk).isEqualTo(expected);
     }
   }
 
   @Test
   @Timeout(30)
-  void provisionalKeyAndTheFirstEncryptedFramesInOneSegmentAreReadAlike() throws ProtocolException {
+  void keyAndTheFirstEncryptedFramesInOneSegmentAreReadAlike() throws ProtocolException {
     // spec: R31, R32. The bytes after key are encrypted; if they arrive with key they must still
     // be decrypted, whatever the cut.
     List<Frame> expected = List.of(keyFrame(), Frame.of(7, new byte[0]), Frame.of(9, Hex.ramp(50)));
     byte[] wire = serverWire();
     assertThat(receive(wire, 1, SERVER)).as("byte by byte").isEqualTo(expected);
-    for (int chunk : new int[] {2, 7, 20, 30, wire.length}) {
+    for (int chunk : new int[] {2, 3, 5, 7, 8, 13, 20, 30, 64, wire.length}) {
       assertThat(receive(wire, chunk, SERVER)).as("chunks of %d", chunk).isEqualTo(expected);
     }
   }
 
   @Test
   @Timeout(30)
-  void provisionalTheResultDoesNotDependOnTheCutOfTheWire() throws ProtocolException {
+  void theResultDoesNotDependOnTheCutOfTheWire() throws ProtocolException {
     // spec: test plan L1 (idempotence of the splitting into frames), applied to both switches
     byte[] client = clientWire(Hex.filled('y', 1000));
     byte[] server = serverWire();
@@ -127,5 +127,81 @@ class FrameStateChangeHuntTest {
           .as("server, chunks of %d", chunk)
           .isEqualTo(serverReference);
     }
+  }
+
+  /** Frames and bytes of a stream with a threshold already set: no mode change to react to. */
+  private static byte[] plainModeWire(List<Frame> frames) throws ProtocolException {
+    FrameEncoder encoder = FrameEncoder.create();
+    encoder.setCompressionThreshold(64);
+    byte[] wire = new byte[0];
+    for (Frame frame : frames) {
+      wire = Hex.concat(wire, encoder.encode(frame));
+    }
+    return wire;
+  }
+
+  @Test
+  @Timeout(30)
+  void feedAndAppendThenPollGiveTheSameFramesWhenTheModeDoesNotChange() throws ProtocolException {
+    // spec: test plan L1. Without a mode change between two frames, feed is append then poll.
+    List<Frame> frames = new ArrayList<>();
+    for (int i = 0; i < 20; i++) {
+      frames.add(Frame.of(i, Hex.filled('a' + i, i * 40)));
+    }
+    byte[] wire = plainModeWire(frames);
+    for (int chunk : new int[] {1, 7, 100, wire.length}) {
+      FrameDecoder fed = FrameDecoder.create();
+      fed.setCompressionThreshold(64);
+      FrameDecoder polled = FrameDecoder.create();
+      polled.setCompressionThreshold(64);
+      List<Frame> fromFeed = new ArrayList<>();
+      List<Frame> fromPoll = new ArrayList<>();
+      for (int position = 0; position < wire.length; position += chunk) {
+        int length = Math.min(chunk, wire.length - position);
+        fromFeed.addAll(fed.feed(wire, position, length));
+        polled.append(wire, position, length);
+        for (Optional<Frame> frame = polled.poll(); frame.isPresent(); frame = polled.poll()) {
+          fromPoll.add(frame.get());
+        }
+      }
+      assertThat(fromFeed).as("feed, chunks of %d", chunk).isEqualTo(frames);
+      assertThat(fromPoll).as("poll, chunks of %d", chunk).isEqualTo(frames);
+    }
+  }
+
+  @Test
+  @Timeout(30)
+  void feedStopsAfterTheFrameThatCrossesThePayloadCapAndAnEmptyFeedGivesTheRest()
+      throws ProtocolException {
+    // spec: R30 d, R91. One feed does not materialize more than about MAX_FEED_PAYLOAD payload
+    // bytes: 8 frames of 1 MiB come out over several calls, in order, none lost.
+    int size = FrameDecoder.MAX_FEED_PAYLOAD;
+    List<Frame> frames = new ArrayList<>();
+    for (int i = 0; i < 8; i++) {
+      frames.add(Frame.of(10 + i, Hex.filled(i, size)));
+    }
+    byte[] wire = plainModeWire(frames);
+    assertThat(wire.length).as("the wire is small, the frames are not").isLessThan(1 << 20);
+
+    FrameDecoder fed = FrameDecoder.create();
+    fed.setCompressionThreshold(64);
+    List<Frame> first = fed.feed(wire, 0, wire.length);
+    assertThat(first).as("first call").hasSizeBetween(1, 2);
+    List<Frame> all = new ArrayList<>(first);
+    int calls = 0;
+    while (all.size() < frames.size() && calls++ < 20) {
+      all.addAll(fed.feed(new byte[0], 0, 0));
+    }
+    assertThat(all).isEqualTo(frames);
+    assertThat(fed.bufferedBytes()).isZero();
+
+    FrameDecoder polled = FrameDecoder.create();
+    polled.setCompressionThreshold(64);
+    polled.append(wire, 0, wire.length);
+    List<Frame> fromPoll = new ArrayList<>();
+    for (Optional<Frame> frame = polled.poll(); frame.isPresent(); frame = polled.poll()) {
+      fromPoll.add(frame.get());
+    }
+    assertThat(all).isEqualTo(fromPoll);
   }
 }

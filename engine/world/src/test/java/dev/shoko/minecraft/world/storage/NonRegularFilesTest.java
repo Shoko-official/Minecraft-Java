@@ -135,12 +135,36 @@ class NonRegularFilesTest {
     byte[] largeNbt = new byte[1_100_000];
 
     try (RegionFile file = RegionFixtures.open(region())) {
-      Failures.expect(
-          IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L));
+      assertNotRegular(
+          Failures.expect(
+              IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L)));
       assertThat(Chunks.absent(file.read(CHUNK_A)).cause()).isEqualTo(AbsentCause.EMPTY_SLOT);
     }
 
     assertThat(Files.isDirectory(mcc, java.nio.file.LinkOption.NOFOLLOW_LINKS)).isTrue();
+    assertThat(RegionFixtures.names(region()))
+        .containsExactlyInAnyOrder("c.-1.-1.mcc", "r.-1.-1.mca");
+  }
+
+  @Test
+  void aSymbolicLinkNamedLikeTheExternalFileFailsTheWriteOfAnExternalChunk() throws IOException {
+    // spec: AR-R17, AR-R27: the atomic move that publishes the stream would replace the link, so
+    // the target is refused first; the link and what it points to are untouched
+    Path targetFile = outside().resolve("target.mcc");
+    Files.writeString(targetFile, "keep");
+    Path mcc = region().resolve("c.-1.-1.mcc");
+    symlinkOrSkip(mcc, targetFile);
+    byte[] largeNbt = new byte[1_100_000];
+
+    try (RegionFile file = RegionFixtures.open(region())) {
+      assertNotRegular(
+          Failures.expect(
+              IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L)));
+      assertThat(Chunks.absent(file.read(CHUNK_A)).cause()).isEqualTo(AbsentCause.EMPTY_SLOT);
+    }
+
+    assertThat(Files.isSymbolicLink(mcc)).isTrue();
+    assertThat(Files.readString(targetFile)).isEqualTo("keep");
     assertThat(RegionFixtures.names(region()))
         .containsExactlyInAnyOrder("c.-1.-1.mcc", "r.-1.-1.mca");
   }

@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.world.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import dev.shoko.minecraft.world.support.Failures;
 import dev.shoko.minecraft.world.support.Hex;
@@ -134,11 +135,19 @@ class Lz4ExpansionBoundTest {
     assertThat(allocated).isLessThan(ALLOCATION_BUDGET);
   }
 
-  /** Bytes the current thread allocates while the call runs; exact, not sampled. */
+  /**
+   * Bytes the current thread allocates while the call runs. The JDK documents the counter as
+   * approximate, so the callers compare it with a margin of a factor 32; the test is skipped when
+   * the JVM cannot measure.
+   */
   private static long allocatedBy(Runnable call) {
     var threads = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+    assumeTrue(
+        threads.isThreadAllocatedMemorySupported() && threads.isThreadAllocatedMemoryEnabled(),
+        "this JVM does not measure the allocation of a thread");
     long id = Thread.currentThread().threadId();
     long before = threads.getThreadAllocatedBytes(id);
+    assertThat(before).as("allocated bytes before the call").isNotEqualTo(-1L);
     call.run();
     return threads.getThreadAllocatedBytes(id) - before;
   }

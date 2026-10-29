@@ -1,10 +1,14 @@
 package dev.shoko.minecraft.item.stack;
 
+import dev.shoko.minecraft.core.nbt.IntTag;
 import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.item.component.ComponentChange;
 import dev.shoko.minecraft.item.component.ComponentMap;
 import dev.shoko.minecraft.item.component.ComponentPatch;
 import dev.shoko.minecraft.item.component.ComponentValue;
+import dev.shoko.minecraft.item.component.WellKnownComponents;
 import dev.shoko.minecraft.item.registry.ItemType;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,7 +24,22 @@ public final class ItemStack {
   /** Largest count of a stack and bound of the quantity arguments of commands (IC-R16). */
   public static final int MAX_COUNT = 99;
 
-  private ItemStack() {}
+  private static final int DEFAULT_STACK_SIZE = 64;
+
+  private static final ItemType EMPTY_TYPE =
+      new ItemType(Identifier.minecraft("air"), 0, ComponentMap.empty());
+
+  private static final ItemStack EMPTY = new ItemStack(EMPTY_TYPE, 0, ComponentPatch.empty());
+
+  private final ItemType type;
+  private final int count;
+  private final ComponentPatch patch;
+
+  private ItemStack(ItemType type, int count, ComponentPatch patch) {
+    this.type = type;
+    this.count = count;
+    this.patch = patch;
+  }
 
   /**
    * Returns the empty stack (IC-R15).
@@ -28,7 +47,7 @@ public final class ItemStack {
    * @return the empty stack
    */
   public static ItemStack empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -39,7 +58,7 @@ public final class ItemStack {
    * @return the stack
    */
   public static ItemStack of(ItemType type, int count) {
-    return Skeleton.throwNotImplemented();
+    return of(type, count, ComponentPatch.empty());
   }
 
   /**
@@ -51,7 +70,10 @@ public final class ItemStack {
    * @return the stack
    */
   public static ItemStack of(ItemType type, int count, ComponentPatch patch) {
-    return Skeleton.throwNotImplemented();
+    if (count <= 0 || type.isAir()) {
+      return EMPTY;
+    }
+    return new ItemStack(type, count, patch.normalizedAgainst(type.prototype()));
   }
 
   /**
@@ -60,7 +82,7 @@ public final class ItemStack {
    * @return {@code true} when the item is air or the count is 0 or less
    */
   public boolean isEmpty() {
-    return Skeleton.throwNotImplemented();
+    return count <= 0;
   }
 
   /**
@@ -69,7 +91,7 @@ public final class ItemStack {
    * @return the item; air for the empty stack
    */
   public ItemType type() {
-    return Skeleton.throwNotImplemented();
+    return type;
   }
 
   /**
@@ -78,7 +100,7 @@ public final class ItemStack {
    * @return the count, 0 for the empty stack
    */
   public int count() {
-    return Skeleton.throwNotImplemented();
+    return count;
   }
 
   /**
@@ -87,7 +109,7 @@ public final class ItemStack {
    * @return the patch
    */
   public ComponentPatch patch() {
-    return Skeleton.throwNotImplemented();
+    return patch;
   }
 
   /**
@@ -96,7 +118,7 @@ public final class ItemStack {
    * @return the components
    */
   public ComponentMap components() {
-    return Skeleton.throwNotImplemented();
+    return type.prototype().apply(patch);
   }
 
   /**
@@ -106,16 +128,33 @@ public final class ItemStack {
    * @return the value, or empty when the component is absent or removed
    */
   public Optional<ComponentValue> component(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    ComponentChange change = patch.changes().get(id);
+    if (change == null) {
+      return type.prototype().get(id);
+    }
+    return change instanceof ComponentChange.Set set ? Optional.of(set.value()) : Optional.empty();
   }
 
   /**
    * Returns the stack limit of this content.
    *
-   * @return the effective {@code max_stack_size} (IC-R5); 64 for the empty stack
+   * @return the effective {@code max_stack_size} (IC-R5), at least 1 and at most {@link
+   *     #MAX_COUNT}; 64 for the empty stack
    */
   public int maxStackSize() {
-    return Skeleton.throwNotImplemented();
+    if (isEmpty()) {
+      return DEFAULT_STACK_SIZE;
+    }
+    return Math.clamp(
+        intComponent(WellKnownComponents.MAX_STACK_SIZE, DEFAULT_STACK_SIZE), 1, MAX_COUNT);
+  }
+
+  private int intComponent(Identifier id, int fallback) {
+    return component(id)
+        .map(ComponentValue::tag)
+        .filter(IntTag.class::isInstance)
+        .map(tag -> ((IntTag) tag).value())
+        .orElse(fallback);
   }
 
   /**
@@ -125,7 +164,10 @@ public final class ItemStack {
    * @return the stack
    */
   public ItemStack withCount(int count) {
-    return Skeleton.throwNotImplemented();
+    if (count <= 0 || isEmpty()) {
+      return EMPTY;
+    }
+    return count == this.count ? this : new ItemStack(type, count, patch);
   }
 
   /**
@@ -136,7 +178,7 @@ public final class ItemStack {
    * @return the stack
    */
   public ItemStack withComponent(Identifier id, ComponentValue value) {
-    return Skeleton.throwNotImplemented();
+    return isEmpty() ? EMPTY : of(type, count, patch.withSet(id, value));
   }
 
   /**
@@ -146,7 +188,7 @@ public final class ItemStack {
    * @return the stack
    */
   public ItemStack withoutComponent(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return isEmpty() ? EMPTY : of(type, count, patch.withRemoved(id));
   }
 
   /**
@@ -158,7 +200,10 @@ public final class ItemStack {
    * @return {@code true} when the stacks can merge
    */
   public boolean sameContent(ItemStack other) {
-    return Skeleton.throwNotImplemented();
+    if (isEmpty() || other.isEmpty()) {
+      return isEmpty() && other.isEmpty();
+    }
+    return type.id().equals(other.type.id()) && patch.equals(other.patch);
   }
 
   /**
@@ -169,7 +214,16 @@ public final class ItemStack {
    * @return this stack after the move and what remains of the source
    */
   public MergeResult mergeFrom(ItemStack source) {
-    return Skeleton.throwNotImplemented();
+    if (source.isEmpty()) {
+      return new MergeResult(this, EMPTY);
+    }
+    if (!isEmpty() && !sameContent(source)) {
+      return new MergeResult(this, source);
+    }
+    ItemStack content = isEmpty() ? source : this;
+    int held = isEmpty() ? 0 : count;
+    int moved = Math.min(Math.max(0, content.maxStackSize() - held), source.count);
+    return new MergeResult(content.withCount(held + moved), source.withCount(source.count - moved));
   }
 
   /**
@@ -179,7 +233,8 @@ public final class ItemStack {
    * @return the taken stack, of the same content, and what remains
    */
   public SplitResult split(int amount) {
-    return Skeleton.throwNotImplemented();
+    int taken = Math.clamp(amount, 0, count);
+    return new SplitResult(withCount(taken), withCount(count - taken));
   }
 
   /**
@@ -190,7 +245,15 @@ public final class ItemStack {
    *     total of 0 or less
    */
   public List<ItemStack> stacksFor(int total) {
-    return Skeleton.throwNotImplemented();
+    List<ItemStack> stacks = new ArrayList<>();
+    if (isEmpty()) {
+      return stacks;
+    }
+    int max = maxStackSize();
+    for (int left = total; left > 0; left -= max) {
+      stacks.add(withCount(Math.min(max, left)));
+    }
+    return stacks;
   }
 
   /**
@@ -199,7 +262,7 @@ public final class ItemStack {
    * @return {@code true} when {@code max_damage} is present
    */
   public boolean isDamageable() {
-    return Skeleton.throwNotImplemented();
+    return component(WellKnownComponents.MAX_DAMAGE).isPresent();
   }
 
   /**
@@ -208,7 +271,7 @@ public final class ItemStack {
    * @return {@code damage}, 0 when absent
    */
   public int damage() {
-    return Skeleton.throwNotImplemented();
+    return intComponent(WellKnownComponents.DAMAGE, 0);
   }
 
   /**
@@ -217,7 +280,7 @@ public final class ItemStack {
    * @return {@code max_damage}, 0 when absent
    */
   public int maxDamage() {
-    return Skeleton.throwNotImplemented();
+    return intComponent(WellKnownComponents.MAX_DAMAGE, 0);
   }
 
   /**
@@ -228,7 +291,14 @@ public final class ItemStack {
    *     {@code max_damage}; the same stack when the item is not damageable or {@code unbreakable}
    */
   public ItemStack wornBy(int amount) {
-    return Skeleton.throwNotImplemented();
+    if (!isDamageable() || component(WellKnownComponents.UNBREAKABLE).isPresent()) {
+      return this;
+    }
+    long worn = (long) damage() + amount;
+    if (worn >= maxDamage()) {
+      return EMPTY;
+    }
+    return withComponent(WellKnownComponents.DAMAGE, new ComponentValue(new IntTag((int) worn)));
   }
 
   /**
@@ -239,7 +309,13 @@ public final class ItemStack {
    */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    if (this == other) {
+      return true;
+    }
+    if (!(other instanceof ItemStack that)) {
+      return false;
+    }
+    return sameContent(that) && (isEmpty() || count == that.count);
   }
 
   /**
@@ -249,7 +325,7 @@ public final class ItemStack {
    */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return isEmpty() ? 0 : (31 * type.id().hashCode() + patch.hashCode()) * 31 + count;
   }
 
   /**
@@ -259,6 +335,6 @@ public final class ItemStack {
    */
   @Override
   public String toString() {
-    return Skeleton.throwNotImplemented();
+    return isEmpty() ? "ItemStack[empty]" : count + "x " + type.id() + patch.changes();
   }
 }

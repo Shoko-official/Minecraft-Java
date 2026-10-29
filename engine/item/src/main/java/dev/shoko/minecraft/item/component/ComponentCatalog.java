@@ -1,7 +1,10 @@
 package dev.shoko.minecraft.item.component;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -9,7 +12,14 @@ import java.util.Optional;
  */
 public final class ComponentCatalog {
 
-  private ComponentCatalog() {}
+  private final List<ComponentType> types;
+  // Lookup only: never iterated, so its order is not observable.
+  private final Map<Identifier, ComponentType> byId;
+
+  private ComponentCatalog(List<ComponentType> types, Map<Identifier, ComponentType> byId) {
+    this.types = types;
+    this.byId = byId;
+  }
 
   /**
    * Builds the catalog from the registry listing.
@@ -20,7 +30,16 @@ public final class ComponentCatalog {
    * @throws IllegalArgumentException when an identifier appears twice
    */
   public static ComponentCatalog of(List<Identifier> idsInRegistryOrder) {
-    return Skeleton.throwNotImplemented();
+    List<ComponentType> types = new ArrayList<>(idsInRegistryOrder.size());
+    Map<Identifier, ComponentType> byId = new HashMap<>();
+    for (Identifier id : idsInRegistryOrder) {
+      ComponentType type = new ComponentType(id, types.size());
+      if (byId.put(id, type) != null) {
+        throw new IllegalArgumentException("duplicated component type: " + id);
+      }
+      types.add(type);
+    }
+    return new ComponentCatalog(List.copyOf(types), byId);
   }
 
   /**
@@ -29,7 +48,7 @@ public final class ComponentCatalog {
    * @return the size, 122 for the reference data
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return types.size();
   }
 
   /**
@@ -38,7 +57,7 @@ public final class ComponentCatalog {
    * @return the types, unmodifiable
    */
   public List<ComponentType> types() {
-    return Skeleton.throwNotImplemented();
+    return types;
   }
 
   /**
@@ -48,6 +67,6 @@ public final class ComponentCatalog {
    * @return the type, or empty when the identifier is not registered
    */
   public Optional<ComponentType> find(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(byId.get(id));
   }
 }

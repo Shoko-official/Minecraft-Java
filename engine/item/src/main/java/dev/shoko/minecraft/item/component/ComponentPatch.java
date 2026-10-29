@@ -1,6 +1,8 @@
 package dev.shoko.minecraft.item.component;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.SequencedMap;
 
 /**
@@ -10,13 +12,24 @@ import java.util.SequencedMap;
  */
 public record ComponentPatch(SequencedMap<Identifier, ComponentChange> changes) {
 
+  private static final ComponentPatch EMPTY = new ComponentPatch(new LinkedHashMap<>());
+
+  /**
+   * Copies the changes.
+   *
+   * @param changes the changes in insertion order
+   */
+  public ComponentPatch {
+    changes = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(changes));
+  }
+
   /**
    * Returns the patch with no change.
    *
    * @return the empty patch
    */
   public static ComponentPatch empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -25,7 +38,7 @@ public record ComponentPatch(SequencedMap<Identifier, ComponentChange> changes) 
    * @return {@code true} when there is no change
    */
   public boolean isEmpty() {
-    return Skeleton.throwNotImplemented();
+    return changes.isEmpty();
   }
 
   /**
@@ -36,7 +49,7 @@ public record ComponentPatch(SequencedMap<Identifier, ComponentChange> changes) 
    * @return the new patch; a previous change of the same component is replaced
    */
   public ComponentPatch withSet(Identifier id, ComponentValue value) {
-    return Skeleton.throwNotImplemented();
+    return with(id, new ComponentChange.Set(value));
   }
 
   /**
@@ -46,7 +59,13 @@ public record ComponentPatch(SequencedMap<Identifier, ComponentChange> changes) 
    * @return the new patch; a previous change of the same component is replaced
    */
   public ComponentPatch withRemoved(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return with(id, new ComponentChange.Removed());
+  }
+
+  private ComponentPatch with(Identifier id, ComponentChange change) {
+    LinkedHashMap<Identifier, ComponentChange> copy = new LinkedHashMap<>(changes);
+    copy.put(id, change);
+    return new ComponentPatch(copy);
   }
 
   /**
@@ -58,6 +77,19 @@ public record ComponentPatch(SequencedMap<Identifier, ComponentChange> changes) 
    * @return the normalized patch
    */
   public ComponentPatch normalizedAgainst(ComponentMap prototype) {
-    return Skeleton.throwNotImplemented();
+    LinkedHashMap<Identifier, ComponentChange> kept = new LinkedHashMap<>();
+    changes.forEach(
+        (id, change) -> {
+          boolean useless =
+              switch (change) {
+                case ComponentChange.Set set ->
+                    prototype.get(id).filter(set.value()::equals).isPresent();
+                case ComponentChange.Removed ignored -> !prototype.contains(id);
+              };
+          if (!useless) {
+            kept.put(id, change);
+          }
+        });
+    return kept.size() == changes.size() ? this : new ComponentPatch(kept);
   }
 }

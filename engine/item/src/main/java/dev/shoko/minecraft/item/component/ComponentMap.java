@@ -1,6 +1,8 @@
 package dev.shoko.minecraft.item.component;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Optional;
 import java.util.SequencedMap;
 
@@ -12,13 +14,24 @@ import java.util.SequencedMap;
  */
 public record ComponentMap(SequencedMap<Identifier, ComponentValue> entries) {
 
+  private static final ComponentMap EMPTY = new ComponentMap(new LinkedHashMap<>());
+
+  /**
+   * Copies the entries.
+   *
+   * @param entries the values in insertion order
+   */
+  public ComponentMap {
+    entries = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(entries));
+  }
+
   /**
    * Returns the map without any component.
    *
    * @return the empty map
    */
   public static ComponentMap empty() {
-    return Skeleton.throwNotImplemented();
+    return EMPTY;
   }
 
   /**
@@ -28,7 +41,7 @@ public record ComponentMap(SequencedMap<Identifier, ComponentValue> entries) {
    * @return the value, or empty when the component is absent
    */
   public Optional<ComponentValue> get(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(entries.get(id));
   }
 
   /**
@@ -38,7 +51,7 @@ public record ComponentMap(SequencedMap<Identifier, ComponentValue> entries) {
    * @return {@code true} when present
    */
   public boolean contains(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return entries.containsKey(id);
   }
 
   /**
@@ -48,6 +61,19 @@ public record ComponentMap(SequencedMap<Identifier, ComponentValue> entries) {
    * @return the map with the values set and the removed components dropped (IC-R14)
    */
   public ComponentMap apply(ComponentPatch patch) {
-    return Skeleton.throwNotImplemented();
+    if (patch.isEmpty()) {
+      return this;
+    }
+    LinkedHashMap<Identifier, ComponentValue> result = new LinkedHashMap<>(entries);
+    patch
+        .changes()
+        .forEach(
+            (id, change) -> {
+              switch (change) {
+                case ComponentChange.Set set -> result.put(id, set.value());
+                case ComponentChange.Removed ignored -> result.remove(id);
+              }
+            });
+    return new ComponentMap(result);
   }
 }

@@ -12,12 +12,14 @@ import dev.shoko.minecraft.item.component.ComponentMap;
  */
 public record ItemType(Identifier id, int rawId, ComponentMap prototype) {
 
+  private static final Identifier AIR = Identifier.minecraft("air");
+
   /**
    * Tells whether this is the default entry of the registry, {@code minecraft:air} (IC-R1, IC-R15).
    *
    * @return {@code true} for air
    */
   public boolean isAir() {
-    return Skeleton.throwNotImplemented();
+    return id.equals(AIR);
   }
 }

@@ -1,6 +1,10 @@
 package dev.shoko.minecraft.net.frame;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
+import java.io.ByteArrayOutputStream;
+import java.util.Objects;
+import java.util.zip.Deflater;
 
 /**
  * Turns frames into the bytes of the connection for one direction: length, optional compression,
@@ -16,7 +20,15 @@ import dev.shoko.minecraft.net.ProtocolException;
  */
 public final class FrameEncoder {
 
-  private FrameEncoder() {}
+  private static final int DEFLATE_CHUNK = 4096;
+
+  private final FrameLimits limits;
+  private int threshold = -1;
+  private StreamCipher cipher;
+
+  private FrameEncoder(FrameLimits limits) {
+    this.limits = Objects.requireNonNull(limits, "limits");
+  }
 
   /**
    * Creates an encoder with the default limits ({@link FrameLimits#DEFAULT}).
@@ -24,7 +36,7 @@ public final class FrameEncoder {
    * @return a new encoder
    */
   public static FrameEncoder create() {
-    return Skeleton.throwNotImplemented();
+    return new FrameEncoder(FrameLimits.DEFAULT);
   }
 
   /**
@@ -34,7 +46,7 @@ public final class FrameEncoder {
    * @return a new encoder
    */
   public static FrameEncoder create(FrameLimits limits) {
-    return Skeleton.throwNotImplemented();
+    return new FrameEncoder(limits);
   }
 
   /**
@@ -44,7 +56,7 @@ public final class FrameEncoder {
    *     negative to switch compression off (vector F14)
    */
   public void setCompressionThreshold(int threshold) {
-    Skeleton.throwNotImplemented();
+    this.threshold = threshold;
   }
 
   /**
@@ -54,7 +66,10 @@ public final class FrameEncoder {
    * @throws IllegalStateException when encryption is already on
    */
   public void enableEncryption(StreamCipher cipher) {
-    Skeleton.throwNotImplemented();
+    if (this.cipher != null) {
+      throw new IllegalStateException("encryption is already on");
+    }
+    this.cipher = Objects.requireNonNull(cipher, "cipher");
   }
 
   /**
@@ -66,6 +81,65 @@ public final class FrameEncoder {
    *     the maximum frame length (R27)
    */
   public byte[] encode(Frame frame) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    byte[] body = idAndPayload(frame);
+    byte[] inner = threshold < 0 ? body : withDataLength(body);
+    if (inner.length > limits.maxFrameLength()) {
+      throw new ProtocolException(
+          Reason.FRAME_LENGTH_INVALID,
+          "frame length " + inner.length + " above " + limits.maxFrameLength());
+    }
+    ByteArrayOutputStream out = new ByteArrayOutputStream(inner.length + 3);
+    writeVarInt(out, inner.length);
+    out.writeBytes(inner);
+    byte[] bytes = out.toByteArray();
+    if (cipher != null) {
+      cipher.apply(bytes, 0, bytes.length);
+    }
+    return bytes;
+  }
+
+  private static byte[] idAndPayload(Frame frame) {
+    byte[] payload = frame.payload();
+    ByteArrayOutputStream out = new ByteArrayOutputStream(payload.length + 5);
+    writeVarInt(out, frame.packetId());
+    out.writeBytes(payload);
+    return out.toByteArray();
+  }
+
+  private byte[] withDataLength(byte[] body) {
+    ByteArrayOutputStream out = new ByteArrayOutputStream(body.length + 5);
+    if (body.length < threshold) {
+      writeVarInt(out, 0);
+      out.writeBytes(body);
+    } else {
+      writeVarInt(out, body.length);
+      out.writeBytes(deflate(body));
+    }
+    return out.toByteArray();
+  }
+
+  private static byte[] deflate(byte[] body) {
+    Deflater deflater = new Deflater();
+    try {
+      deflater.setInput(body);
+      deflater.finish();
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      byte[] chunk = new byte[DEFLATE_CHUNK];
+      while (!deflater.finished()) {
+        out.write(chunk, 0, deflater.deflate(chunk));
+      }
+      return out.toByteArray();
+    } finally {
+      deflater.end();
+    }
+  }
+
+  private static void writeVarInt(ByteArrayOutputStream out, int value) {
+    int rest = value;
+    while ((rest & ~0x7f) != 0) {
+      out.write((rest & 0x7f) | 0x80);
+      rest >>>= 7;
+    }
+    out.write(rest);
   }
 }

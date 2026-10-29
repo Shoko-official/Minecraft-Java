@@ -1,7 +1,12 @@
 package dev.shoko.minecraft.net.frame;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
+import dev.shoko.minecraft.net.buffer.PacketReader;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * Turns the bytes received on a connection into frames: optional decryption, length, optional
@@ -31,7 +36,21 @@ import java.util.List;
  */
 public final class FrameDecoder {
 
-  private FrameDecoder() {}
+  private static final int MAX_LENGTH_BYTES = 3;
+  private static final int INITIAL_CAPACITY = 256;
+
+  private final FrameLimits limits;
+  private byte[] buffer = new byte[INITIAL_CAPACITY];
+  private int start;
+  private int end;
+  private int threshold = -1;
+  private StreamCipher cipher;
+  private boolean failed;
+  private int lengthFieldBytes;
+
+  private FrameDecoder(FrameLimits limits) {
+    this.limits = Objects.requireNonNull(limits, "limits");
+  }
 
   /**
    * Creates a decoder with the default limits ({@link FrameLimits#DEFAULT}).
@@ -39,7 +58,7 @@ public final class FrameDecoder {
    * @return a new decoder
    */
   public static FrameDecoder create() {
-    return Skeleton.throwNotImplemented();
+    return new FrameDecoder(FrameLimits.DEFAULT);
   }
 
   /**
@@ -49,7 +68,7 @@ public final class FrameDecoder {
    * @return a new decoder
    */
   public static FrameDecoder create(FrameLimits limits) {
-    return Skeleton.throwNotImplemented();
+    return new FrameDecoder(limits);
   }
 
   /**
@@ -58,7 +77,7 @@ public final class FrameDecoder {
    * @param threshold 0 or more to expect the compressed format; negative to switch it off
    */
   public void setCompressionThreshold(int threshold) {
-    Skeleton.throwNotImplemented();
+    this.threshold = threshold;
   }
 
   /**
@@ -68,7 +87,10 @@ public final class FrameDecoder {
    * @throws IllegalStateException when decryption is already on
    */
   public void enableDecryption(StreamCipher cipher) {
-    Skeleton.throwNotImplemented();
+    if (this.cipher != null) {
+      throw new IllegalStateException("decryption is already on");
+    }
+    this.cipher = Objects.requireNonNull(cipher, "cipher");
   }
 
   /**
@@ -83,7 +105,17 @@ public final class FrameDecoder {
    * @throws IndexOutOfBoundsException when the range is not inside {@code data}
    */
   public List<Frame> feed(byte[] data, int offset, int length) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    if (failed) {
+      throw new IllegalStateException("the decoder failed and cannot be used again");
+    }
+    Objects.checkFromIndexSize(offset, length, data.length);
+    try {
+      append(data, offset, length);
+      return drain();
+    } catch (ProtocolException e) {
+      failed = true;
+      throw e;
+    }
   }
 
   /**
@@ -92,6 +124,109 @@ public final class FrameDecoder {
    * @return the byte count, 0 or more
    */
   public int bufferedBytes() {
-    return Skeleton.throwNotImplemented();
+    return end - start;
+  }
+
+  /** Copies received bytes into the buffer and decrypts the copy, never the caller's array. */
+  private void append(byte[] data, int offset, int length) {
+    if (start == end) {
+      start = 0;
+      end = 0;
+    }
+    if (end + length > buffer.length) {
+      int live = end - start;
+      long needed = (long) live + length;
+      byte[] target =
+          needed <= buffer.length ? buffer : new byte[(int) Math.max(needed, 2L * live)];
+      System.arraycopy(buffer, start, target, 0, live);
+      buffer = target;
+      start = 0;
+      end = live;
+    }
+    System.arraycopy(data, offset, buffer, end, length);
+    if (cipher != null) {
+      cipher.apply(buffer, end, length);
+    }
+    end += length;
+  }
+
+  private List<Frame> drain() throws ProtocolException {
+    List<Frame> frames = new ArrayList<>();
+    while (true) {
+      int length = readLength();
+      if (length < 0 || end - start < lengthFieldBytes + length) {
+        return frames;
+      }
+      frames.add(decodeBody(start + lengthFieldBytes, length));
+      start += lengthFieldBytes + length;
+    }
+  }
+
+  /**
+   * Reads the frame length at the start of the buffer. Returns -1 while the length is incomplete;
+   * fails as soon as it is known to be invalid.
+   */
+  private int readLength() throws ProtocolException {
+    int value = 0;
+    for (int i = 0; i < MAX_LENGTH_BYTES; i++) {
+      if (start + i >= end) {
+        return -1;
+      }
+      int group = buffer[start + i] & 0xff;
+      value |= (group & 0x7f) << (7 * i);
+      if ((group & 0x80) == 0) {
+        lengthFieldBytes = i + 1;
+        return checkLength(value);
+      }
+    }
+    throw new ProtocolException(Reason.FRAME_LENGTH_INVALID, "frame length of more than 3 bytes");
+  }
+
+  private int checkLength(int value) throws ProtocolException {
+    if (value < 1 || value > limits.maxFrameLength()) {
+      throw new ProtocolException(
+          Reason.FRAME_LENGTH_INVALID,
+          "frame length " + value + " outside 1 to " + limits.maxFrameLength());
+    }
+    return value;
+  }
+
+  private Frame decodeBody(int bodyStart, int bodyLength) throws ProtocolException {
+    if (threshold < 0) {
+      return parseIdAndPayload(buffer, bodyStart, bodyLength);
+    }
+    PacketReader in = PacketReader.wrap(buffer, bodyStart, bodyLength);
+    int dataLength = in.readVarInt();
+    int streamStart = bodyStart + bodyLength - in.remaining();
+    if (dataLength == 0) {
+      return parseIdAndPayload(buffer, streamStart, in.remaining());
+    }
+    checkDataLength(dataLength);
+    byte[] inflated = FrameInflater.inflate(buffer, streamStart, in.remaining(), dataLength);
+    return parseIdAndPayload(inflated, 0, inflated.length);
+  }
+
+  private void checkDataLength(int dataLength) throws ProtocolException {
+    if (dataLength < 0) {
+      throw new ProtocolException(Reason.NEGATIVE_LENGTH, "negative data length " + dataLength);
+    }
+    if (dataLength < threshold) {
+      throw new ProtocolException(
+          Reason.DATA_LENGTH_BELOW_THRESHOLD,
+          "data length " + dataLength + " below threshold " + threshold);
+    }
+    if (dataLength > limits.maxDecompressedLength()) {
+      throw new ProtocolException(
+          Reason.DECOMPRESSED_TOO_LARGE,
+          "announced " + dataLength + " bytes, limit " + limits.maxDecompressedLength());
+    }
+  }
+
+  private static Frame parseIdAndPayload(byte[] source, int offset, int length)
+      throws ProtocolException {
+    PacketReader in = PacketReader.wrap(source, offset, length);
+    int id = in.readVarInt();
+    int payloadStart = offset + length - in.remaining();
+    return Frame.adopt(id, Arrays.copyOfRange(source, payloadStart, offset + length));
   }
 }

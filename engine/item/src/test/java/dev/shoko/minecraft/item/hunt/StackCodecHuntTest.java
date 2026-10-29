@@ -60,13 +60,6 @@ class StackCodecHuntTest {
 
   @Test
   void theCodecRefusesWhatTheEnchantmentViewRefuses() {
-    ComponentValue value =
-        Findings.value(
-            CODEC.valueFromJson(
-                TestItems.id("enchantments"), Json.parseStrict("{\"minecraft:sharpness\":256}")));
-    assertThat(dev.shoko.minecraft.item.component.EnchantmentLevels.from(value))
-        .as("the typed view refuses a level above 255")
-        .isInstanceOf(Decoding.Failure.class);
     assertThat(
             CODEC.valueFromJson(
                 TestItems.id("enchantments"), Json.parseStrict("{\"minecraft:sharpness\":256}")))

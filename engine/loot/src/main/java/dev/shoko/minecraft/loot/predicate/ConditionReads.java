@@ -7,7 +7,9 @@ import dev.shoko.minecraft.loot.context.ContextKey;
 import dev.shoko.minecraft.loot.context.LootContextType;
 import dev.shoko.minecraft.loot.number.FloatProvider;
 import dev.shoko.minecraft.loot.predicate.match.DamageSourcePredicate;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
@@ -60,33 +62,42 @@ public final class ConditionReads {
     return findings;
   }
 
+  /**
+   * Walks the condition and the named predicates it references with an explicit stack: a chain of
+   * thousands of references must not overflow the call stack, and a cycle is followed once.
+   */
   private static void collect(
-      LootCondition condition, NamedPredicates named, Set<ContextKey> keys, Set<Identifier> seen) {
-    switch (condition) {
-      case LootCondition.AllOf all -> all.terms().forEach(t -> collect(t, named, keys, seen));
-      case LootCondition.AnyOf any -> any.terms().forEach(t -> collect(t, named, keys, seen));
-      case LootCondition.Inverted inverted -> collect(inverted.term(), named, keys, seen);
-      case LootCondition.Reference reference -> {
-        if (seen.add(reference.predicate())) {
-          named.find(reference.predicate()).ifPresent(c -> collect(c, named, keys, seen));
+      LootCondition root, NamedPredicates named, Set<ContextKey> keys, Set<Identifier> seen) {
+    Deque<LootCondition> pending = new ArrayDeque<>();
+    pending.push(root);
+    while (!pending.isEmpty()) {
+      switch (pending.pop()) {
+        case LootCondition.AllOf all -> all.terms().forEach(pending::push);
+        case LootCondition.AnyOf any -> any.terms().forEach(pending::push);
+        case LootCondition.Inverted inverted -> pending.push(inverted.term());
+        case LootCondition.Reference reference -> {
+          if (seen.add(reference.predicate())) {
+            named.find(reference.predicate()).ifPresent(pending::push);
+          }
         }
-      }
-      case LootCondition.SurvivesExplosion survives -> keys.add(ContextKey.EXPLOSION_RADIUS);
-      case LootCondition.MatchTool tool -> keys.add(ContextKey.TOOL);
-      case LootCondition.TableBonus bonus -> keys.add(ContextKey.TOOL);
-      case LootCondition.MatchBlock block -> keys.add(ContextKey.BLOCK_STATE);
-      case LootCondition.KilledByPlayer killed -> keys.add(ContextKey.ATTACKING_PLAYER);
-      case LootCondition.EntityProperties properties -> keys.add(properties.entity().contextKey());
-      case LootCondition.LocationCheck location -> keys.add(ContextKey.ORIGIN);
-      case LootCondition.RandomChanceWithEnchantedBonus bonus -> keys.add(ContextKey.ATTACKER);
-      case LootCondition.EnchantmentActiveCheck active -> keys.add(ContextKey.ENCHANTMENT_ACTIVE);
-      case LootCondition.DamageSourceProperties damage -> damage(damage, keys);
-      case LootCondition.RandomChance chance -> {
-        if (chance.chance() instanceof FloatProvider.EnchantmentLevel) {
-          keys.add(ContextKey.ENCHANTMENT_LEVEL);
+        case LootCondition.SurvivesExplosion survives -> keys.add(ContextKey.EXPLOSION_RADIUS);
+        case LootCondition.MatchTool tool -> keys.add(ContextKey.TOOL);
+        case LootCondition.TableBonus bonus -> keys.add(ContextKey.TOOL);
+        case LootCondition.MatchBlock block -> keys.add(ContextKey.BLOCK_STATE);
+        case LootCondition.KilledByPlayer killed -> keys.add(ContextKey.ATTACKING_PLAYER);
+        case LootCondition.EntityProperties properties ->
+            keys.add(properties.entity().contextKey());
+        case LootCondition.LocationCheck location -> keys.add(ContextKey.ORIGIN);
+        case LootCondition.RandomChanceWithEnchantedBonus bonus -> keys.add(ContextKey.ATTACKER);
+        case LootCondition.EnchantmentActiveCheck active -> keys.add(ContextKey.ENCHANTMENT_ACTIVE);
+        case LootCondition.DamageSourceProperties damage -> damage(damage, keys);
+        case LootCondition.RandomChance chance -> {
+          if (chance.chance() instanceof FloatProvider.EnchantmentLevel) {
+            keys.add(ContextKey.ENCHANTMENT_LEVEL);
+          }
         }
+        default -> {}
       }
-      default -> {}
     }
   }
 

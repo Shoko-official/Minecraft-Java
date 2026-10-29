@@ -108,14 +108,17 @@ public final class LootEvaluator {
           if (rolls > TableDraw.MAX_ROLLS) {
             throw new LootBudgetException("a pool asks for " + rolls + " rolls");
           }
-          // The bonus comes from the luck of the context, an input and not data: it is bounded by
-          // the cap of the pool without an error (LT-R74a, discussed in the report).
+          // The bonus comes from the luck of the context, an input and not data: it is bounded to
+          // the cap on its own, without an error, and the sum with the rolls may reach twice the
+          // cap (LT-R74a).
           float bonus = pool.bonusRolls().sample(context) * context.luck();
           if (!Float.isNaN(bonus)) {
             rolls +=
-                (long) Math.floor(Math.max(-Integer.MAX_VALUE, Math.min(Integer.MAX_VALUE, bonus)));
+                (long)
+                    Math.floor(
+                        Math.max(-TableDraw.MAX_ROLLS, Math.min(TableDraw.MAX_ROLLS, bonus)));
           }
-          return (int) Math.max(0, Math.min(TableDraw.MAX_ROLLS, rolls));
+          return (int) Math.max(0, rolls);
         });
   }
 

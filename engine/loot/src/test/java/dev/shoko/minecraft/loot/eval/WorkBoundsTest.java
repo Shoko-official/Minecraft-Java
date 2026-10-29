@@ -6,12 +6,16 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import dev.shoko.minecraft.core.random.Lcg48Random;
 import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.modifier.ItemModifier;
 import dev.shoko.minecraft.loot.modifier.ModifierAction;
+import dev.shoko.minecraft.loot.number.FloatProvider;
+import dev.shoko.minecraft.loot.number.IntProvider;
 import dev.shoko.minecraft.loot.table.LootTable;
 import dev.shoko.minecraft.loot.testing.Ctx;
 import dev.shoko.minecraft.loot.testing.ScriptedRandom;
 import dev.shoko.minecraft.loot.testing.Tables;
 import dev.shoko.minecraft.loot.testing.WatchedRandom;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
@@ -71,5 +75,38 @@ class WorkBoundsTest {
 
   private static int total(LootResult result) {
     return result.stacks().stream().mapToInt(s -> s.count()).sum();
+  }
+
+  private static ItemModifier binomialCount() {
+    return Tables.modifier(
+        new ModifierAction.SetCount(
+            new IntProvider.Binomial(
+                new IntProvider.Constant(100_000), new FloatProvider.Constant(0.5f)),
+            false));
+  }
+
+  @Test
+  void provisionalTheTrialsOfBinomialsCountInTheBudgetOfTheDraw() {
+    // spec: LT-R74f, LT-R74b (the trials of a binomial are work): 50 set_count of n = 100000 on an
+    // entry, 4096 rolls, would make 20 billion trials; the draw fails fast with the typed error
+    ItemModifier[] fifty = Collections.nCopies(50, binomialCount()).toArray(new ItemModifier[0]);
+    LootTable table = Tables.table(Tables.pool(4096, Tables.modified(Tables.item("stone"), fifty)));
+    WatchedRandom random = WatchedRandom.limited(Lcg48Random.ofSeed(2), WORK_LIMIT);
+    LootContext context = Ctx.builder(random).build();
+    long start = System.nanoTime();
+    assertThatThrownBy(() -> LootEvaluator.evaluate(table, context))
+        .isInstanceOf(LootBudgetException.class);
+    assertThat(System.nanoTime() - start).isLessThan(3_000_000_000L);
+  }
+
+  @Test
+  void provisionalASingleBinomialOfOneHundredThousandTrialsStaysAccepted() {
+    // spec: LT-R74b (n = 100000 accepted), LT-R74f (far under the budget of the draw)
+    LootTable table =
+        Tables.table(Tables.pool(1, Tables.modified(Tables.item("stone"), binomialCount())));
+    LootContext context = Ctx.context(Lcg48Random.ofSeed(2));
+    int count =
+        LootEvaluator.evaluate(table, context).stacks().stream().mapToInt(s -> s.count()).sum();
+    assertThat(count).isBetween(49_000, 51_000);
   }
 }

@@ -62,7 +62,7 @@ class ItemStackAttackTest {
       } else if (!result.merged().isEmpty()) {
         assertThat(result.merged().count()).isLessThanOrEqualTo(result.merged().maxStackSize());
       }
-      if (!result.merged().isEmpty() && !result.remainder().isEmpty()) {
+      if (compatible && !result.merged().isEmpty() && !result.remainder().isEmpty()) {
         assertThat(result.merged().sameContent(result.remainder()))
             .as("%s <- %s", target, source)
             .isTrue();

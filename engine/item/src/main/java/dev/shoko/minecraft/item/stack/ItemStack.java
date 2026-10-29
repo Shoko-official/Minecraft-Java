@@ -26,6 +26,11 @@ public final class ItemStack {
 
   private static final int DEFAULT_STACK_SIZE = 64;
 
+  /**
+   * Most stacks {@link #stacksFor(int)} builds; a larger distribution is refused, not allocated.
+   */
+  private static final int MAX_STACKS = 1_000_000;
+
   private static final ItemType EMPTY_TYPE =
       new ItemType(Identifier.minecraft("air"), 0, ComponentMap.empty());
 
@@ -243,6 +248,7 @@ public final class ItemStack {
    * @param total the total count
    * @return the stacks of {@link #maxStackSize()} units, the last holding the rest; empty for a
    *     total of 0 or less
+   * @throws IllegalArgumentException when the total needs more than 1 000 000 stacks
    */
   public List<ItemStack> stacksFor(int total) {
     List<ItemStack> stacks = new ArrayList<>();
@@ -250,6 +256,9 @@ public final class ItemStack {
       return stacks;
     }
     int max = maxStackSize();
+    if ((total + (long) max - 1) / max > MAX_STACKS) {
+      throw new IllegalArgumentException(total + " units need more than " + MAX_STACKS + " stacks");
+    }
     for (int left = total; left > 0; left -= max) {
       stacks.add(withCount(Math.min(max, left)));
     }
@@ -286,15 +295,16 @@ public final class ItemStack {
   /**
    * Wears the item by use (IC-R21, provisional).
    *
-   * @param amount the wear to add
-   * @return the stack with {@code damage} raised, the empty stack when {@code damage} reaches
+   * @param amount the wear to add; a negative amount repairs, and {@code damage} never goes below 0
+   *     (IC-R21: it lies in 0 to {@code max_damage})
+   * @return the stack with {@code damage} changed, the empty stack when {@code damage} reaches
    *     {@code max_damage}; the same stack when the item is not damageable or {@code unbreakable}
    */
   public ItemStack wornBy(int amount) {
     if (!isDamageable() || component(WellKnownComponents.UNBREAKABLE).isPresent()) {
       return this;
     }
-    long worn = (long) damage() + amount;
+    long worn = Math.max(0, (long) damage() + amount);
     if (worn >= maxDamage()) {
       return EMPTY;
     }

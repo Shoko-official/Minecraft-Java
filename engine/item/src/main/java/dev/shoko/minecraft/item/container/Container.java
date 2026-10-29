@@ -30,8 +30,12 @@ public final class Container {
    * @param size the number of slots
    * @param slotLimit the quantity limit of a slot, from 1 to 99
    * @return the container
+   * @throws IllegalArgumentException when the size is negative or the limit outside 1 to 99
    */
   public static Container of(int size, int slotLimit) {
+    if (size < 0) {
+      throw new IllegalArgumentException("negative size: " + size);
+    }
     ItemStack[] slots = new ItemStack[size];
     Arrays.fill(slots, ItemStack.empty());
     return new Container(slots, checkedLimit(slotLimit));
@@ -43,9 +47,22 @@ public final class Container {
    * @param stacks the content of the slots, in slot order
    * @param slotLimit the quantity limit of a slot, from 1 to 99
    * @return the container; later changes to the list do not affect it
+   * @throws IllegalArgumentException when the limit is outside 1 to 99 or a stack holds more than
+   *     {@link #maxCountFor(ItemStack)}, as {@link #set} refuses
    */
   public static Container copyOf(List<ItemStack> stacks, int slotLimit) {
-    return new Container(stacks.toArray(new ItemStack[0]), checkedLimit(slotLimit));
+    Container container = new Container(stacks.toArray(new ItemStack[0]), checkedLimit(slotLimit));
+    for (ItemStack stack : container.slots) {
+      container.checkCount(stack);
+    }
+    return container;
+  }
+
+  private void checkCount(ItemStack stack) {
+    if (stack.count() > maxCountFor(stack)) {
+      throw new IllegalArgumentException(
+          "count " + stack.count() + " exceeds the limit " + maxCountFor(stack));
+    }
   }
 
   private static int checkedLimit(int slotLimit) {
@@ -104,10 +121,7 @@ public final class Container {
    */
   public void set(int slot, ItemStack stack) {
     Objects.checkIndex(slot, slots.length);
-    if (stack.count() > maxCountFor(stack)) {
-      throw new IllegalArgumentException(
-          "count " + stack.count() + " exceeds the limit " + maxCountFor(stack));
-    }
+    checkCount(stack);
     slots[slot] = stack;
   }
 

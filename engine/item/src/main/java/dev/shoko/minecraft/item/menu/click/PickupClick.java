@@ -27,7 +27,7 @@ final class PickupClick {
     if (held.isEmpty()) {
       return ClickEffect.NO_CHANGE;
     }
-    int taken = left ? held.count() : (held.count() + 1) / 2;
+    int taken = left ? held.count() : held.count() - held.count() / 2;
     ws.setCursor(held.withCount(taken));
     ws.set(slot, held.withCount(held.count() - taken));
     return ClickEffect.APPLIED;
@@ -73,11 +73,11 @@ final class PickupClick {
     if (!cursor.isEmpty() && !cursor.sameContent(result)) {
       return ClickEffect.NO_CHANGE;
     }
-    int total = cursor.count() + result.count();
+    long total = (long) cursor.count() + result.count();
     if (total > result.maxStackSize()) {
       return ClickEffect.REFUSED;
     }
-    ws.setCursor(result.withCount(total));
+    ws.setCursor(result.withCount((int) total));
     ws.resultTaken(slot, result);
     return ClickEffect.APPLIED;
   }

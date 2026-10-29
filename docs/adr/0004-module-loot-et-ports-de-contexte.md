@@ -1,6 +1,6 @@
 # ADR 0004 : Module `loot` et ports de contexte
 
-Statut : accepté, amendé par les specs du jalon M6 (voir « Amendement 1 »)
+Statut : accepté, amendé par les specs du jalon M6 (voir « Amendement 1 » et « Amendement 2 »)
 
 ## Contexte
 
@@ -48,3 +48,12 @@ Les specs `item-components-inventory.md` (« Propriétaires de modules »), `ite
 - `loot` : tables de butin, prédicats, fournisseurs de nombres, valeurs d'enchantements, calculs de la table d'enchantement, de l'enclume et de la meule, ports `EntityView` et `ActionSink`.
 - `game` : menus, ticks, block entities à inventaire, assemblage des appels vers `item` et `loot`. Les budgets de taille de `game` restent surveillés (ADR 0005).
 - Aucune dépendance montante : `item -> data` ; `loot -> world, item` ; `game -> worldgen, entity, loot` (et `item` par transitivité via `entity` et `loot`). Le tableau des modules de `docs/ARCHITECTURE.md` reprend ces responsabilités. Si l'implémentation exige que `game` importe directement des types de `item`, l'ajout de cette dépendance directe (descendante) se fait avec le code, en même temps que la règle ArchUnit et le tableau.
+
+## Amendement 2 : ports d'aléa du module `loot`
+
+`loot` déclare, en plus de `EntityView` et `ActionSink`, deux ports qui ne sont pas des ports de contexte de butin : `RandomSequenceStore` (lecture et avance de l'état d'une séquence aléatoire nommée) et `DrawObserver` (réception, dans l'ordre, de chaque décision aléatoire du tirage). Justification, vérifiée dans `docs/specs/loot-tables.md` :
+
+- `RandomSequenceStore` : la règle R65 prescrit un état de séquence persistant, initialisé à la première utilisation et partagé entre les tables qui déclarent la même séquence. La persistance appartient à `game` et `world`, vers lesquels `loot` ne peut pas dépendre vers le haut : `loot` reçoit donc un magasin qu'il lit et fait avancer, sans connaître son support.
+- `DrawObserver` : la règle R66 ne prescrit que l'ordre de consommation de l'aléa (hypothèse H-draw, arbitrée par l'oracle) et aucun port. La lecture « observateur » n'est donc pas une règle du jeu : c'est une décision de conception, consignée par la règle R78 (`S-arch`), motivée par le besoin de comparer cet ordre à l'oracle (sonde PL5) et de tester H-draw. Un tirage sans observateur donne les mêmes résultats.
+
+Conséquence : l'énumération des ports de `loot` est `EntityView`, `ActionSink`, `RandomSequenceStore`, `DrawObserver`. Le point 4 de l'amendement 1 reste vrai pour les ports de contexte : `EntityView` y reste le seul port de lecture.

@@ -1,10 +1,12 @@
 package dev.shoko.minecraft.world.storage;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import dev.shoko.minecraft.world.support.Failures;
 import dev.shoko.minecraft.world.support.Hex;
 import dev.shoko.minecraft.world.support.Lz4Frames;
+import java.lang.management.ManagementFactory;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.SplittableRandom;
@@ -22,6 +24,9 @@ class Lz4ExpansionBoundTest {
 
   private static final long BIG = 1L << 30;
   private static final int LEVEL_15 = 15;
+  // Far below the 32 MiB a block announced as 2^25 bytes would take, far above what a refusal
+  // needs.
+  private static final long ALLOCATION_BUDGET = 1L << 20;
 
   private static byte[] decode(byte[] stream) throws Exception {
     return Lz4BlockCodec.decode(stream, BIG);
@@ -78,6 +83,8 @@ class Lz4ExpansionBoundTest {
     CorruptStreamException failure =
         Failures.expect(CorruptStreamException.class, () -> decode(stream));
 
+    // The message is the only observable here: 2551 bytes are too few to see an allocation, and
+    // the content of this body would be refused as corrupt with or without the bound.
     assertThat(failure.getMessage()).contains("impossible length");
   }
 
@@ -91,6 +98,8 @@ class Lz4ExpansionBoundTest {
     CorruptStreamException failure =
         Failures.expect(CorruptStreamException.class, () -> decode(stream));
 
+    // No valid block reaches exactly 255 times, so the content refuses this one either way (the
+    // type is the same); only the absence of the bound's message tells the comparison is `>`.
     assertThat(failure.getMessage()).doesNotContain("impossible length");
   }
 
@@ -103,26 +112,44 @@ class Lz4ExpansionBoundTest {
         Hex.concat(
             Lz4Frames.block(0x20 | LEVEL_15, 1, 1 << 25, 0, body), Lz4Frames.endMark(LEVEL_15));
 
-    CorruptStreamException failure =
-        Failures.expect(CorruptStreamException.class, () -> decode(stream));
+    long allocated =
+        allocatedBy(() -> Failures.expect(CorruptStreamException.class, () -> decode(stream)));
 
-    assertThat(failure.getMessage()).contains("impossible length");
+    assertThat(allocated).isLessThan(ALLOCATION_BUDGET);
   }
 
   @Test
   void theBoundAppliesToTheBlocksAfterTheFirstOneToo() {
-    // spec: AR-R29 (every block header is checked, not the first only)
+    // spec: AR-R29 (every block header is checked, not the first only): the second block would
+    // take 32 MiB if it were allocated
     byte[] body = new byte[10];
     byte[] stream =
         Hex.concat(
             Lz4Frames.rawBlock("minecraft".getBytes(StandardCharsets.US_ASCII), 6),
-            Lz4Frames.block(0x26, body.length, 2551, 0, body),
+            Lz4Frames.block(0x20 | LEVEL_15, body.length, 1 << 25, 0, body),
             Lz4Frames.endMark(6));
 
-    CorruptStreamException failure =
-        Failures.expect(CorruptStreamException.class, () -> decode(stream));
+    long allocated =
+        allocatedBy(() -> Failures.expect(CorruptStreamException.class, () -> decode(stream)));
 
-    assertThat(failure.getMessage()).contains("impossible length");
+    assertThat(allocated).isLessThan(ALLOCATION_BUDGET);
+  }
+
+  /**
+   * Bytes the current thread allocates while the call runs. The JDK documents the counter as
+   * approximate, so the callers compare it with a margin of a factor 32; the test is skipped when
+   * the JVM cannot measure.
+   */
+  private static long allocatedBy(Runnable call) {
+    var threads = (com.sun.management.ThreadMXBean) ManagementFactory.getThreadMXBean();
+    assumeTrue(
+        threads.isThreadAllocatedMemorySupported() && threads.isThreadAllocatedMemoryEnabled(),
+        "this JVM does not measure the allocation of a thread");
+    long id = Thread.currentThread().threadId();
+    long before = threads.getThreadAllocatedBytes(id);
+    assertThat(before).as("allocated bytes before the call").isNotEqualTo(-1L);
+    call.run();
+    return threads.getThreadAllocatedBytes(id) - before;
   }
 
   @Test

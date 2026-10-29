@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Bug-hunter probes on chunk sections, palettes and coordinates, against the real data. */
@@ -121,6 +122,7 @@ class ChunkHuntTest {
     return ((CompoundTag) palette.get(slot)).getString("id");
   }
 
+  @Tag("oracle")
   @Test
   void blockPaletteSizesAtEveryThresholdUseTheSpecBitsAndLongs() throws Exception {
     BlockStateRegistry registry = realRegistry();
@@ -231,6 +233,7 @@ class ChunkHuntTest {
     }
   }
 
+  @Tag("oracle")
   @Test
   void everyStructureTemplateRoundTripsThroughAChunkAndItsNbt() throws Exception {
     BlockStateRegistry registry = realRegistry();

@@ -14,9 +14,13 @@ import dev.shoko.minecraft.world.support.RegionFixtures;
 import java.io.IOException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 /**
  * A region file {@code r.X.Z.mca} or an external file {@code c.X.Z.mcc} that is not a plain file (a
@@ -131,14 +135,96 @@ class NonRegularFilesTest {
     byte[] largeNbt = new byte[1_100_000];
 
     try (RegionFile file = RegionFixtures.open(region())) {
-      Failures.expect(
-          IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L));
+      assertNotRegular(
+          Failures.expect(
+              IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L)));
       assertThat(Chunks.absent(file.read(CHUNK_A)).cause()).isEqualTo(AbsentCause.EMPTY_SLOT);
     }
 
     assertThat(Files.isDirectory(mcc, java.nio.file.LinkOption.NOFOLLOW_LINKS)).isTrue();
     assertThat(RegionFixtures.names(region()))
         .containsExactlyInAnyOrder("c.-1.-1.mcc", "r.-1.-1.mca");
+  }
+
+  @Test
+  void aSymbolicLinkNamedLikeTheExternalFileFailsTheWriteOfAnExternalChunk() throws IOException {
+    // spec: AR-R17, AR-R27: the atomic move that publishes the stream would replace the link, so
+    // the target is refused first; the link and what it points to are untouched
+    Path targetFile = outside().resolve("target.mcc");
+    Files.writeString(targetFile, "keep");
+    Path mcc = region().resolve("c.-1.-1.mcc");
+    symlinkOrSkip(mcc, targetFile);
+    byte[] largeNbt = new byte[1_100_000];
+
+    try (RegionFile file = RegionFixtures.open(region())) {
+      assertNotRegular(
+          Failures.expect(
+              IOException.class, () -> file.write(CHUNK_A, largeNbt, RegionCompression.NONE, 1L)));
+      assertThat(Chunks.absent(file.read(CHUNK_A)).cause()).isEqualTo(AbsentCause.EMPTY_SLOT);
+    }
+
+    assertThat(Files.isSymbolicLink(mcc)).isTrue();
+    assertThat(Files.readString(targetFile)).isEqualTo("keep");
+    assertThat(RegionFixtures.names(region()))
+        .containsExactlyInAnyOrder("c.-1.-1.mcc", "r.-1.-1.mca");
+  }
+
+  @ParameterizedTest
+  @ValueSource(booleans = {false, true})
+  void aDirectoryNamedLikeTheExternalFileFailsTheSaveOfAChunkThatFitsBeforeAnyWrite(
+      boolean withContent) throws IOException {
+    // spec: AR-R17, AR-R18 and AR-R27: a chunk that fits would remove a leftover .mcc, which is a
+    // plain file or nothing; the refusal comes before the record is written, so the caller never
+    // sees a failure for data that is committed
+    byte[] regionBefore = RegionFixtures.writeRg1(region(), 2);
+    Path mcc = region().resolve("c.-1.-1.mcc");
+    Files.createDirectory(mcc);
+    if (withContent) {
+      Files.writeString(mcc.resolve("inside"), "keep");
+    }
+
+    try (AnvilChunkStore store = open()) {
+      assertNotRegular(Failures.expect(IOException.class, () -> store.save(chunk(), 9L)));
+      assertThat(RegionFixtures.read(RegionFixtures.regionFile(region()))).isEqualTo(regionBefore);
+      assertThat(Files.isDirectory(mcc, LinkOption.NOFOLLOW_LINKS)).isTrue();
+      assertThat(RegionFixtures.names(mcc)).isEqualTo(withContent ? List.of("inside") : List.of());
+
+      Files.deleteIfExists(mcc.resolve("inside"));
+      Files.delete(mcc);
+      store.save(chunk(), 9L);
+      assertThat(Chunks.present(store.load(CHUNK_A)).value().pos()).isEqualTo(CHUNK_A);
+    }
+  }
+
+  @Test
+  void aDirectoryNamedLikeTheExternalFileLeavesAMissingRegionFileMissing() throws IOException {
+    // spec: AR-R27: nothing is created before the refusal, not even the region file
+    Path mcc = region().resolve("c.-1.-1.mcc");
+    Files.createDirectory(mcc);
+
+    try (AnvilChunkStore store = open()) {
+      assertNotRegular(Failures.expect(IOException.class, () -> store.save(chunk(), 9L)));
+    }
+
+    assertThat(RegionFixtures.names(region())).containsExactly("c.-1.-1.mcc");
+  }
+
+  @Test
+  void aSymbolicLinkNamedLikeTheExternalFileFailsTheSaveOfAChunkThatFits() throws IOException {
+    // spec: AR-R27: a link is neither followed nor removed by the cleanup of a leftover .mcc
+    byte[] regionBefore = RegionFixtures.writeRg1(region(), 2);
+    Path targetFile = outside().resolve("target.mcc");
+    Files.writeString(targetFile, "keep");
+    Path mcc = region().resolve("c.-1.-1.mcc");
+    symlinkOrSkip(mcc, targetFile);
+
+    try (AnvilChunkStore store = open()) {
+      assertNotRegular(Failures.expect(IOException.class, () -> store.save(chunk(), 9L)));
+    }
+
+    assertThat(RegionFixtures.read(RegionFixtures.regionFile(region()))).isEqualTo(regionBefore);
+    assertThat(Files.isSymbolicLink(mcc)).isTrue();
+    assertThat(Files.readString(targetFile)).isEqualTo("keep");
   }
 
   @Test

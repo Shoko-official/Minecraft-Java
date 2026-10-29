@@ -518,6 +518,46 @@ Variantes `wrong_pos`, `bad_offset` et `offset_beyond` de RG3, même procédure 
 
 Variantes `root_named`, `trailing_bytes`, `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb`, `compression_127` de RG4, même procédure que PB1. Attendus provisoires (notre moteur) : `root_named` et `trailing_bytes` PRÉSENTS (bedrock à y = -64) ; `root_not_compound`, `invalid_nbt`, `corrupt_zlib`, `bomb` ABSENTS, donc régénérés (dirt à y = -63) ; `compression_127` REFUSÉ (l'attente W expire). Relever le comportement réel et le journal du serveur (chunk régénéré, chunk non chargé, arrêt, mémoire consommée pour `bomb`), puis, après `save-all flush`, si l'enregistrement d'origine de l'index 1023 de `r.-1.-1.mca` a été conservé ou écrasé : un écrasement par le serveur justifie AR-R30 a et b ; une conservation les fait passer à REFUSÉ.
 
+### PR7 : chemin de dimension avec un séparateur (AR-R35)
+
+Datapack de sonde produit à la volée comme DP6 de `dim-definitions-portals-vectors.md` (jamais commité), avec `data/probe/dimension/a/b.json` (dimension plate), de sorte que l'identifiant est `probe:a/b`. Démarrage, puis :
+
+```
+execute in probe:a/b run forceload add 0 0
+W(0, 0)
+save-all flush
+```
+
+Relever : la réponse de `forceload` (identifiant accepté ou refusé), le journal du serveur, et la liste récursive de `world/dimensions/probe/`. Attendu provisoire (notre moteur) : l'identifiant est refusé et aucun dossier n'est créé. Le serveur peut en décider autrement : identifiant accepté avec des dossiers imbriqués `dimensions/probe/a/b/region/`, identifiant accepté avec un dossier unique dont le nom encode le `/`, ou identifiant refusé. Critère de succès : l'arborescence relevée tranche entre ces trois cas ; les deux premiers font réviser AR-R34 et AR-R35 pour accepter l'identifiant.
+
+### PR8 : lien symbolique vers un fichier de région (AR-R39)
+
+Sous Linux. W-FLAT après PC1, serveur arrêté : copier `r.0.0.mca` hors du monde (dossier `elsewhere/`), remplacer `world/dimensions/minecraft/overworld/region/r.0.0.mca` par un lien symbolique vers la copie, démarrer, puis :
+
+```
+forceload add 0 0
+W(0, 0)
+execute if block 0 -64 0 minecraft:bedrock
+setblock 1 -60 1 minecraft:composter
+save-all flush
+```
+
+Relever : le journal du serveur, la réponse de `execute if block` (le chunk du lien est-il chargé ?), et après l'arrêt, si le lien est resté un lien et si la copie a reçu la sauvegarde. Attendu provisoire (notre moteur) : le lien n'est pas suivi, le chunk n'est pas chargé (l'attente W expire). Critère de succès : le serveur ne charge pas le chunk ; sinon AR-R39 change pour suivre les liens.
+
+### PR9 : noms de dimension à point final et noms de périphérique DOS (AR-R40)
+
+Sous Linux, mêmes données que PR7 avec des dimensions plates `probe:nul`, `probe:com1.x` et `probe:bar.` (fichiers `data/probe/dimension/nul.json`, `com1.x.json` et `bar..json`) :
+
+```
+execute in probe:nul run forceload add 0 0
+execute in probe:com1.x run forceload add 0 0
+execute in probe:bar. run forceload add 0 0
+W(0, 0)
+save-all flush
+```
+
+Relever pour chaque identifiant : la réponse de `forceload`, le journal du serveur et la liste de `world/dimensions/probe/`. Attendu provisoire (notre moteur) : les trois identifiants sont refusés et aucun dossier n'est créé. Critère de succès : le serveur accepte les trois et crée `dimensions/probe/nul/`, `dimensions/probe/com1.x/` et `dimensions/probe/bar./` ; AR-R40 devient alors un écart de portabilité assumé (voir le journal des décisions), ou est levé hors de Windows.
+
 ## Annexe : `world_ref.py`
 
 ```python

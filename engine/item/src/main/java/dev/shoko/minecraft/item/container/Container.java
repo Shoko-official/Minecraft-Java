@@ -1,7 +1,11 @@
 package dev.shoko.minecraft.item.container;
 
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * A fixed-size array of slots, each holding a stack that may be empty (IC-R30). Mutable and
@@ -12,7 +16,13 @@ import java.util.List;
  */
 public final class Container {
 
-  private Container() {}
+  private final ItemStack[] slots;
+  private final int slotLimit;
+
+  private Container(ItemStack[] slots, int slotLimit) {
+    this.slots = slots;
+    this.slotLimit = slotLimit;
+  }
 
   /**
    * Creates a container of empty slots.
@@ -22,7 +32,9 @@ public final class Container {
    * @return the container
    */
   public static Container of(int size, int slotLimit) {
-    return Skeleton.throwNotImplemented();
+    ItemStack[] slots = new ItemStack[size];
+    Arrays.fill(slots, ItemStack.empty());
+    return new Container(slots, checkedLimit(slotLimit));
   }
 
   /**
@@ -33,7 +45,14 @@ public final class Container {
    * @return the container; later changes to the list do not affect it
    */
   public static Container copyOf(List<ItemStack> stacks, int slotLimit) {
-    return Skeleton.throwNotImplemented();
+    return new Container(stacks.toArray(new ItemStack[0]), checkedLimit(slotLimit));
+  }
+
+  private static int checkedLimit(int slotLimit) {
+    if (slotLimit < 1 || slotLimit > ItemStack.MAX_COUNT) {
+      throw new IllegalArgumentException("slot limit outside 1 to 99: " + slotLimit);
+    }
+    return slotLimit;
   }
 
   /**
@@ -42,7 +61,7 @@ public final class Container {
    * @return the size
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return slots.length;
   }
 
   /**
@@ -51,7 +70,7 @@ public final class Container {
    * @return the limit of the container
    */
   public int slotLimit() {
-    return Skeleton.throwNotImplemented();
+    return slotLimit;
   }
 
   /**
@@ -61,7 +80,7 @@ public final class Container {
    * @return the minimum of its stack size and the limit of the container
    */
   public int maxCountFor(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    return Math.min(stack.maxStackSize(), slotLimit);
   }
 
   /**
@@ -72,7 +91,7 @@ public final class Container {
    * @throws IndexOutOfBoundsException when the index is outside the container
    */
   public ItemStack get(int slot) {
-    return Skeleton.throwNotImplemented();
+    return slots[Objects.checkIndex(slot, slots.length)];
   }
 
   /**
@@ -84,7 +103,12 @@ public final class Container {
    * @throws IllegalArgumentException when the count exceeds {@link #maxCountFor(ItemStack)}
    */
   public void set(int slot, ItemStack stack) {
-    Skeleton.throwNotImplemented();
+    Objects.checkIndex(slot, slots.length);
+    if (stack.count() > maxCountFor(stack)) {
+      throw new IllegalArgumentException(
+          "count " + stack.count() + " exceeds the limit " + maxCountFor(stack));
+    }
+    slots[slot] = stack;
   }
 
   /**
@@ -96,7 +120,10 @@ public final class Container {
    * @throws IndexOutOfBoundsException when the index is outside the container
    */
   public ItemStack remove(int slot, int amount) {
-    return Skeleton.throwNotImplemented();
+    ItemStack held = get(slot);
+    var split = held.split(amount);
+    slots[slot] = split.remaining();
+    return split.taken();
   }
 
   /**
@@ -107,7 +134,33 @@ public final class Container {
    * @return what did not fit, empty when everything was inserted
    */
   public ItemStack insert(ItemStack stack) {
-    return Skeleton.throwNotImplemented();
+    ItemStack rest = stack;
+    for (int slot = 0; slot < slots.length && !rest.isEmpty(); slot++) {
+      if (!slots[slot].isEmpty()) {
+        rest = fill(slot, rest);
+      }
+    }
+    for (int slot = 0; slot < slots.length && !rest.isEmpty(); slot++) {
+      if (slots[slot].isEmpty()) {
+        rest = fill(slot, rest);
+      }
+    }
+    return rest;
+  }
+
+  /** Moves what fits of a stack into a slot of the same content or an empty one. */
+  private ItemStack fill(int slot, ItemStack source) {
+    ItemStack held = slots[slot];
+    if (!held.isEmpty() && !held.sameContent(source)) {
+      return source;
+    }
+    int limit = maxCountFor(source);
+    int moved = Math.min(source.count(), Math.max(0, limit - held.count()));
+    if (moved == 0) {
+      return source;
+    }
+    slots[slot] = source.withCount(held.count() + moved);
+    return source.withCount(source.count() - moved);
   }
 
   /**
@@ -116,7 +169,12 @@ public final class Container {
    * @return {@code true} when the container holds nothing
    */
   public boolean isEmpty() {
-    return Skeleton.throwNotImplemented();
+    for (ItemStack slot : slots) {
+      if (!slot.isEmpty()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -125,6 +183,6 @@ public final class Container {
    * @return the stacks in slot order, unmodifiable
    */
   public List<ItemStack> snapshot() {
-    return Skeleton.throwNotImplemented();
+    return Collections.unmodifiableList(new ArrayList<>(Arrays.asList(slots)));
   }
 }

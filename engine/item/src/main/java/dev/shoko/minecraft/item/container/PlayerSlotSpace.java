@@ -10,6 +10,17 @@ import java.util.OptionalInt;
  */
 public final class PlayerSlotSpace {
 
+  private static final int HOTBAR_SIZE = 9;
+  private static final int MAIN_END = 35;
+  private static final int HOTBAR_WINDOW_START = 36;
+  private static final int HOTBAR_WINDOW_END = 44;
+  private static final int HEAD_WINDOW = 5;
+  private static final int FEET_WINDOW = 8;
+  private static final int OFFHAND_WINDOW = 45;
+  private static final int FEET_NBT = 100;
+  private static final int HEAD_NBT = 103;
+  private static final int OFFHAND_NBT = -106;
+
   private PlayerSlotSpace() {}
 
   /**
@@ -19,7 +30,16 @@ public final class PlayerSlotSpace {
    * @return the index in the player window (IC-R36), empty for a value that names no slot
    */
   public static OptionalInt windowIndexOf(int nbtSlot) {
-    return Skeleton.throwNotImplemented();
+    if (nbtSlot >= 0 && nbtSlot < HOTBAR_SIZE) {
+      return OptionalInt.of(HOTBAR_WINDOW_START + nbtSlot);
+    }
+    if (nbtSlot >= HOTBAR_SIZE && nbtSlot <= MAIN_END) {
+      return OptionalInt.of(nbtSlot);
+    }
+    if (nbtSlot >= FEET_NBT && nbtSlot <= HEAD_NBT) {
+      return OptionalInt.of(FEET_WINDOW - (nbtSlot - FEET_NBT));
+    }
+    return nbtSlot == OFFHAND_NBT ? OptionalInt.of(OFFHAND_WINDOW) : OptionalInt.empty();
   }
 
   /**
@@ -30,6 +50,15 @@ public final class PlayerSlotSpace {
    *     stored in {@code Inventory}
    */
   public static OptionalInt nbtSlotOf(int windowIndex) {
-    return Skeleton.throwNotImplemented();
+    if (windowIndex >= HOTBAR_SIZE && windowIndex <= MAIN_END) {
+      return OptionalInt.of(windowIndex);
+    }
+    if (windowIndex >= HOTBAR_WINDOW_START && windowIndex <= HOTBAR_WINDOW_END) {
+      return OptionalInt.of(windowIndex - HOTBAR_WINDOW_START);
+    }
+    if (windowIndex >= HEAD_WINDOW && windowIndex <= FEET_WINDOW) {
+      return OptionalInt.of(FEET_NBT + (FEET_WINDOW - windowIndex));
+    }
+    return windowIndex == OFFHAND_WINDOW ? OptionalInt.of(OFFHAND_NBT) : OptionalInt.empty();
   }
 }

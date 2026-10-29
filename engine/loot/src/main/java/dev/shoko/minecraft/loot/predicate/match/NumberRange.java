@@ -16,6 +16,6 @@ public record NumberRange(double min, double max) {
    * @return {@code true} when {@code min <= value <= max}
    */
   public boolean contains(double value) {
-    return Skeleton.throwNotImplemented();
+    return value >= min && value <= max;
   }
 }

@@ -30,7 +30,7 @@ public record EnchantmentCatalog(
    * @return the definition, empty when it is not loaded
    */
   public Optional<EnchantmentDefinition> find(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(definitions.get(id));
   }
 
   /**
@@ -40,7 +40,7 @@ public record EnchantmentCatalog(
    * @return the provider, empty when it is not loaded
    */
   public Optional<EnchantmentProvider> provider(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(providers.get(id));
   }
 
   /**
@@ -51,7 +51,9 @@ public record EnchantmentCatalog(
    * @return the definitions; identifiers that are not loaded are skipped
    */
   public List<EnchantmentDefinition> members(IdOrTagSet set, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return definitions.values().stream()
+        .filter(definition -> set.contains(definition.id(), access))
+        .toList();
   }
 
   /**
@@ -65,7 +67,7 @@ public record EnchantmentCatalog(
    * @return {@code true} when neither excludes the other
    */
   public boolean areCompatible(Identifier first, Identifier second, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return !isExcluded(first, second, access) && !isExcluded(second, first, access);
   }
 
   /**
@@ -77,6 +79,16 @@ public record EnchantmentCatalog(
    * @return {@code true} for a curse
    */
   public boolean isCurse(Identifier id, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return new IdOrTagSet(REGISTRY.name(), List.of(), List.of(EnchantmentTags.CURSE), false)
+        .contains(id, access);
+  }
+
+  private boolean isExcluded(Identifier owner, Identifier other, RegistryAccess access) {
+    if (owner.equals(other)) {
+      return false;
+    }
+    return find(owner)
+        .map(definition -> definition.exclusiveSet().contains(other, access))
+        .orElse(false);
   }
 }

@@ -66,7 +66,7 @@ public sealed interface IntProvider
    * @throws IllegalStateException when a {@link Reference} names a provider that is not loaded
    */
   default int sample(LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return IntSampler.sample(this, context, 0);
   }
 
   /**

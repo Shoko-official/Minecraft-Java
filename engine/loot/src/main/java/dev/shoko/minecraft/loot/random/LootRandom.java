@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.loot.random;
 
+import dev.shoko.minecraft.core.random.Lcg48Random;
 import dev.shoko.minecraft.core.random.RandomSource;
 import dev.shoko.minecraft.loot.port.RandomSequenceStore;
 
@@ -25,6 +26,12 @@ public final class LootRandom {
    */
   public static ChosenRandom choose(
       long explicitSeed, SequenceRef sequence, RandomSequenceStore sequences, RandomSource level) {
-    return Skeleton.throwNotImplemented();
+    if (explicitSeed != 0L) {
+      return new ChosenRandom(Lcg48Random.ofSeed(explicitSeed), RandomOrigin.EXPLICIT_SEED);
+    }
+    if (sequence instanceof SequenceRef.Named named) {
+      return new ChosenRandom(sequences.sequence(named.id()), RandomOrigin.NAMED_SEQUENCE);
+    }
+    return new ChosenRandom(level, RandomOrigin.LEVEL);
   }
 }

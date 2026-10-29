@@ -37,7 +37,7 @@ public record EnchantmentDefinition(
    * @return the cost, truncated to an integer
    */
   public int minCost(int level) {
-    return Skeleton.throwNotImplemented();
+    return (int) costs.minCost().calculate(level);
   }
 
   /**
@@ -47,6 +47,6 @@ public record EnchantmentDefinition(
    * @return the cost, truncated to an integer
    */
   public int maxCost(int level) {
-    return Skeleton.throwNotImplemented();
+    return (int) costs.maxCost().calculate(level);
   }
 }

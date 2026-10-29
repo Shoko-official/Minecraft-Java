@@ -33,7 +33,7 @@ public final class EffectEvaluator {
    */
   public static float value(
       EffectComponents effects, Identifier component, int level, float start, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return EffectRun.value(effects, component, level, start, context);
   }
 
   /**
@@ -55,7 +55,7 @@ public final class EffectEvaluator {
       Identifier component,
       float start,
       LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return EffectRun.valueOverEquipment(entity, catalog, component, start, context);
   }
 
   /**
@@ -75,6 +75,6 @@ public final class EffectEvaluator {
       int level,
       LootContext context,
       ActionSink sink) {
-    Skeleton.throwNotImplemented();
+    EffectRun.trigger(enchantment, component, level, context, sink);
   }
 }

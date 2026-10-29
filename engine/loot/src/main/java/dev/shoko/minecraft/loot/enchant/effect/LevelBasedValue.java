@@ -29,7 +29,7 @@ public sealed interface LevelBasedValue
    * @return the value
    */
   default float calculate(int level) {
-    return Skeleton.throwNotImplemented();
+    return LevelMath.calculate(this, level);
   }
 
   /**

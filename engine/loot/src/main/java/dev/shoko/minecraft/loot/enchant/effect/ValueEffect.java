@@ -29,7 +29,7 @@ public sealed interface ValueEffect
    * @return the new value
    */
   default float apply(float current, int level, LootContext context) {
-    return Skeleton.throwNotImplemented();
+    return LevelMath.apply(this, current, level, context);
   }
 
   /**

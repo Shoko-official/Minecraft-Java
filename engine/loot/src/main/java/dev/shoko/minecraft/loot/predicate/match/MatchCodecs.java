@@ -21,7 +21,7 @@ public final class MatchCodecs {
    * @return the range
    */
   public static LootDecoding<NumberRange> range(JsonNode node) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.range(node);
   }
 
   /**
@@ -34,7 +34,7 @@ public final class MatchCodecs {
    */
   public static LootDecoding<IdOrTagSet> idOrTagSet(
       JsonNode node, Identifier registry, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.idOrTagSet(node, registry, access);
   }
 
   /**
@@ -45,7 +45,7 @@ public final class MatchCodecs {
    * @return the predicate
    */
   public static LootDecoding<BlockMatch> block(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.block(node, access);
   }
 
   /**
@@ -56,7 +56,7 @@ public final class MatchCodecs {
    * @return the predicate
    */
   public static LootDecoding<ItemMatch> item(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.item(node, access);
   }
 
   /**
@@ -67,7 +67,7 @@ public final class MatchCodecs {
    * @return the predicate
    */
   public static LootDecoding<EntityPredicate> entity(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return EntityReader.entity(node, access);
   }
 
   /**
@@ -78,7 +78,7 @@ public final class MatchCodecs {
    * @return the predicate
    */
   public static LootDecoding<LocationPredicate> location(JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.location(node, access);
   }
 
   /**
@@ -90,6 +90,6 @@ public final class MatchCodecs {
    */
   public static LootDecoding<DamageSourcePredicate> damageSource(
       JsonNode node, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    return MatchReaders.damageSource(node, access);
   }
 }

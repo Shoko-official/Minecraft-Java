@@ -21,7 +21,7 @@ public record NumberProviderSet(
    * @return the provider, empty when it is not loaded
    */
   public Optional<IntProvider> intProvider(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(ints.get(id));
   }
 
   /**
@@ -31,6 +31,6 @@ public record NumberProviderSet(
    * @return the provider, empty when it is not loaded
    */
   public Optional<FloatProvider> floatProvider(Identifier id) {
-    return Skeleton.throwNotImplemented();
+    return Optional.ofNullable(floats.get(id));
   }
 }

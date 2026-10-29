@@ -1,7 +1,10 @@
 package dev.shoko.minecraft.loot.predicate.match;
 
 import dev.shoko.minecraft.core.coord.BlockPos;
+import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.world.chunk.Chunk;
 import java.util.List;
 
 /**
@@ -11,6 +14,8 @@ import java.util.List;
  * @param requirements the keys present, in file order, unmodifiable
  */
 public record LocationPredicate(List<Requirement> requirements) {
+
+  private static final int FULL_SKY_LIGHT = 15;
 
   /** One key of a position predicate. */
   public sealed interface Requirement
@@ -48,6 +53,36 @@ public record LocationPredicate(List<Requirement> requirements) {
    * @return {@code true} when every requirement holds
    */
   public boolean matches(LootContext context, BlockPos pos) {
-    return Skeleton.throwNotImplemented();
+    if (requirements.isEmpty()) {
+      return true;
+    }
+    Chunk chunk = context.chunkAt(pos).orElse(null);
+    if (chunk == null || !chunk.height().contains(pos.y())) {
+      return false;
+    }
+    for (Requirement requirement : requirements) {
+      if (!holds(requirement, chunk, context, pos)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static boolean holds(
+      Requirement requirement, Chunk chunk, LootContext context, BlockPos pos) {
+    RegistryAccess access = context.data().registries();
+    return switch (requirement) {
+      case Requirement.Block block -> block.block().matches(chunk.blockState(pos), access);
+      case Requirement.Biomes biomes ->
+          Identifier.tryParse(chunk.biome(pos))
+              .map(biome -> biomes.biomes().contains(biome, access))
+              .orElse(false);
+      case Requirement.CanSeeSky sky -> canSeeSky(chunk, pos) == sky.expected();
+    };
+  }
+
+  private static boolean canSeeSky(Chunk chunk, BlockPos pos) {
+    int local = ((pos.y() & 15) << 8) | ((pos.z() & 15) << 4) | (pos.x() & 15);
+    return chunk.effectiveSkyLight(Math.floorDiv(pos.y(), 16)).get(local) == FULL_SKY_LIGHT;
   }
 }

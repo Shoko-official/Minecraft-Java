@@ -26,6 +26,22 @@ public enum EntityTarget {
   }
 
   /**
+   * Returns the context parameter this target reads.
+   *
+   * @return the key, such as {@code THIS_ENTITY} for {@code THIS}
+   */
+  public ContextKey contextKey() {
+    return switch (this) {
+      case THIS -> ContextKey.THIS_ENTITY;
+      case ATTACKER -> ContextKey.ATTACKER;
+      case DIRECT_ATTACKER -> ContextKey.DIRECT_ATTACKER;
+      case ATTACKING_PLAYER -> ContextKey.ATTACKING_PLAYER;
+      case TARGET_ENTITY -> ContextKey.TARGET_ENTITY;
+      case INTERACTING_ENTITY -> ContextKey.INTERACTING_ENTITY;
+    };
+  }
+
+  /**
    * Returns the name used in the JSON.
    *
    * @return the name, such as {@code direct_attacker}

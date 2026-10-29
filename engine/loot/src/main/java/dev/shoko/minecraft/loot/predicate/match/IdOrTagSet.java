@@ -1,8 +1,14 @@
 package dev.shoko.minecraft.loot.predicate.match;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import dev.shoko.minecraft.data.registry.Registry;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
+import dev.shoko.minecraft.data.registry.RegistryKey;
+import dev.shoko.minecraft.data.registry.TagKey;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 /**
  * An identifier, a {@code #tag} or a list of both, as written for {@code blocks}, {@code items},
@@ -27,7 +33,20 @@ public record IdOrTagSet(
    * @return {@code true} when unrestricted, listed, or a member of one of the tags
    */
   public boolean contains(Identifier id, RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    if (unrestricted || ids.contains(id)) {
+      return true;
+    }
+    for (Identifier tag : tags) {
+      if (tagMembers(tag, access).contains(id)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private List<Identifier> tagMembers(Identifier tag, RegistryAccess access) {
+    TagKey<Object> key = new TagKey<>(new RegistryKey<>(registry), tag);
+    return access.tagMembers(key).orElse(List.of());
   }
 
   /**
@@ -37,6 +56,14 @@ public record IdOrTagSet(
    * @return the members; for an unrestricted set, every element of the registry
    */
   public List<Identifier> members(RegistryAccess access) {
-    return Skeleton.throwNotImplemented();
+    Optional<Registry<Object>> known = access.registry(new RegistryKey<>(registry));
+    if (known.isPresent()) {
+      return known.get().ids().stream().filter(id -> contains(id, access)).toList();
+    }
+    Set<Identifier> members = new LinkedHashSet<>(ids);
+    for (Identifier tag : tags) {
+      members.addAll(tagMembers(tag, access));
+    }
+    return List.copyOf(members);
   }
 }

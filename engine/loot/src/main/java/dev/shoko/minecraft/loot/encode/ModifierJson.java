@@ -184,7 +184,9 @@ final class ModifierJson {
   private static void exploration(
       ModifierAction.ExplorationMap map, SequencedMap<String, Object> out) {
     out.put("destination", "#" + map.destination());
-    out.put("decoration", map.decoration().toString());
+    if (!map.decoration().equals(Identifier.minecraft("mansion"))) {
+      out.put("decoration", map.decoration().toString());
+    }
     if (map.zoom() != 2) {
       out.put("zoom", JsonOut.number(map.zoom()));
     }

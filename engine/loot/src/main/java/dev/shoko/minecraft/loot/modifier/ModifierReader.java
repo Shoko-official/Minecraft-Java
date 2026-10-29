@@ -54,6 +54,7 @@ final class ModifierReader {
           "set_written_book_pages",
           "toggle_tooltips");
 
+  private static final Identifier DEFAULT_DECORATION = Identifier.minecraft("mansion");
   private static final Identifier INSTRUMENT = Identifier.minecraft("instrument");
 
   private final RegistryAccess access;
@@ -325,10 +326,15 @@ final class ModifierReader {
     }
     return new ModifierAction.ExplorationMap(
         tag,
-        fields.requiredId("decoration"),
+        decoration(fields),
         fields.optionalInt("zoom", 2, 0, Integer.MAX_VALUE),
         fields.optionalInt("search_radius", 50, 0, Integer.MAX_VALUE),
         fields.optionalBool("skip_existing_chunks", true));
+  }
+
+  private Identifier decoration(Fields fields) {
+    Identifier id = fields.optionalId("decoration");
+    return id == null && !fields.has("decoration") ? DEFAULT_DECORATION : id;
   }
 
   private ModifierAction setName(Fields fields) {

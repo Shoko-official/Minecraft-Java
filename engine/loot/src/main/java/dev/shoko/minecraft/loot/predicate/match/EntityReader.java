@@ -143,7 +143,7 @@ final class EntityReader {
     Fields fields = Fields.of(value, findings);
     if (fields.valid()) {
       for (Map.Entry<String, JsonNode> member : fields.node().members().entrySet()) {
-        EntityFlag flag = flag(member.getKey());
+        EntityFlag flag = EntityFlag.ofJsonName(member.getKey()).orElse(null);
         if (flag == null) {
           findings.add(
               LootFindingCode.UNKNOWN_FIELD, member.getValue(), "unknown flag " + member.getKey());
@@ -153,15 +153,6 @@ final class EntityReader {
       }
     }
     return new EntityPredicate.Check.Flags(flags);
-  }
-
-  private static EntityFlag flag(String name) {
-    return switch (name) {
-      case "is_on_fire" -> EntityFlag.ON_FIRE;
-      case "is_on_ground" -> EntityFlag.ON_GROUND;
-      case "is_flying" -> EntityFlag.FLYING;
-      default -> null;
-    };
   }
 
   private static EntityPredicate.Check components(JsonNode value, Findings findings) {

@@ -27,6 +27,7 @@ Compagnon de `world-block-states.md` (BS), `world-chunk-format.md` (CF), `world-
 | D8 | Forme de la lecture d'un chunk | Trois issues PRÉSENT, ABSENT, REFUSÉ, avec causes imposées et avertissements ; les pannes d'entrée-sortie sont à part (exception) | AR-R26, AR-R27, CF Entrées / sorties | S (choix du moteur) | PB2, PB3, PR4, PR5, PR6 |
 | D9 | Heightmap de longueur inattendue | État INCONNU explicite, exposé par trois canaux ; jamais de zéros inventés ; non réécrit | CF-R19, CF-R34 | S (longueur attendue : C sur S) | PB3 `bad_heightmap_length`, `heightmap_overflow` ; HM4 |
 | D10 | Décisions ajoutées pendant la formalisation (non demandées) | Champs obligatoires de la racine ; classement des entrées de palette invalides | CF-R35, BS-R22 | S (choix du moteur) | PC6 (inventaire des clés), PB1 |
+| D11 | Comportements ajoutés par les corrections de la revue du module, absents des specs (2026-10-29) | Consignés en AR-R31 à AR-R38 : limite à l'écriture, fichiers non réguliers, plafond de 256 fichiers ouverts, noms de dimension sûrs, `/` refusé, `.mcc` atomique, borne d'expansion LZ4, mémoire de la décompression | AR-R31 à R38 | S-arch sauf AR-R35 (S) | PR7 pour AR-R35 ; aucune pour les S-arch |
 
 ## D1 : ordre des bits de `PostProcessing`
 
@@ -88,6 +89,15 @@ Compagnon de `world-block-states.md` (BS), `world-chunk-format.md` (CF), `world-
 - BS-R22 : aucune entrée de palette invalide ne refuse le chunk ; les corrections sont des avertissements.
 - Ces deux points n'étaient pas demandés. Ils peuvent être retirés sans effet sur D1 à D9.
 
+## D11 : garde-fous du magasin consignés après la revue
+
+- **Origine.** La revue du module `engine/world` a fait ajouter au code des protections que les specs ne mentionnaient pas. Le code étant celui du projet, la spec le décrit (AR-R31 à AR-R38) sans copier de nom de classe.
+- **Partition S-arch ou S.** Une règle qui n'a pas de comportement de référence à comparer (garde, budget, sécurité du disque) est S-arch : limite à l'écriture (R31), fichiers non réguliers (R32), plafond de fichiers ouverts (R33), noms de dimension sûrs (R34), écriture atomique du `.mcc` (R36), borne d'expansion LZ4 (R37), mémoire de la décompression (R38). Le refus du `/` dans un chemin de dimension (R35) n'est pas dans ce cas : le jeu a peut-être un comportement observable sur ce point (dossiers imbriqués), donc S avec la sonde PR7.
+- **R31, pourquoi refuser à l'écriture.** Sans ce refus, un chunk plus gros que la limite s'écrit, est refusé TOO_LARGE à la lecture suivante, marque sa position (R28) et la verrouille pour la session : la sauvegarde aurait créé un chunk illisible par le magasin qui l'a écrit. Alternative écartée : relever la limite à l'écriture, qui reviendrait à ne plus avoir de limite.
+- **R32, pourquoi avant toute écriture.** La suppression du `.mcc` résiduel venait après l'écriture de l'enregistrement : un répertoire non vide du même nom faisait échouer l'appelant alors que le chunk était déjà commit, un répertoire vide était supprimé sans bruit. Le contrôle est déplacé avant l'écriture, comme pour les autres fichiers non réguliers.
+- **R34, pourquoi ces noms.** Une dimension de datapack donne un nom de dossier : le jeu de caractères restreint et le refus des composantes `.` et `..` empêchent de sortir du monde ; le point final et les noms de périphérique DOS sont refusés parce que Windows les traite à part (documentation Microsoft consultée le 2026-10-29). Le point final est une hypothèse de normalisation non relevée. Alternative écartée : accepter tout nom valide pour le jeu et laisser le système de fichiers échouer, ce qui ferait échouer tard et de façon différente selon la plateforme.
+- **R37, pourquoi 255.** C'est la borne arithmétique du format de bloc : elle ne refuse aucun bloc valide et évite d'allouer un bloc de 32 Mio annoncé par 10 octets de corps. L'ordre des contrôles d'un même en-tête invalide qui annonce aussi plus que le budget n'est pas tranché par la spec (AR, Questions ouvertes) : le comportement actuel n'est épinglé par aucun test.
+
 ## Contradictions et points repérés dans les specs fusionnées
 
 - CF-R24 contre `core-math.md` R32 : résolu en faveur de core-math et du wiki (D1) ; le code de core n'a pas à changer sauf démenti de PC6.
@@ -100,7 +110,7 @@ Compagnon de `world-block-states.md` (BS), `world-chunk-format.md` (CF), `world-
 
 ## Règles S qui restent à lever, par sonde
 
-CF-R24 (PC6), CF-R30 (PC7), CF-R31 à R34 (PB3), CF-R35 (PC6), AR-R26 causes et AR-R30 (PR6, PB2, PB3, PR4, PR5), AR-R29 (aucune sonde pour la valeur), AR-R27 et AR-R28 (aucune : politiques du moteur), BS-R22 (PB1).
+CF-R24 (PC6), CF-R30 (PC7), CF-R31 à R34 (PB3), CF-R35 (PC6), AR-R26 causes et AR-R30 (PR6, PB2, PB3, PR4, PR5), AR-R29 (aucune sonde pour la valeur), AR-R27 et AR-R28 (aucune : politiques du moteur), AR-R35 (PR7 ; AR-R31 à R34 et R36 à R38 sont S-arch, sans sonde), BS-R22 (PB1).
 
 ## Propositions pour la matrice des fonctionnalités
 

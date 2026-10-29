@@ -19,7 +19,7 @@ Portée dans le dépôt :
 - Les autres specs ne reprennent du wiki que des valeurs, des syntaxes, des noms et des comportements reformulés, signalés au niveau de preuve S (`README.md`). Aucune règle n'est recopiée mot pour mot ; un doute sur le caractère dérivé d'une reformulation relève aussi du propriétaire.
 - Les valeurs de niveau D viennent des fichiers extraits du jeu de référence (conservés hors du dépôt, ADR 0003), pas du wiki.
 
-Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les pages Entity, Falling Block, Entity format et Explosion ont été relues le 2026-10-29 pour les specs d'entités) ; plusieurs pages ont été lues par un outil de résumé automatique ou tronquées, ce que leur section « Sources » indique.
+Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les pages Entity, Falling Block, Entity format et Explosion ont été relues le 2026-10-29 pour les specs d'entités ; les pages Loot table, Item modifier, Predicate, Explosion et Number provider pour `loot-tables.md`, et Enchanting mechanics, Anvil mechanics, Grindstone, Mending et Experience pour `item-enchantments.md`, l'ont été le 2026-10-29 aussi, pour les corrections de la revue de la PR du module de butin) ; plusieurs pages ont été lues par un outil de résumé automatique ou tronquées, ce que leur section « Sources » indique.
 
 ## Pages du Minecraft Wiki par spec
 
@@ -38,9 +38,9 @@ Les specs ont été rédigées à partir de lectures faites le 2026-10-28 (les p
 | `dim-end-generation.md` | The End, Obsidian Pillar, Ender Dragon, End gateway, End City, End Highlands, World generation, Biome, Configured feature, Density function |
 | `dim-nether-generation.md` | Nether, World generation, Nether Fortress, Bastion Remnant, Biome, Configured feature, Density function |
 | `item-components-inventory.md` | Java Edition protocol/Inventory, Inventory, Item modifier, Loot table, Predicate |
-| `item-enchantments.md` | Enchanting mechanics, Anvil mechanics, Enchantment definition, Item modifier, Predicate |
+| `item-enchantments.md` | Enchanting mechanics, Anvil mechanics, Enchantment definition, Item modifier, Predicate, Grindstone, Mending, Experience |
 | `item-recipes.md` | Item modifier, Loot table, Inventory, Java Edition protocol/Inventory |
-| `loot-tables.md` | Loot table, Item modifier, Predicate |
+| `loot-tables.md` | Loot table, Item modifier, Predicate, Explosion, Number provider |
 | `net-protocol-777.md` | Java Edition protocol/Packets, Java Edition protocol/FAQ, Java Edition protocol/Encryption, Java Edition protocol/Server List Ping, Java Edition protocol/Registry data, Java Edition protocol/Command data, Java Edition protocol/Slot data, Java Edition protocol/Chunk format, Java Edition protocol/Entity metadata, Java Edition protocol/Data types, Server.properties |
 | `server-commands.md` | Commands, Commands/tick, Commands/teleport, Commands/weather, Commands/list, Weather, Argument types, Target selectors, Permission level, Ops.json format, Java Edition protocol/Command data, Server.properties |
 | `server-game-loop.md` | Tick, Commands/tick, Game rule, Java Edition level format, Player.dat format, Server.properties, Ops.json format, Whitelist.json, Permission level |

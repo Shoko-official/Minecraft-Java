@@ -2,9 +2,19 @@ package dev.shoko.minecraft.net.buffer;
 
 import dev.shoko.minecraft.core.coord.BlockPos;
 import dev.shoko.minecraft.core.coord.Vec3;
+import dev.shoko.minecraft.core.nbt.NbtException;
 import dev.shoko.minecraft.core.nbt.NbtTag;
+import dev.shoko.minecraft.core.nbt.binary.NbtCompression;
+import dev.shoko.minecraft.core.nbt.binary.NbtWriter;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.ProtocolException.Reason;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
 import java.util.UUID;
@@ -20,7 +30,21 @@ public final class PacketWriter {
   /** Largest payload of a writer created without an explicit bound: 2 097 151 bytes (R27). */
   public static final int DEFAULT_MAX_SIZE = (1 << 21) - 1;
 
-  private PacketWriter() {}
+  private static final int MAX_IDENTIFIER_CHARS = 32767;
+  private static final int HORIZONTAL_BITS = 26;
+  private static final int Y_BITS = 12;
+  private static final long HORIZONTAL_MASK = (1L << HORIZONTAL_BITS) - 1;
+  private static final long Y_MASK = (1L << Y_BITS) - 1;
+  private static final int INITIAL_CAPACITY = 64;
+  private static final NbtWriter NBT_WRITER = NbtWriter.of(NbtCompression.NONE);
+
+  private final int maxSize;
+  private byte[] buffer = new byte[INITIAL_CAPACITY];
+  private int size;
+
+  private PacketWriter(int maxSize) {
+    this.maxSize = maxSize;
+  }
 
   /**
    * Creates an empty writer bounded by {@link #DEFAULT_MAX_SIZE}.
@@ -28,7 +52,7 @@ public final class PacketWriter {
    * @return the writer
    */
   public static PacketWriter create() {
-    return Skeleton.throwNotImplemented();
+    return new PacketWriter(DEFAULT_MAX_SIZE);
   }
 
   /**
@@ -39,7 +63,10 @@ public final class PacketWriter {
    * @throws IllegalArgumentException when {@code maxSize} is negative
    */
   public static PacketWriter create(int maxSize) {
-    return Skeleton.throwNotImplemented();
+    if (maxSize < 0) {
+      throw new IllegalArgumentException("negative bound: " + maxSize);
+    }
+    return new PacketWriter(maxSize);
   }
 
   /**
@@ -48,7 +75,7 @@ public final class PacketWriter {
    * @return the size, 0 or more
    */
   public int size() {
-    return Skeleton.throwNotImplemented();
+    return size;
   }
 
   /**
@@ -57,7 +84,7 @@ public final class PacketWriter {
    * @return a new array of {@link #size()} bytes
    */
   public byte[] toByteArray() {
-    return Skeleton.throwNotImplemented();
+    return Arrays.copyOf(buffer, size);
   }
 
   /**
@@ -67,7 +94,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeBoolean(boolean value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeByte(value ? 1 : 0);
   }
 
   /**
@@ -77,7 +104,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeByte(int value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    buffer[reserve(1)] = (byte) value;
   }
 
   /**
@@ -87,7 +114,9 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeShort(int value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    int at = reserve(2);
+    buffer[at] = (byte) (value >> 8);
+    buffer[at + 1] = (byte) value;
   }
 
   /**
@@ -97,7 +126,10 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeInt(int value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    int at = reserve(4);
+    for (int i = 0; i < 4; i++) {
+      buffer[at + i] = (byte) (value >> (24 - 8 * i));
+    }
   }
 
   /**
@@ -107,7 +139,10 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeLong(long value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    int at = reserve(8);
+    for (int i = 0; i < 8; i++) {
+      buffer[at + i] = (byte) (value >> (56 - 8 * i));
+    }
   }
 
   /**
@@ -117,7 +152,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeFloat(float value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeInt(Float.floatToRawIntBits(value));
   }
 
   /**
@@ -127,7 +162,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeDouble(double value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeLong(Double.doubleToRawLongBits(value));
   }
 
   /**
@@ -137,7 +172,12 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeVarInt(int value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    int rest = value;
+    while ((rest & ~0x7f) != 0) {
+      writeByte((rest & 0x7f) | 0x80);
+      rest >>>= 7;
+    }
+    writeByte(rest);
   }
 
   /**
@@ -147,7 +187,12 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeVarLong(long value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    long rest = value;
+    while ((rest & ~0x7fL) != 0) {
+      writeByte((int) (rest & 0x7f) | 0x80);
+      rest >>>= 7;
+    }
+    writeByte((int) rest);
   }
 
   /**
@@ -159,7 +204,13 @@ public final class PacketWriter {
    *     maxChars} units, or {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeString(String value, int maxChars) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (value.length() > maxChars) {
+      throw new ProtocolException(
+          Reason.STRING_TOO_LONG, "string of " + value.length() + " units, limit " + maxChars);
+    }
+    byte[] encoded = encodeUtf8(value);
+    writeVarInt(encoded.length);
+    writeBytes(encoded);
   }
 
   /**
@@ -169,7 +220,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeIdentifier(Identifier value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeString(value.toString(), MAX_IDENTIFIER_CHARS);
   }
 
   /**
@@ -179,7 +230,8 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeUuid(UUID value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeLong(value.getMostSignificantBits());
+    writeLong(value.getLeastSignificantBits());
   }
 
   /**
@@ -191,7 +243,12 @@ public final class PacketWriter {
    *     maxLength}, or {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writePrefixedBytes(ByteBlob value, int maxLength) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (value.length() > maxLength) {
+      throw new ProtocolException(
+          Reason.BYTES_TOO_LONG, value.length() + " bytes, limit " + maxLength);
+    }
+    writeVarInt(value.length());
+    writeBytes(value.toByteArray());
   }
 
   /**
@@ -202,7 +259,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeRemainingBytes(ByteBlob value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeBytes(value.toByteArray());
   }
 
   /**
@@ -213,7 +270,15 @@ public final class PacketWriter {
    *     33554431 or y outside -2048 to 2047, or {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writePosition(BlockPos value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (!fits(value.x(), HORIZONTAL_BITS)
+        || !fits(value.z(), HORIZONTAL_BITS)
+        || !fits(value.y(), Y_BITS)) {
+      throw new ProtocolException(Reason.VALUE_OUT_OF_RANGE, "position out of range: " + value);
+    }
+    writeLong(
+        ((value.x() & HORIZONTAL_MASK) << 38)
+            | ((value.z() & HORIZONTAL_MASK) << Y_BITS)
+            | (value.y() & Y_MASK));
   }
 
   /**
@@ -224,7 +289,7 @@ public final class PacketWriter {
    *     or {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeLpVec3(Vec3 value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    LpVec3Codec.write(this, value);
   }
 
   /**
@@ -234,7 +299,11 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeBitSet(BitSet value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    long[] words = value.toLongArray();
+    writeVarInt(words.length);
+    for (long word : words) {
+      writeLong(word);
+    }
   }
 
   /**
@@ -246,7 +315,14 @@ public final class PacketWriter {
    *     is set, or {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeFixedBitSet(BitSet value, int bits) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (value.length() > bits) {
+      throw new ProtocolException(
+          Reason.VALUE_OUT_OF_RANGE, "bit " + (value.length() - 1) + " set, size " + bits);
+    }
+    int length = (int) (((long) bits + 7) / 8);
+    int at = reserve(length);
+    byte[] packed = value.toByteArray();
+    System.arraycopy(packed, 0, buffer, at, packed.length);
   }
 
   /**
@@ -257,7 +333,11 @@ public final class PacketWriter {
    *     {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeNbt(NbtTag value) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    try {
+      writeBytes(NBT_WRITER.writeUnnamed(value));
+    } catch (NbtException e) {
+      throw new ProtocolException(Reason.INVALID_NBT, "NBT value cannot be written", e);
+    }
   }
 
   /**
@@ -266,7 +346,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeAbsentNbt() throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeByte(0);
   }
 
   /**
@@ -281,7 +361,14 @@ public final class PacketWriter {
    */
   public <T> void writePrefixedArray(List<T> values, int maxLength, ElementWriter<T> element)
       throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    if (values.size() > maxLength) {
+      throw new ProtocolException(
+          Reason.ARRAY_TOO_LONG, values.size() + " elements, limit " + maxLength);
+    }
+    writeVarInt(values.size());
+    for (T value : values) {
+      element.write(this, value);
+    }
   }
 
   /**
@@ -290,7 +377,7 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeAbsent() throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeBoolean(false);
   }
 
   /**
@@ -302,6 +389,47 @@ public final class PacketWriter {
    * @throws ProtocolException with any failure of {@code element}
    */
   public <T> void writePresent(T value, ElementWriter<T> element) throws ProtocolException {
-    Skeleton.throwNotImplemented();
+    writeBoolean(true);
+    element.write(this, value);
+  }
+
+  /** Reserves {@code count} bytes at the end and returns the index of the first one. */
+  private int reserve(int count) throws ProtocolException {
+    if (count > maxSize - size) {
+      throw new ProtocolException(
+          Reason.PAYLOAD_TOO_LARGE, "payload would pass the bound of " + maxSize + " bytes");
+    }
+    int needed = size + count;
+    if (needed > buffer.length) {
+      buffer = Arrays.copyOf(buffer, (int) Math.min(maxSize, Math.max(2L * buffer.length, needed)));
+    }
+    int at = size;
+    size = needed;
+    return at;
+  }
+
+  private void writeBytes(byte[] bytes) throws ProtocolException {
+    int at = reserve(bytes.length);
+    System.arraycopy(bytes, 0, buffer, at, bytes.length);
+  }
+
+  private static boolean fits(int value, int bits) {
+    return value >= -(1 << (bits - 1)) && value < (1 << (bits - 1));
+  }
+
+  private static byte[] encodeUtf8(String value) throws ProtocolException {
+    try {
+      ByteBuffer encoded =
+          StandardCharsets.UTF_8
+              .newEncoder()
+              .onMalformedInput(CodingErrorAction.REPORT)
+              .onUnmappableCharacter(CodingErrorAction.REPORT)
+              .encode(CharBuffer.wrap(value));
+      byte[] bytes = new byte[encoded.remaining()];
+      encoded.get(bytes);
+      return bytes;
+    } catch (CharacterCodingException e) {
+      throw new ProtocolException(Reason.INVALID_UTF8, "string is not encodable as UTF-8", e);
+    }
   }
 }

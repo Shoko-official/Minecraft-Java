@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.net.buffer;
 
+import java.util.Arrays;
+
 /**
  * An immutable sequence of bytes, for binary packet fields such as a public key or a verify token.
  * It exists so that records can hold bytes with a content-based {@code equals}; a bare array would
@@ -7,7 +9,11 @@ package dev.shoko.minecraft.net.buffer;
  */
 public final class ByteBlob {
 
-  private ByteBlob() {}
+  private final byte[] bytes;
+
+  private ByteBlob(byte[] bytes) {
+    this.bytes = bytes;
+  }
 
   /**
    * Copies bytes into a blob.
@@ -16,7 +22,7 @@ public final class ByteBlob {
    * @return the blob
    */
   public static ByteBlob of(byte[] bytes) {
-    return Skeleton.throwNotImplemented();
+    return new ByteBlob(bytes.clone());
   }
 
   /**
@@ -25,7 +31,7 @@ public final class ByteBlob {
    * @return the length, 0 or more
    */
   public int length() {
-    return Skeleton.throwNotImplemented();
+    return bytes.length;
   }
 
   /**
@@ -34,24 +40,24 @@ public final class ByteBlob {
    * @return a new array
    */
   public byte[] toByteArray() {
-    return Skeleton.throwNotImplemented();
+    return bytes.clone();
   }
 
   /** Equal when both hold the same bytes in the same order. */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof ByteBlob blob && Arrays.equals(bytes, blob.bytes);
   }
 
   /** Returns a hash consistent with {@link #equals(Object)}. */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return Arrays.hashCode(bytes);
   }
 
   /** Returns a description for humans: the length, not the content. */
   @Override
   public String toString() {
-    return Skeleton.throwNotImplemented();
+    return "ByteBlob[" + bytes.length + " bytes]";
   }
 }

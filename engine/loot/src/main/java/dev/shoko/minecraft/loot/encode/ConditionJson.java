@@ -61,6 +61,38 @@ final class ConditionJson {
       case LootCondition.DamageSourceProperties damage ->
           typed(
               "damage_source_properties", "predicate", MatchJson.damageSource(damage.predicate()));
+      case LootCondition.IntValueCheck check ->
+          typed(
+              "int_value_check",
+              "value",
+              ProviderJson.intProvider(check.value()),
+              "test",
+              MatchJson.range(check.test()));
+      case LootCondition.FloatValueCheck check ->
+          typed(
+              "float_value_check",
+              "value",
+              ProviderJson.floatProvider(check.value()),
+              "test",
+              MatchJson.range(check.test()));
+      case LootCondition.EntityScores scores ->
+          typed(
+              "entity_scores",
+              "entity",
+              scores.entity().key(),
+              "scores",
+              JsonOut.tree(scores.scores()));
+      case LootCondition.EnvironmentAttributeCheck check -> {
+        SequencedMap<String, Object> object = typed("environment_attribute_check");
+        check.fields().members().forEach((key, value) -> object.put(key, JsonOut.tree(value)));
+        yield object;
+      }
+      default -> placed(condition);
+    };
+  }
+
+  private static Object placed(LootCondition condition) {
+    return switch (condition) {
       case LootCondition.LocationCheck location -> {
         SequencedMap<String, Object> object = typed("location_check");
         if (location.offsetX() != 0) {
@@ -96,32 +128,6 @@ final class ConditionJson {
         if (time.period() > 0) {
           object.put("period", JsonOut.number(time.period()));
         }
-        yield object;
-      }
-      case LootCondition.IntValueCheck check ->
-          typed(
-              "int_value_check",
-              "value",
-              ProviderJson.intProvider(check.value()),
-              "test",
-              MatchJson.range(check.test()));
-      case LootCondition.FloatValueCheck check ->
-          typed(
-              "float_value_check",
-              "value",
-              ProviderJson.floatProvider(check.value()),
-              "test",
-              MatchJson.range(check.test()));
-      case LootCondition.EntityScores scores ->
-          typed(
-              "entity_scores",
-              "entity",
-              scores.entity().key(),
-              "scores",
-              JsonOut.tree(scores.scores()));
-      case LootCondition.EnvironmentAttributeCheck check -> {
-        SequencedMap<String, Object> object = typed("environment_attribute_check");
-        check.fields().members().forEach((key, value) -> object.put(key, JsonOut.tree(value)));
         yield object;
       }
       default -> throw new IllegalStateException("unhandled condition " + condition);

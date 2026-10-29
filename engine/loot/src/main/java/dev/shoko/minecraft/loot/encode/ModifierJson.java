@@ -123,6 +123,13 @@ final class ModifierJson {
           out.put("on_fail", modifiers(filtered.onFail()));
         }
       }
+      case ModifierAction.Discard discard -> {}
+      default -> moreFields(action, out);
+    }
+  }
+
+  private static void moreFields(ModifierAction action, SequencedMap<String, Object> out) {
+    switch (action) {
       case ModifierAction.LimitCount limit -> out.put("limit", limit(limit));
       case ModifierAction.SetComponents set -> out.put("components", components(set.patch()));
       case ModifierAction.SetCount count -> {
@@ -152,9 +159,7 @@ final class ModifierJson {
       case ModifierAction.SetStewEffect stew -> out.put("effects", stew(stew));
       case ModifierAction.Deferred deferred ->
           deferred.fields().members().forEach((key, value) -> out.put(key, JsonOut.tree(value)));
-      case ModifierAction.Discard discard -> {}
-      case ModifierAction.ExplosionDecay decay -> {}
-      case ModifierAction.FurnaceSmelt smelt -> {}
+      default -> {}
     }
   }
 

@@ -35,6 +35,7 @@ import dev.shoko.minecraft.net.state.ConnectionState;
 import dev.shoko.minecraft.net.state.PacketDirection;
 import dev.shoko.minecraft.net.type.GameProfile;
 import dev.shoko.minecraft.net.type.ProfileProperty;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
@@ -61,10 +62,15 @@ public final class Samples {
 
   /** The 21 packets of the first batch. */
   public static List<Sample> all() {
+    List<Sample> all = new ArrayList<>(handshakeAndStatusSamples());
+    all.addAll(loginSamples());
+    all.addAll(configurationSamples());
+    return List.copyOf(all);
+  }
+
+  private static List<Sample> handshakeAndStatusSamples() {
     ConnectionState handshake = ConnectionState.HANDSHAKE;
     ConnectionState status = ConnectionState.STATUS;
-    ConnectionState login = ConnectionState.LOGIN;
-    ConnectionState config = ConnectionState.CONFIGURATION;
     PacketDirection clientbound = PacketDirection.CLIENTBOUND;
     PacketDirection serverbound = PacketDirection.SERVERBOUND;
     return List.of(
@@ -76,7 +82,15 @@ public final class Samples {
         new Sample(status, clientbound, "status_response", new StatusResponsePacket("{\"a\":1}")),
         new Sample(status, clientbound, "pong_response", new PongResponsePacket(-5L)),
         new Sample(status, serverbound, "status_request", new StatusRequestPacket()),
-        new Sample(status, serverbound, "ping_request", new PingRequestPacket(0x0123456789abcdefL)),
+        new Sample(
+            status, serverbound, "ping_request", new PingRequestPacket(0x0123456789abcdefL)));
+  }
+
+  private static List<Sample> loginSamples() {
+    ConnectionState login = ConnectionState.LOGIN;
+    PacketDirection clientbound = PacketDirection.CLIENTBOUND;
+    PacketDirection serverbound = PacketDirection.SERVERBOUND;
+    return List.of(
         new Sample(
             login,
             clientbound,
@@ -107,7 +121,14 @@ public final class Samples {
             serverbound,
             "key",
             new KeyPacket(ByteBlob.of(Hex.ramp(128)), ByteBlob.of(Hex.filled(7, 128)))),
-        new Sample(login, serverbound, "login_acknowledged", new LoginAcknowledgedPacket()),
+        new Sample(login, serverbound, "login_acknowledged", new LoginAcknowledgedPacket()));
+  }
+
+  private static List<Sample> configurationSamples() {
+    ConnectionState config = ConnectionState.CONFIGURATION;
+    PacketDirection clientbound = PacketDirection.CLIENTBOUND;
+    PacketDirection serverbound = PacketDirection.SERVERBOUND;
+    return List.of(
         new Sample(config, clientbound, "disconnect", new DisconnectPacket(new StringTag("bye"))),
         new Sample(
             config,

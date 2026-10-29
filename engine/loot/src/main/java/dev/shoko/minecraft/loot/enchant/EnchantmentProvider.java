@@ -5,7 +5,9 @@ import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.item.component.EnchantmentLevels;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.enchant.craft.EnchantmentSelection;
 import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
+import java.util.LinkedHashMap;
 
 /**
  * An enchantment provider (registry {@code enchantment_provider}, EN-R34): how a mob's equipment
@@ -36,7 +38,36 @@ public sealed interface EnchantmentProvider
       RegistryAccess access,
       RandomSource random,
       double difficulty) {
-    return Skeleton.throwNotImplemented();
+    return switch (this) {
+      case Single single ->
+          new EnchantmentLevels(new LinkedHashMap<>()).with(single.enchantment(), single.level());
+      case ByCost byCost ->
+          costSelect(
+              stack,
+              byCost.enchantments(),
+              byCost.minCost() + random.nextInt(byCost.maxCostSpan() + 1),
+              catalog,
+              access,
+              random);
+      case ByCostWithDifficulty byCost ->
+          costSelect(
+              stack,
+              byCost.enchantments(),
+              byCost.minCost() + random.nextInt(byCost.maxCostSpan() + 1),
+              catalog,
+              access,
+              random);
+    };
+  }
+
+  private static EnchantmentLevels costSelect(
+      ItemStack stack,
+      IdOrTagSet set,
+      int cost,
+      EnchantmentCatalog catalog,
+      RegistryAccess access,
+      RandomSource random) {
+    return EnchantmentSelection.select(stack, cost, set, random, catalog, access);
   }
 
   /**

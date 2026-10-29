@@ -1,11 +1,14 @@
 package dev.shoko.minecraft.loot.eval;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import dev.shoko.minecraft.core.random.Lcg48Random;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.container.LootBinding;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootBudgetException;
+import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.DamageSourceData;
 import dev.shoko.minecraft.loot.context.EntityTarget;
 import dev.shoko.minecraft.loot.context.LootContext;
@@ -17,8 +20,12 @@ import dev.shoko.minecraft.loot.predicate.LootCondition;
 import dev.shoko.minecraft.loot.predicate.match.EntityPredicate;
 import dev.shoko.minecraft.loot.table.LootEntry;
 import dev.shoko.minecraft.loot.table.LootTable;
+import dev.shoko.minecraft.loot.table.LootTableCodec;
 import dev.shoko.minecraft.loot.testing.Ctx;
+import dev.shoko.minecraft.loot.testing.Decoded;
+import dev.shoko.minecraft.loot.testing.EnchantFixtures;
 import dev.shoko.minecraft.loot.testing.FakeEntity;
+import dev.shoko.minecraft.loot.testing.Json;
 import dev.shoko.minecraft.loot.testing.LootItems;
 import dev.shoko.minecraft.loot.testing.ScriptedRandom;
 import dev.shoko.minecraft.loot.testing.SequenceStore;
@@ -215,11 +222,27 @@ class LootEvaluationAttackTest {
   }
 
   @Test
-  void aHugeNumberOfRollsWithNothingToDrawIsCheap() {
-    // spec: LT-R6, LT-R24 (empty), cas limite
-    LootTable table = Tables.table(Tables.pool(200_000, Tables.empty(1)));
+  void aFullPoolOfRollsWithNothingToDrawIsCheap() {
+    // spec: LT-R6, LT-R24 (empty), LT-R74a (4096 rolls are the cap and stay cheap), cas limite
+    LootTable table = Tables.table(Tables.pool(4096, Tables.empty(1)));
     assertThat(LootEvaluator.evaluate(table, Ctx.context(Lcg48Random.ofSeed(1))).stacks())
         .isEmpty();
+  }
+
+  @Test
+  void aHugeNumberOfRollsIsRefusedAtDecodingAndFailsTheDrawIfBuiltByHand() {
+    // spec: LT-R74a, LT-R74g (a constant over the cap is a load error, VALUE_RANGE; an exceeded cap
+    // at
+    // evaluation fails the draw), cas limite
+    String json =
+        "{'type':'minecraft:chest','pools':[{'rolls':200000,"
+            + "'entries':[{'type':'minecraft:empty'}]}]}";
+    Decoded.failsWith(
+        LootTableCodec.decode(Json.parse(json), EnchantFixtures.access(), LootItems.catalog()),
+        LootFindingCode.VALUE_RANGE);
+    LootTable table = Tables.table(Tables.pool(200_000, Tables.empty(1)));
+    assertThatThrownBy(() -> LootEvaluator.evaluate(table, Ctx.context(Lcg48Random.ofSeed(1))))
+        .isInstanceOf(LootBudgetException.class);
   }
 
   @Test

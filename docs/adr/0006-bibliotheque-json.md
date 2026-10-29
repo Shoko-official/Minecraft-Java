@@ -59,7 +59,7 @@ Documentation, non exécutée ici : `JsonReader.getPath()` donne le chemin JSON 
 ## Conséquences
 
 - `engine/data/build.gradle.kts` déclare `implementation(libs.gson)`. Le graphe de modules est inchangé (`data` ne dépend toujours que de `core`) et ArchUnit ne voit pas Gson.
-- Une règle ArchUnit "seul `data.json` dépend de `com.google.gson`" est recommandée au `test-engineer` ; elle n'est pas posée ici (hors du scope de cet ADR : les tests d'architecture ne relèvent pas de l'architecte).
+- Le confinement est contrôlé par deux règles ArchUnit dans `architecture-tests` (`GSON_IS_CONFINED` : hors de `data.json`, aucune classe du moteur ne dépend de `com.google.gson` ; `GSON_IS_NOT_EXPOSED` : aucune signature publique ou protégée d'une classe de `data` ne contient un type Gson, génériques, tableaux et clauses `throws` compris). Les outils (`tools`), qui sont des programmes à part avec leur propre dépendance à Gson, ne sont pas visés.
 - Les tests aveugles du lecteur partent des vecteurs de la spec (R49 à R54) et de la table ci-dessus ; les entrées qui ressemblent à celles de la sonde (BOM, doublons, `1e999`, substitut isolé) sont des cas obligatoires.
 - Si la sonde P12 de l'oracle montre que le jeu de référence accepte des formes non strictes, le choix `STRICT` est à revoir : `LENIENT` accepterait trop de formes et ne conviendrait pas, il faudrait alors le parseur maison, qui permet de choisir exactement les formes acceptées (R52).
 - `JsonReader.MAX_DEPTH` vaut 255, fixé par R57 (défaut de Gson, très au-dessus des 17 niveaux observés) ; reste S jusqu'à la sonde P18.
@@ -73,6 +73,12 @@ La spec (`docs/specs/data-datapack-loading.md`, journal `data-decisions-log.md`)
 - **Substitut isolé accepté (R60).** Un substitut UTF-16 isolé écrit par échappement (`\ud800`) est accepté et conservé tel quel dans la chaîne, comme Gson le fait ; un substitut encodé dans les octets reste de l'UTF-8 invalide (`JSON_UTF8`), refusé par le pré-contrôle des octets. Tout code qui écrit ou affiche une telle chaîne échappe l'unité isolée.
 
 La profondeur maximale est fixée par R57 à 255 niveaux, valeur du défaut de Gson : `JsonReader.MAX_DEPTH` n'est plus provisoire côté spec (reste S, sonde P18). Les codes de diagnostic sont la liste fermée de R61 (`JSON_SYNTAX`, `JSON_BOM`, `JSON_EMPTY`, `JSON_TRAILING`, `JSON_UTF8`, `JSON_TOO_DEEP`, `JSON_NUMBER_RANGE`, `JSON_DUPLICATE_KEY`).
+
+## Entrée bornée et chemins de fichiers
+
+Le lecteur reçoit des octets déjà bornés : aucun fichier de pack n'est lu au-delà de 8 Mio (`docs/specs/data-datapack-loading.md` R68, décision d'architecture, non observable sur le jeu de référence). Le plafond protège contre les bombes de décompression et les packs hostiles, et fixe en pratique la taille maximale d'un texte que `data.json` a à analyser (le plus gros fichier de la cible fait 60159 octets, R49). Un fichier plus gros n'atteint jamais Gson : il est écarté avec un diagnostic `JSON_SYNTAX` (`PACK_INVALID` pour `pack.mcmeta`), la liste fermée de R61 restant inchangée.
+
+Les fichiers viennent d'un dossier ou d'une archive dont les liens symboliques et les jonctions NTFS ne sont pas suivis, et un dossier de pack qui est un lien est refusé (R70) ; les noms d'entrée d'archive qui ne sont pas des chemins relatifs simples, tout `:` compris, sont ignorés (R71). Un chemin ne peut donc pas sortir du dossier du pack avant d'atteindre le lecteur.
 
 ## Limites constatées à l'implémentation
 

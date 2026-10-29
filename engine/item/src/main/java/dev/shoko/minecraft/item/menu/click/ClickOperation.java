@@ -69,7 +69,18 @@ public sealed interface ClickOperation
    *     for full stacks
    * @param slots the slots crossed, in order, without duplicates
    */
-  record Drag(MouseButton button, List<Integer> slots) implements ClickOperation {}
+  record Drag(MouseButton button, List<Integer> slots) implements ClickOperation {
+
+    /**
+     * Copies the slots.
+     *
+     * @param button the button
+     * @param slots the slots crossed
+     */
+    public Drag {
+      slots = List.copyOf(slots);
+    }
+  }
 
   /**
    * Double click: gather the stacks of the same content onto the cursor (IC-R46).

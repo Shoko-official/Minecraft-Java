@@ -4,6 +4,7 @@ import dev.shoko.minecraft.core.nbt.ByteTag;
 import dev.shoko.minecraft.core.nbt.CompoundTag;
 import dev.shoko.minecraft.core.nbt.DoubleTag;
 import dev.shoko.minecraft.core.nbt.FloatTag;
+import dev.shoko.minecraft.core.nbt.IntTag;
 import dev.shoko.minecraft.core.nbt.ListTag;
 import dev.shoko.minecraft.core.nbt.NbtTag;
 import dev.shoko.minecraft.core.nbt.NumericTag;
@@ -22,7 +23,8 @@ import java.util.SequencedMap;
 
 /**
  * The sparse {@code Items} list of block entities and containers (IC-R24, IC-R25): only non-empty
- * stacks are written, each with its {@code Slot} Byte, and an empty list is written as is.
+ * stacks are written, each with its {@code Slot} (a Byte, an Int past the range of a Byte), and an
+ * empty list is written as is.
  */
 public final class ContainerItemsCodec {
 
@@ -124,7 +126,7 @@ public final class ContainerItemsCodec {
   private static CompoundTag entry(int slot, CompoundTag stack) {
     SequencedMap<String, NbtTag> entry = new LinkedHashMap<>();
     entry.put("count", stack.get("count").orElseThrow());
-    entry.put(SLOT, new ByteTag((byte) slot));
+    entry.put(SLOT, slot == (byte) slot ? new ByteTag((byte) slot) : new IntTag(slot));
     stack.entries().forEach(entry::putIfAbsent);
     return CompoundTag.of(entry);
   }

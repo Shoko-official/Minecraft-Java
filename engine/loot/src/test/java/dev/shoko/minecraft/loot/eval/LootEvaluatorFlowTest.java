@@ -176,14 +176,14 @@ class LootEvaluatorFlowTest {
   }
 
   @Test
-  void provisionalANegativeLuckDoesNotReduceTheRolls() {
-    // spec: LT-R74i (a negative bonus is brought back to 0 before the sum), LT-R6
-    assertThat(LootEvaluator.rolls(bonusPool(1f), withLuck(-5f))).isEqualTo(1);
+  void provisionalANegativeTotalOfRollsIsZero() {
+    // spec: LT-R19b, LT-R6
+    assertThat(LootEvaluator.rolls(bonusPool(1f), withLuck(-5f))).isZero();
   }
 
   @Test
   void provisionalANegativeValueOfRollsItselfIsZero() {
-    // spec: LT-R6, LT-R74i (only a negative rolls gives no draw)
+    // spec: LT-R6, LT-R19b (a total below 0 gives no draw)
     LootPool pool =
         Tables.poolWith(
             List.of(), new IntProvider.Constant(-2), 1f, List.of(), Tables.item("stone"));

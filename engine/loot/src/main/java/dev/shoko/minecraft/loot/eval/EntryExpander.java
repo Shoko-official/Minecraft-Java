@@ -59,6 +59,7 @@ public final class EntryExpander {
 
   /** Expands an entry into {@code out}; tells whether the entry succeeded (LT-R21). */
   private static boolean expand(LootEntry entry, LootContext context, List<LootEntry> out) {
+    context.budget().node();
     if (entry.kind() instanceof LootEntry.Kind.Tag tag && tag.expand()) {
       return expandTag(entry, tag, context, out);
     }

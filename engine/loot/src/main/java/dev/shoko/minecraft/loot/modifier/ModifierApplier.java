@@ -27,6 +27,7 @@ public final class ModifierApplier {
    * @return the new stack and the cause
    */
   public static ModifierResult apply(ItemModifier modifier, ItemStack stack, LootContext context) {
+    context.budget().node();
     if (stack.isEmpty()) {
       return new ModifierResult(ItemStack.empty(), ModifierCause.EMPTY_INPUT);
     }

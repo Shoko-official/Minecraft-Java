@@ -27,6 +27,8 @@ public enum LootFindingCode {
   UNRESOLVED_TAG(Severity.ERROR),
   /** An element that lies on a cycle of references between named elements (LT-R76). */
   REFERENCE_CYCLE(Severity.ERROR),
+  /** A table that starts a chain of more than 64 named references (LT-R74d). */
+  REFERENCE_TOO_DEEP(Severity.ERROR),
   /** A table that references itself, directly (LT-R23). */
   SELF_REFERENCE(Severity.ERROR),
   /** An enchantment identifier that is not in the enchantment registry. */

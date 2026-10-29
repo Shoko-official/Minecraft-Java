@@ -15,9 +15,6 @@ final class CountActions {
   /** Bound on the draws of one modifier, far above what any stack asks for. */
   private static final int MAX_DRAWS = 100_000;
 
-  /** Bound on the units one explosion_decay draws for; a larger pile fails the draw (LT-R74f). */
-  private static final int MAX_DECAY_UNITS = 10_000_000;
-
   private CountActions() {}
 
   static ItemStack setCount(ModifierAction.SetCount action, ItemStack stack, LootContext context) {
@@ -42,9 +39,7 @@ final class CountActions {
     if (radius.isEmpty() || radius.getAsDouble() <= 0) {
       return stack;
     }
-    if (stack.count() > MAX_DECAY_UNITS) {
-      throw new LootBudgetException("explosion_decay on " + stack.count() + " units");
-    }
+    context.budget().units(stack.count());
     float probability = 1.0f / (float) radius.getAsDouble();
     RandomSource random = context.random();
     int kept = 0;
@@ -94,7 +89,13 @@ final class CountActions {
     if (level <= 0) {
       return stack;
     }
-    float increase = action.count().sample(context) * level;
+    if (level > MAX_DRAWS) {
+      throw new LootBudgetException("enchanted_count_increase at level " + level);
+    }
+    float increase = 0f;
+    for (int draw = 0; draw < level; draw++) {
+      increase += action.count().sample(context);
+    }
     long count = (long) stack.count() + (long) Math.floor(increase);
     if (action.limit() > 0) {
       count = Math.min(count, action.limit());

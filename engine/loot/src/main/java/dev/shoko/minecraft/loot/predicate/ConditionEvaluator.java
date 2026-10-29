@@ -17,9 +17,6 @@ import java.util.OptionalDouble;
 /** Evaluates conditions (LT-R29 to LT-R37). */
 final class ConditionEvaluator {
 
-  /** Bound on chained named predicates, so that a cycle ends in a plain failure. */
-  private static final int MAX_REFERENCE_DEPTH = 64;
-
   private static final ConditionResult MATCHED = new ConditionResult(true, ConditionCause.MATCHED);
   private static final ConditionResult NOT_MATCHED =
       new ConditionResult(false, ConditionCause.NOT_MATCHED);
@@ -29,6 +26,7 @@ final class ConditionEvaluator {
   private ConditionEvaluator() {}
 
   static ConditionResult test(LootCondition condition, LootContext context, int depth) {
+    context.budget().node();
     return switch (condition) {
       case LootCondition.AllOf all -> allOf(all.terms(), context, depth);
       case LootCondition.AnyOf any -> anyOf(any.terms(), context, depth);
@@ -94,14 +92,16 @@ final class ConditionEvaluator {
 
   private static ConditionResult reference(
       LootCondition.Reference reference, LootContext context, int depth) {
-    if (depth >= MAX_REFERENCE_DEPTH) {
-      return NOT_MATCHED;
-    }
     Optional<LootCondition> named = context.data().predicates().find(reference.predicate());
     if (named.isEmpty()) {
       return NOT_MATCHED;
     }
-    return test(named.get(), context, depth + 1);
+    context.budget().enterReference();
+    try {
+      return test(named.get(), context, depth + 1);
+    } finally {
+      context.budget().exitReference();
+    }
   }
 
   private static ConditionResult randomChance(

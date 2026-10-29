@@ -92,7 +92,8 @@ public final class LootDataLoader {
         decode(loaded, ENCHANTMENT_PROVIDER, findings, EnchantmentCodec::decodeProvider, access);
     EnchantmentCatalog catalog = new EnchantmentCatalog(definitions, providers);
 
-    LootTables tables = loadTables(loaded, items, access, predicates, numbers, findings);
+    ReferenceDepth depth = new ReferenceDepth(conditions, ints, floats);
+    LootTables tables = loadTables(loaded, items, predicates, numbers, depth, findings);
     LootData data = new LootData(tables, predicates, numbers, catalog, items, recipes, access);
     return new LootLoadResult(data, List.copyOf(findings));
   }
@@ -100,10 +101,11 @@ public final class LootDataLoader {
   private static LootTables loadTables(
       LoadedData loaded,
       ItemCatalog items,
-      RegistryAccess access,
       NamedPredicates predicates,
       NumberProviderSet numbers,
+      ReferenceDepth depth,
       List<LootLoadFinding> findings) {
+    RegistryAccess access = loaded.registryAccess();
     SequencedMap<Identifier, LootTable> decoded = new LinkedHashMap<>();
     Map<Identifier, List<LootFinding>> own = new LinkedHashMap<>();
     elements(loaded, LOOT_TABLE)
@@ -127,9 +129,14 @@ public final class LootDataLoader {
         found.addAll(
             LootTableCodec.checkReferences(entry.getKey(), entry.getValue(), known, predicates));
         found.addAll(missingProviders(entry.getValue(), numbers));
+        depth.check(entry.getValue()).ifPresent(found::add);
         if (cyclic.contains(new Ref(Kind.TABLE, entry.getKey()))
             && found.stream().noneMatch(f -> f.code() == LootFindingCode.SELF_REFERENCE)) {
-          found.add(new LootFinding(LootFindingCode.REFERENCE_CYCLE, "$", "part of a cycle"));
+          found.add(
+              new LootFinding(
+                  LootFindingCode.REFERENCE_CYCLE,
+                  "$",
+                  "table " + entry.getKey() + " is part of a reference cycle"));
         }
         checks.put(entry.getKey(), found);
         if (found.stream().anyMatch(f -> f.code().severity() == Severity.ERROR)) {

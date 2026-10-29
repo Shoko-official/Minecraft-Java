@@ -12,14 +12,13 @@ import java.util.Map;
 public final class XpRepair {
 
   private static final Identifier REPAIR_WITH_XP = Identifier.minecraft("repair_with_xp");
-  private static final float POINTS_PER_EXPERIENCE = 2.0f;
 
   private XpRepair() {}
 
   /**
-   * Repairs an item with picked-up experience: each point repairs {@code 2 * factor} durability
-   * points, where the factor is the value of the {@code minecraft:repair_with_xp} component
-   * evaluated over the item (start 1, EN-R19c); the formula is provisional (probe PE4).
+   * Repairs an item with picked-up experience: each point repairs as many durability points as the
+   * final value of the {@code minecraft:repair_with_xp} component evaluated over the item (start 1,
+   * EN-R19c); the formula is provisional (probe PE4).
    *
    * @param stack an item in an active slot, possibly with {@code mending}
    * @param experience the points of experience picked up
@@ -48,7 +47,9 @@ public final class XpRepair {
                 context.withEnchantment(enchanted.getValue(), true, stack));
       }
     }
-    int perPoint = (int) Math.floor(POINTS_PER_EXPERIENCE * factor);
+    // R44b: the final value of the component is the durability repaired per point, no second
+    // factor.
+    int perPoint = (int) Math.floor(factor);
     if (!effect || perPoint <= 0) {
       return new RepairResult(stack, experience);
     }

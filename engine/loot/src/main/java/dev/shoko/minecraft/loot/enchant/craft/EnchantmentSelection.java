@@ -1,6 +1,5 @@
 package dev.shoko.minecraft.loot.enchant.craft;
 
-import dev.shoko.minecraft.core.math.WeightedSelection;
 import dev.shoko.minecraft.core.random.RandomSource;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
@@ -13,6 +12,7 @@ import dev.shoko.minecraft.loot.enchant.EnchantmentDefinition;
 import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
 import dev.shoko.minecraft.loot.random.DrawReason;
 import dev.shoko.minecraft.loot.random.Draws;
+import dev.shoko.minecraft.loot.random.Weights;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -124,7 +124,7 @@ public final class EnchantmentSelection {
     int current = cost;
     while (!remaining.isEmpty()) {
       int[] weights = remaining.stream().mapToInt(i -> i.enchantment().costs().weight()).toArray();
-      OptionalInt picked = WeightedSelection.weightedPick(weights, random::nextInt);
+      OptionalInt picked = Weights.pick(weights, random);
       if (picked.isEmpty()) {
         break;
       }

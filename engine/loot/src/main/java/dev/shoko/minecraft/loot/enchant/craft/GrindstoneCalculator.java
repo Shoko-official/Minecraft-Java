@@ -9,6 +9,7 @@ import dev.shoko.minecraft.loot.assembly.LootData;
 import dev.shoko.minecraft.loot.enchant.EnchantmentDefinition;
 import dev.shoko.minecraft.loot.enchant.ItemEnchantments;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -46,8 +47,8 @@ public final class GrindstoneCalculator {
     for (ItemStack source : new ItemStack[] {first, second}) {
       removed += removedCost(source, data);
     }
-    output = strip(output, WellKnownComponents.ENCHANTMENTS, data);
-    output = strip(output, WellKnownComponents.STORED_ENCHANTMENTS, data);
+    output = strip(output, WellKnownComponents.ENCHANTMENTS, List.of(first, second), data);
+    output = strip(output, WellKnownComponents.STORED_ENCHANTMENTS, List.of(first, second), data);
     output = StackEnchants.withRepairCost(output, 0);
     output = plainBook(output, data);
     int experience = (int) Math.min(Integer.MAX_VALUE, (removed + 1) / 2);
@@ -60,10 +61,10 @@ public final class GrindstoneCalculator {
     }
     int max = first.maxDamage();
     long remaining =
-        (long) (max - first.damage())
-            + (max - second.damage())
+        (long) Math.max(0, max - first.damage())
+            + Math.max(0, max - second.damage())
             + max * (long) MERGE_BONUS_PERCENT / 100;
-    return StackEnchants.withDamage(first, (int) Math.max(0, max - remaining));
+    return StackEnchants.withDamage(first, (int) Math.max(0, max - Math.min(max, remaining)));
   }
 
   private static long removedCost(ItemStack stack, LootData data) {
@@ -80,23 +81,30 @@ public final class GrindstoneCalculator {
     return total;
   }
 
-  private static ItemStack strip(ItemStack stack, Identifier component, LootData data) {
+  /**
+   * Replaces the enchantments of a component by the curses of the entries, once each (EN-R47,
+   * H-meule-a: the output carries the curses of both entries).
+   */
+  private static ItemStack strip(
+      ItemStack stack, Identifier component, List<ItemStack> sources, LootData data) {
     if (stack.component(component).isEmpty()) {
       return stack;
     }
-    EnchantmentLevels levels =
-        component.equals(WellKnownComponents.ENCHANTMENTS)
-            ? ItemEnchantments.of(stack)
-            : ItemEnchantments.stored(stack);
     Map<Identifier, Integer> kept = new LinkedHashMap<>();
-    levels
-        .levels()
-        .forEach(
-            (id, level) -> {
-              if (data.enchantments().isCurse(id, data.registries())) {
-                kept.put(id, level);
-              }
-            });
+    for (ItemStack source : sources) {
+      EnchantmentLevels levels =
+          component.equals(WellKnownComponents.ENCHANTMENTS)
+              ? ItemEnchantments.of(source)
+              : ItemEnchantments.stored(source);
+      levels
+          .levels()
+          .forEach(
+              (id, level) -> {
+                if (data.enchantments().isCurse(id, data.registries())) {
+                  kept.putIfAbsent(id, level);
+                }
+              });
+    }
     return stack.withComponent(
         component, new EnchantmentLevels(new LinkedHashMap<>(kept)).toValue());
   }

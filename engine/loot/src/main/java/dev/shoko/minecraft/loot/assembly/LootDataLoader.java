@@ -10,6 +10,9 @@ import dev.shoko.minecraft.item.recipe.RecipeSet;
 import dev.shoko.minecraft.item.registry.ItemCatalog;
 import dev.shoko.minecraft.loot.LootDecoding;
 import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.LootFindingCode;
+import dev.shoko.minecraft.loot.assembly.References.Kind;
+import dev.shoko.minecraft.loot.assembly.References.Ref;
 import dev.shoko.minecraft.loot.enchant.EnchantmentCatalog;
 import dev.shoko.minecraft.loot.enchant.EnchantmentCodec;
 import dev.shoko.minecraft.loot.enchant.EnchantmentDefinition;
@@ -19,6 +22,7 @@ import dev.shoko.minecraft.loot.number.IntProvider;
 import dev.shoko.minecraft.loot.number.NumberProviderCodec;
 import dev.shoko.minecraft.loot.number.NumberProviderSet;
 import dev.shoko.minecraft.loot.predicate.ConditionCodec;
+import dev.shoko.minecraft.loot.predicate.LootCondition;
 import dev.shoko.minecraft.loot.predicate.NamedPredicates;
 import dev.shoko.minecraft.loot.table.LootTable;
 import dev.shoko.minecraft.loot.table.LootTableCodec;
@@ -28,6 +32,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.SequencedMap;
+import java.util.Set;
 import java.util.function.BiFunction;
 
 /**
@@ -66,17 +71,11 @@ public final class LootDataLoader {
         decode(loaded, INT_PROVIDER, findings, NumberProviderCodec::decodeInt, access);
     SequencedMap<Identifier, FloatProvider> floats =
         decode(loaded, FLOAT_PROVIDER, findings, NumberProviderCodec::decodeFloat, access);
+    SequencedMap<Identifier, LootCondition> conditions =
+        decode(loaded, PREDICATE, findings, ConditionCodec::decode, access);
+    NamedPruning.prune(conditions, ints, floats, findings);
     NumberProviderSet numbers = new NumberProviderSet(ints, floats);
-    for (LootFinding unresolved : NumberProviderCodec.unresolvedReferences(numbers)) {
-      String owner = unresolved.message().substring(0, unresolved.message().indexOf(' '));
-      findings.add(
-          new LootLoadFinding(
-              INT_PROVIDER,
-              Identifier.tryParse(owner).orElse(Identifier.minecraft("unknown")),
-              unresolved));
-    }
-    NamedPredicates predicates =
-        new NamedPredicates(decode(loaded, PREDICATE, findings, ConditionCodec::decode, access));
+    NamedPredicates predicates = new NamedPredicates(conditions);
 
     SequencedMap<Identifier, EnchantmentDefinition> definitions = new LinkedHashMap<>();
     elements(loaded, ENCHANTMENT)
@@ -93,7 +92,7 @@ public final class LootDataLoader {
         decode(loaded, ENCHANTMENT_PROVIDER, findings, EnchantmentCodec::decodeProvider, access);
     EnchantmentCatalog catalog = new EnchantmentCatalog(definitions, providers);
 
-    LootTables tables = loadTables(loaded, items, access, predicates, findings);
+    LootTables tables = loadTables(loaded, items, access, predicates, numbers, findings);
     LootData data = new LootData(tables, predicates, numbers, catalog, items, recipes, access);
     return new LootLoadResult(data, List.copyOf(findings));
   }
@@ -103,6 +102,7 @@ public final class LootDataLoader {
       ItemCatalog items,
       RegistryAccess access,
       NamedPredicates predicates,
+      NumberProviderSet numbers,
       List<LootLoadFinding> findings) {
     SequencedMap<Identifier, LootTable> decoded = new LinkedHashMap<>();
     Map<Identifier, List<LootFinding>> own = new LinkedHashMap<>();
@@ -121,9 +121,16 @@ public final class LootDataLoader {
       removed = false;
       checks.clear();
       LootTables known = new LootTables(new LinkedHashMap<>(decoded));
+      Set<Ref> cyclic = tableCycles(decoded);
       for (Map.Entry<Identifier, LootTable> entry : List.copyOf(decoded.entrySet())) {
-        List<LootFinding> found =
-            LootTableCodec.checkReferences(entry.getKey(), entry.getValue(), known, predicates);
+        List<LootFinding> found = new ArrayList<>();
+        found.addAll(
+            LootTableCodec.checkReferences(entry.getKey(), entry.getValue(), known, predicates));
+        found.addAll(missingProviders(entry.getValue(), numbers));
+        if (cyclic.contains(new Ref(Kind.TABLE, entry.getKey()))
+            && found.stream().noneMatch(f -> f.code() == LootFindingCode.SELF_REFERENCE)) {
+          found.add(new LootFinding(LootFindingCode.REFERENCE_CYCLE, "$", "part of a cycle"));
+        }
         checks.put(entry.getKey(), found);
         if (found.stream().anyMatch(f -> f.code().severity() == Severity.ERROR)) {
           own.get(entry.getKey()).addAll(found);
@@ -171,5 +178,36 @@ public final class LootDataLoader {
   private static void relay(
       List<LootLoadFinding> out, Identifier registry, Identifier element, List<LootFinding> found) {
     found.forEach(f -> out.add(new LootLoadFinding(registry, element, f)));
+  }
+
+  private static Set<Ref> tableCycles(SequencedMap<Identifier, LootTable> tables) {
+    Map<Ref, List<Ref>> edges = new LinkedHashMap<>();
+    tables.forEach(
+        (id, table) ->
+            edges.put(
+                new Ref(Kind.TABLE, id),
+                References.of(table).stream().filter(r -> r.kind() == Kind.TABLE).toList()));
+    return ReferenceGraph.cyclic(edges);
+  }
+
+  /** The provider references of a table that no loaded provider answers (LT-R77). */
+  private static List<LootFinding> missingProviders(LootTable table, NumberProviderSet numbers) {
+    List<LootFinding> missing = new ArrayList<>();
+    for (Ref ref : References.of(table)) {
+      boolean absent =
+          switch (ref.kind()) {
+            case INT_PROVIDER -> numbers.intProvider(ref.id()).isEmpty();
+            case FLOAT_PROVIDER -> numbers.floatProvider(ref.id()).isEmpty();
+            default -> false;
+          };
+      if (absent) {
+        missing.add(
+            new LootFinding(
+                LootFindingCode.UNRESOLVED_REFERENCE,
+                "$",
+                "number provider is not loaded: " + ref.id()));
+      }
+    }
+    return missing;
   }
 }

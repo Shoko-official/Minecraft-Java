@@ -1,17 +1,19 @@
 package dev.shoko.minecraft.loot.eval;
 
-import dev.shoko.minecraft.core.math.WeightedSelection;
 import dev.shoko.minecraft.core.random.RandomSource;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.registry.ItemType;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.LootFinding;
 import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.loot.modifier.ModifierApplier;
 import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
+import dev.shoko.minecraft.loot.random.DrawObserver;
 import dev.shoko.minecraft.loot.random.DrawReason;
 import dev.shoko.minecraft.loot.random.Draws;
+import dev.shoko.minecraft.loot.random.Weights;
 import dev.shoko.minecraft.loot.table.LootEntry;
 import dev.shoko.minecraft.loot.table.LootPool;
 import dev.shoko.minecraft.loot.table.LootTable;
@@ -30,18 +32,34 @@ final class TableDraw {
   /** Bound on the nesting of tables, which JSON itself keeps below 256 levels. */
   private static final int MAX_DEPTH = 255;
 
-  /** Bound on the rolls of a pool, far above what any table asks for. */
+  /** Bound on the rolls of a pool (LT-R74a). */
   static final int MAX_ROLLS = 4096;
+
+  /**
+   * Budget of one draw (LT-R74f): the decisions reported while drawing, conditions, rolls,
+   * selections and modifiers. Far above the data of the game, far below the product of the caps.
+   */
+  private static final long MAX_DECISIONS = 1_000_000L;
 
   /** Bound on a weight, so that the sum of the weights of a roll cannot overflow. */
   private static final int MAX_WEIGHT = 1 << 20;
 
   private final LootContext context;
+  private long decisions;
   private final List<LootFinding> findings = new ArrayList<>();
   private final Set<Identifier> active = new HashSet<>();
 
-  TableDraw(LootContext context) {
-    this.context = context;
+  TableDraw(LootContext caller) {
+    DrawObserver outer = caller.observer();
+    this.context =
+        caller.withObserver(
+            event -> {
+              if (++decisions > MAX_DECISIONS) {
+                throw new LootBudgetException(
+                    "a draw made more than " + MAX_DECISIONS + " decisions");
+              }
+              outer.onDraw(event);
+            });
   }
 
   List<LootFinding> findings() {
@@ -87,7 +105,7 @@ final class TableDraw {
     int[] weights =
         candidates.stream().mapToInt(c -> Math.min(c.effectiveWeight(), MAX_WEIGHT)).toArray();
     RandomSource random = context.random();
-    OptionalInt picked = WeightedSelection.weightedPick(weights, random::nextInt);
+    OptionalInt picked = Weights.pick(weights, random);
     return picked.isPresent() ? candidates.get(picked.getAsInt()) : null;
   }
 
@@ -123,9 +141,7 @@ final class TableDraw {
 
   private List<ItemStack> nested(LootEntry.TableRef ref, int depth, String path) {
     if (depth >= MAX_DEPTH) {
-      findings.add(
-          new LootFinding(LootFindingCode.SELF_REFERENCE, path, "tables nested too deeply"));
-      return List.of();
+      throw new LootBudgetException("tables nested more than " + MAX_DEPTH + " levels at " + path);
     }
     return switch (ref) {
       case LootEntry.TableRef.Inline inline -> table(inline.table(), depth + 1, path);

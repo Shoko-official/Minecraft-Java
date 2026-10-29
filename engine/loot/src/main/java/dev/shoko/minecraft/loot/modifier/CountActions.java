@@ -2,6 +2,7 @@ package dev.shoko.minecraft.loot.modifier;
 
 import dev.shoko.minecraft.core.random.RandomSource;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import dev.shoko.minecraft.loot.LootBudgetException;
 import dev.shoko.minecraft.loot.context.EntityTarget;
 import dev.shoko.minecraft.loot.context.LootContext;
 import dev.shoko.minecraft.loot.enchant.ItemEnchantments;
@@ -13,6 +14,9 @@ final class CountActions {
 
   /** Bound on the draws of one modifier, far above what any stack asks for. */
   private static final int MAX_DRAWS = 100_000;
+
+  /** Bound on the units one explosion_decay draws for; a larger pile fails the draw (LT-R74f). */
+  private static final int MAX_DECAY_UNITS = 10_000_000;
 
   private CountActions() {}
 
@@ -29,18 +33,23 @@ final class CountActions {
     return stack.withCount(Math.min(Math.max(stack.count(), min), max));
   }
 
-  /** Each unit is lost with the probability 1 / radius, one draw per unit (LT-R41). */
+  /**
+   * Each unit is kept when its draw is below 1 / radius, one draw per unit (LT-R41, H-decay-b: the
+   * same sense as {@code survives_explosion}).
+   */
   static ItemStack explosionDecay(ItemStack stack, LootContext context) {
     OptionalDouble radius = context.explosionRadius();
     if (radius.isEmpty() || radius.getAsDouble() <= 0) {
       return stack;
     }
+    if (stack.count() > MAX_DECAY_UNITS) {
+      throw new LootBudgetException("explosion_decay on " + stack.count() + " units");
+    }
     float probability = 1.0f / (float) radius.getAsDouble();
     RandomSource random = context.random();
-    int kept = Math.max(0, stack.count() - MAX_DRAWS);
-    int drawn = Math.min(stack.count(), MAX_DRAWS);
-    for (int unit = 0; unit < drawn; unit++) {
-      if (!(random.nextFloat() < probability)) {
+    int kept = 0;
+    for (int unit = 0; unit < stack.count(); unit++) {
+      if (random.nextFloat() < probability) {
         kept++;
       }
     }
@@ -54,15 +63,16 @@ final class CountActions {
     RandomSource random = context.random();
     long count = stack.count();
     switch (action.formula()) {
-      case BonusFormula.OreDrops ore -> {
-        if (level > 0) {
+      case BonusFormula.OreDrops ore ->
+          // H-bonus0-a (LT-R42): the formula is evaluated at level 0 too, one bounded draw.
           count *= Math.max(1, random.nextInt(level + 2));
-        }
-      }
       case BonusFormula.UniformBonusCount uniform ->
           count += random.nextInt(Math.max(1, level * uniform.bonusMultiplier() + 1));
       case BonusFormula.BinomialWithBonusCount binomial -> {
-        int trials = Math.min(level + binomial.extra(), MAX_DRAWS);
+        long trials = (long) level + binomial.extra();
+        if (trials > MAX_DRAWS) {
+          throw new LootBudgetException("apply_bonus binomial with " + trials + " trials");
+        }
         for (int i = 0; i < trials; i++) {
           if (random.nextFloat() < binomial.probability()) {
             count++;

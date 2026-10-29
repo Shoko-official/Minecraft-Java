@@ -2,11 +2,18 @@ package dev.shoko.minecraft.loot.number;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.loot.LootFinding;
+import dev.shoko.minecraft.loot.assembly.References;
+import dev.shoko.minecraft.loot.assembly.References.Kind;
+import dev.shoko.minecraft.loot.assembly.References.Ref;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-/** Finds the references of named providers that no loaded provider answers (LT-R50). */
+/**
+ * Finds the references of named providers that no loaded provider answers (LT-R50), whatever the
+ * family of the provider and of the reference: {@code from_float}, {@code from_int} and the
+ * probability of a {@code binomial} cross the two families.
+ */
 final class ProviderReferences {
 
   private ProviderReferences() {}
@@ -14,70 +21,23 @@ final class ProviderReferences {
   static List<LootFinding> unresolved(NumberProviderSet set) {
     List<LootFinding> findings = new ArrayList<>();
     for (Map.Entry<Identifier, IntProvider> entry : set.ints().entrySet()) {
-      List<Identifier> targets = new ArrayList<>();
-      collect(entry.getValue(), targets);
-      for (Identifier target : targets) {
-        if (set.intProvider(target).isEmpty()) {
-          findings.add(NumberProviderCodec.unresolved(entry.getKey(), target));
-        }
-      }
+      check(entry.getKey(), References.of(entry.getValue()), set, findings);
     }
     for (Map.Entry<Identifier, FloatProvider> entry : set.floats().entrySet()) {
-      List<Identifier> targets = new ArrayList<>();
-      collect(entry.getValue(), targets);
-      for (Identifier target : targets) {
-        if (set.floatProvider(target).isEmpty()) {
-          findings.add(NumberProviderCodec.unresolved(entry.getKey(), target));
-        }
-      }
+      check(entry.getKey(), References.of(entry.getValue()), set, findings);
     }
     return findings;
   }
 
-  /** The references of an integer provider tree whose identifiers sit in the int registry. */
-  static void collect(IntProvider provider, List<Identifier> out) {
-    switch (provider) {
-      case IntProvider.Reference reference -> out.add(reference.id());
-      case IntProvider.Uniform uniform -> {
-        collect(uniform.min(), out);
-        collect(uniform.max(), out);
+  private static void check(
+      Identifier owner, List<Ref> refs, NumberProviderSet set, List<LootFinding> findings) {
+    for (Ref ref : refs) {
+      boolean missing =
+          (ref.kind() == Kind.INT_PROVIDER && set.intProvider(ref.id()).isEmpty())
+              || (ref.kind() == Kind.FLOAT_PROVIDER && set.floatProvider(ref.id()).isEmpty());
+      if (missing) {
+        findings.add(NumberProviderCodec.unresolved(owner, ref.id()));
       }
-      case IntProvider.Conditional conditional -> {
-        collect(conditional.onTrue(), out);
-        collect(conditional.onFalse(), out);
-      }
-      case IntProvider.NumberDispatcher dispatcher -> {
-        dispatcher.cases().forEach(c -> collect(c.value(), out));
-        collect(dispatcher.fallback(), out);
-      }
-      case IntProvider.WeightedList list ->
-          list.distribution().forEach(e -> collect(e.data(), out));
-      case IntProvider.Arithmetic arithmetic -> arithmetic.operands().forEach(o -> collect(o, out));
-      default -> {}
-    }
-  }
-
-  /** The references of a float provider tree whose identifiers sit in the float registry. */
-  static void collect(FloatProvider provider, List<Identifier> out) {
-    switch (provider) {
-      case FloatProvider.Reference reference -> out.add(reference.id());
-      case FloatProvider.Uniform uniform -> {
-        collect(uniform.min(), out);
-        collect(uniform.max(), out);
-      }
-      case FloatProvider.Conditional conditional -> {
-        collect(conditional.onTrue(), out);
-        collect(conditional.onFalse(), out);
-      }
-      case FloatProvider.NumberDispatcher dispatcher -> {
-        dispatcher.cases().forEach(c -> collect(c.value(), out));
-        collect(dispatcher.fallback(), out);
-      }
-      case FloatProvider.WeightedList list ->
-          list.distribution().forEach(e -> collect(e.data(), out));
-      case FloatProvider.Arithmetic arithmetic ->
-          arithmetic.operands().forEach(o -> collect(o, out));
-      default -> {}
     }
   }
 }

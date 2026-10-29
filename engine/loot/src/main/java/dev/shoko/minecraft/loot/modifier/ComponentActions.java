@@ -157,11 +157,11 @@ final class ComponentActions {
     return stack.withComponent(STEW_EFFECTS, new ComponentValue(ListTag.of(effects)));
   }
 
-  static Optional<ItemStack> copyState(
+  static ModifierResult copyState(
       ModifierAction.CopyState action, ItemStack stack, LootContext context) {
     Optional<BlockState> state = context.blockState();
     if (state.isEmpty()) {
-      return Optional.empty();
+      return new ModifierResult(stack, ModifierCause.PARAMETER_ABSENT);
     }
     SequencedMap<String, NbtTag> entries = new LinkedHashMap<>();
     BlockState block = state.get();
@@ -173,17 +173,18 @@ final class ComponentActions {
       }
     }
     if (entries.isEmpty()) {
-      return Optional.of(stack);
+      return new ModifierResult(stack, ModifierCause.APPLIED);
     }
-    return Optional.of(
-        stack.withComponent(BLOCK_STATE, new ComponentValue(CompoundTag.of(entries))));
+    return new ModifierResult(
+        stack.withComponent(BLOCK_STATE, new ComponentValue(CompoundTag.of(entries))),
+        ModifierCause.APPLIED);
   }
 
-  static Optional<ItemStack> copyComponents(
+  static ModifierResult copyComponents(
       ModifierAction.CopyComponents action, ItemStack stack, LootContext context) {
     Optional<BlockEntityData> blockEntity = context.blockEntity();
     if (blockEntity.isEmpty()) {
-      return Optional.empty();
+      return new ModifierResult(stack, ModifierCause.PARAMETER_ABSENT);
     }
     CompoundTag data = blockEntity.get().data();
     Optional<CompoundTag> components =
@@ -202,6 +203,6 @@ final class ComponentActions {
         result = result.withComponent(include, new ComponentValue(value.get()));
       }
     }
-    return Optional.of(result);
+    return new ModifierResult(result, ModifierCause.APPLIED);
   }
 }

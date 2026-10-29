@@ -6,6 +6,7 @@ import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.loot.Fields;
 import dev.shoko.minecraft.loot.Findings;
+import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.enchant.effect.EffectCodec;
 import dev.shoko.minecraft.loot.enchant.effect.LevelBasedValue;
 import dev.shoko.minecraft.loot.predicate.LootCondition;
@@ -139,14 +140,22 @@ final class Decoders {
       return new IntProvider.Unspecified(type, fields);
     }
 
+    private IntProvider binomial(
+        Fields fields, Findings findings, ProviderDecoder<IntProvider> decoder) {
+      IntProvider trials = decoder.child(fields, "n", findings);
+      if (trials instanceof IntProvider.Constant constant
+          && constant.value() > IntSampler.MAX_TRIALS) {
+        findings.add(LootFindingCode.VALUE_RANGE, fields.node(), "binomial n above the cap");
+      }
+      return new IntProvider.Binomial(trials, floats.child(fields, "p", findings));
+    }
+
     @Override
     public IntProvider special(
         String type, Fields fields, Findings findings, ProviderDecoder<IntProvider> decoder) {
       return switch (type) {
-        case "binomial" ->
-            new IntProvider.Binomial(
-                decoder.child(fields, "n", findings), floats.child(fields, "p", findings));
-        case "from_float" -> new IntProvider.FromFloat(floats.child(fields, "argument", findings));
+        case "binomial" -> binomial(fields, findings, decoder);
+        case "from_float" -> new IntProvider.FromFloat(floats.child(fields, "input", findings));
         default -> null;
       };
     }
@@ -211,7 +220,7 @@ final class Decoders {
     public FloatProvider special(
         String type, Fields fields, Findings findings, ProviderDecoder<FloatProvider> decoder) {
       return switch (type) {
-        case "from_int" -> new FloatProvider.FromInt(ints.child(fields, "argument", findings));
+        case "from_int" -> new FloatProvider.FromInt(ints.child(fields, "input", findings));
         case "enchantment_level" -> enchantmentLevel(fields, findings);
         default -> null;
       };

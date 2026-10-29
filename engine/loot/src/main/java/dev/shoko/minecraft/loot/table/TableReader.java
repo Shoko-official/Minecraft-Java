@@ -33,6 +33,12 @@ final class TableReader {
 
   private static final Identifier ITEM = Identifier.minecraft("item");
 
+  /** Bound on the rolls of a pool (LT-R74a). */
+  static final int MAX_ROLLS = 4096;
+
+  /** Bound on the weight of an entry (LT-R74c). */
+  static final int MAX_WEIGHT = 1 << 20;
+
   private final RegistryAccess access;
   private final ItemCatalog items;
   private final Findings findings;
@@ -108,6 +114,9 @@ final class TableReader {
     JsonNode rollsNode = fields.required("rolls");
     IntProvider rolls =
         rollsNode == null ? null : findings.take(NumberProviderCodec.decodeInt(rollsNode, access));
+    if (rolls instanceof IntProvider.Constant constant && constant.value() > MAX_ROLLS) {
+      findings.add(LootFindingCode.VALUE_RANGE, rollsNode, "rolls above the cap of " + MAX_ROLLS);
+    }
     JsonNode bonusNode = fields.optional("bonus_rolls");
     FloatProvider bonus =
         bonusNode == null
@@ -139,6 +148,9 @@ final class TableReader {
     LootEntry.Kind kind = kind(type, node, fields);
     List<LootCondition> conditions = conditions(fields);
     int weight = fields.optionalInt("weight", 1, 0, Integer.MAX_VALUE);
+    if (weight > MAX_WEIGHT) {
+      findings.add(LootFindingCode.WEIGHT_CAPPED, node, "weight above the cap of 2^20");
+    }
     int quality = fields.optionalInt("quality", 0, Integer.MIN_VALUE, Integer.MAX_VALUE);
     List<ItemModifier> modifiers = modifiers(fields);
     fields.finish();

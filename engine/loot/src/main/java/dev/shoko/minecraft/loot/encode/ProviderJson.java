@@ -47,7 +47,7 @@ final class ProviderJson {
             "number_dispatcher", "cases", cases, "default", intProvider(dispatcher.fallback()));
       }
       case IntProvider.FromFloat fromFloat ->
-          typed("from_float", "argument", floatProvider(fromFloat.source()));
+          typed("from_float", "input", floatProvider(fromFloat.source()));
       case IntProvider.Arithmetic arithmetic ->
           arithmetic(
               arithmetic.operator().name().toLowerCase(Locale.ROOT),
@@ -86,7 +86,7 @@ final class ProviderJson {
       case FloatProvider.EnchantmentLevel level ->
           typed("enchantment_level", "amount", levelBased(level.amount()));
       case FloatProvider.FromInt fromInt ->
-          typed("from_int", "argument", intProvider(fromInt.source()));
+          typed("from_int", "input", intProvider(fromInt.source()));
       case FloatProvider.Arithmetic arithmetic ->
           arithmetic(
               arithmetic.operator().name().toLowerCase(Locale.ROOT),

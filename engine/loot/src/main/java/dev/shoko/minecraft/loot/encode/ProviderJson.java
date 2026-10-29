@@ -15,8 +15,7 @@ import java.util.function.Function;
 final class ProviderJson {
 
   private static final Set<String> NARY = Set.of("add", "mul", "min", "max", "avg");
-  private static final Set<String> BINARY =
-      Set.of("sub", "div", "mod", "pow", "floor_div", "floor_mod");
+  private static final Set<String> BINARY = Set.of("sub", "div", "mod", "floor_div", "floor_mod");
 
   private ProviderJson() {}
 
@@ -174,6 +173,10 @@ final class ProviderJson {
   private static <T> Object arithmetic(String name, List<T> operands, Function<T, Object> encode) {
     if (NARY.contains(name)) {
       return typed(name, "inputs", operands.stream().map(encode).toList());
+    }
+    if (name.equals("pow")) {
+      return typed(
+          name, "base", encode.apply(operands.get(0)), "exponent", encode.apply(operands.get(1)));
     }
     if (BINARY.contains(name)) {
       return typed(

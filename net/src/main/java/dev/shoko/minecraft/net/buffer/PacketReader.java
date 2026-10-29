@@ -234,7 +234,8 @@ public final class PacketReader {
   /**
    * Reads a String(n): a VarInt byte length, then UTF-8 without terminator (R9).
    *
-   * @param maxChars the maximum length in UTF-16 code units, at most 32767
+   * @param maxChars the maximum length in UTF-16 code units, at most 32767 except for a JSON text
+   *     component (262144, R17)
    * @return the string
    * @throws ProtocolException with {@code NEGATIVE_LENGTH}, {@code STRING_TOO_LONG} (more than
    *     {@code maxChars} units, or more than {@code 3 * maxChars + 3} bytes, checked before the

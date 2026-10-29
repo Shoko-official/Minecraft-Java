@@ -5,10 +5,21 @@ import static com.tngtech.archunit.core.domain.JavaAccess.Predicates.targetOwner
 import static com.tngtech.archunit.core.domain.JavaClass.Predicates.resideInAPackage;
 import static com.tngtech.archunit.core.domain.properties.HasName.Predicates.name;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
+import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.members;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
 import static com.tngtech.archunit.library.dependencies.SlicesRuleDefinition.slices;
 
+import com.tngtech.archunit.base.DescribedPredicate;
+import com.tngtech.archunit.core.domain.JavaClass;
+import com.tngtech.archunit.core.domain.JavaCodeUnit;
+import com.tngtech.archunit.core.domain.JavaField;
+import com.tngtech.archunit.core.domain.JavaMember;
+import com.tngtech.archunit.core.domain.JavaModifier;
+import com.tngtech.archunit.core.domain.JavaType;
+import com.tngtech.archunit.lang.ArchCondition;
 import com.tngtech.archunit.lang.ArchRule;
+import com.tngtech.archunit.lang.ConditionEvents;
+import com.tngtech.archunit.lang.SimpleConditionEvent;
 import com.tngtech.archunit.library.Architectures;
 import java.time.InstantSource;
 import java.util.ArrayList;
@@ -20,6 +31,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.random.RandomGenerator;
+import java.util.stream.Stream;
 
 /**
  * Architecture rules of docs/ARCHITECTURE.md as code. The direct dependencies below are the single
@@ -37,6 +49,9 @@ final class ModuleRules {
 
   /** Test-only code under the root package, outside every module. */
   static final String ARCHITECTURE_PACKAGE = "architecture";
+
+  /** The JSON library of the data module (ADR 0006). */
+  private static final String GSON = "com.google.gson..";
 
   private ModuleRules() {}
 
@@ -150,5 +165,128 @@ final class ModuleRules {
         .orShould()
         .callMethod(System.class, "nanoTime")
         .because("engine behavior must not depend on wall-clock time or unseeded randomness");
+  }
+
+  /** Modules that depend on Gson for their own purposes: tools that are programs of their own. */
+  static final Set<String> GSON_USERS = Set.of("tools.bootstrap", "tools.diff");
+
+  /** Modules covered by the Gson confinement: every module but the Gson users. */
+  static List<String> gsonConfinedModules() {
+    return DIRECT.keySet().stream().filter(m -> !GSON_USERS.contains(m)).toList();
+  }
+
+  /**
+   * ADR 0006: Gson is used by the data JSON package only, so that replacing the library touches one
+   * package. Only the tools that are programs of their own, with their own dependency on Gson, are
+   * outside the rule (GSON_USERS).
+   */
+  static ArchRule gsonConfinement(String root) {
+    String[] packages =
+        gsonConfinedModules().stream().map(m -> root + "." + m + "..").toArray(String[]::new);
+    return noClasses()
+        .that()
+        .resideInAnyPackage(packages)
+        .and()
+        .resideOutsideOfPackage(root + ".data.json..")
+        .should()
+        .dependOnClassesThat()
+        .resideInAPackage(GSON)
+        .because("ADR 0006 confines Gson to the data JSON package");
+  }
+
+  /**
+   * ADR 0006: no Gson type in the signature a data class shows to its callers. The Gradle
+   * dependency is {@code implementation}, which hides Gson from the compile classpath of the other
+   * modules only; this rule also covers a type that leaks through a generic argument, an array or a
+   * throws clause.
+   */
+  static ArchRule noGsonInSignatures(String root) {
+    DescribedPredicate<JavaMember> exported =
+        DescribedPredicate.describe(
+            "public or protected",
+            member ->
+                member.getModifiers().contains(JavaModifier.PUBLIC)
+                    || member.getModifiers().contains(JavaModifier.PROTECTED));
+    return members()
+        .that()
+        .areDeclaredInClassesThat()
+        .resideInAPackage(root + ".data..")
+        .and(exported)
+        .should(notExposeGson())
+        .because("ADR 0006 keeps Gson out of every public signature of the data module");
+  }
+
+  /**
+   * ADR 0006: a public or protected class of the data module does not extend or implement a Gson
+   * type, directly or through a generic argument: a subclass of a Gson type shows that type to its
+   * callers. Members are covered by noGsonInSignatures.
+   */
+  static ArchRule noGsonInSupertypes(String root) {
+    DescribedPredicate<JavaClass> exported =
+        DescribedPredicate.describe(
+            "public or protected",
+            type ->
+                type.getModifiers().contains(JavaModifier.PUBLIC)
+                    || type.getModifiers().contains(JavaModifier.PROTECTED));
+    return classes()
+        .that()
+        .resideInAPackage(root + ".data..")
+        .and(exported)
+        .should(notHaveGsonSupertype())
+        .because("ADR 0006 keeps Gson out of every public type of the data module");
+  }
+
+  private static ArchCondition<JavaClass> notHaveGsonSupertype() {
+    return new ArchCondition<>("not extend or implement a Gson type") {
+      @Override
+      public void check(JavaClass type, ConditionEvents events) {
+        Stream.concat(type.getSuperclass().stream(), type.getInterfaces().stream())
+            .flatMap(supertype -> supertype.getAllInvolvedRawTypes().stream())
+            .filter(involved -> involved.getPackageName().startsWith("com.google.gson"))
+            .forEach(
+                involved ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            type,
+                            type.getDescription()
+                                + " has the supertype "
+                                + involved.getName()
+                                + " in "
+                                + type.getSourceCodeLocation())));
+      }
+    };
+  }
+
+  private static ArchCondition<JavaMember> notExposeGson() {
+    return new ArchCondition<>("not have a Gson type in their signature") {
+      @Override
+      public void check(JavaMember member, ConditionEvents events) {
+        signatureTypes(member)
+            .filter(type -> type.getPackageName().startsWith("com.google.gson"))
+            .forEach(
+                type ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            member,
+                            member.getDescription()
+                                + " exposes "
+                                + type.getName()
+                                + " in its signature in "
+                                + member.getSourceCodeLocation())));
+      }
+    };
+  }
+
+  /** Every class the signature of a member involves: generic arguments and array elements too. */
+  private static Stream<JavaClass> signatureTypes(JavaMember member) {
+    if (member instanceof JavaField field) {
+      return field.getType().getAllInvolvedRawTypes().stream();
+    }
+    JavaCodeUnit unit = (JavaCodeUnit) member;
+    Stream<JavaType> declared =
+        Stream.concat(Stream.of(unit.getReturnType()), unit.getParameterTypes().stream());
+    return Stream.concat(
+        declared.flatMap(type -> type.getAllInvolvedRawTypes().stream()),
+        unit.getThrowsClause().getTypes().stream());
   }
 }

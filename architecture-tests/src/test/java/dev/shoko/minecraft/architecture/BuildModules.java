@@ -14,6 +14,14 @@ final class BuildModules {
     return read("architecture.modules");
   }
 
+  /**
+   * The modules below engine/ in the Gradle build, named like the keys of {@link
+   * ModuleRules#DIRECT}.
+   */
+  static Set<String> engine() {
+    return read("architecture.engineModules");
+  }
+
   /** Modules with Java sources other than package-info. */
   static Set<String> withCode() {
     return read("architecture.modulesWithCode");

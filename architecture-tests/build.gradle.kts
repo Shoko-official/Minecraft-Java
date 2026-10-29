@@ -17,10 +17,13 @@ fun hasCode(module: Project): Boolean =
 dependencies {
     codeModules.forEach { testImplementation(project(it.path)) }
     testImplementation(libs.archunit.junit5)
+    // The fixtures of the Gson rules (ADR 0006) need Gson types to break them.
+    testImplementation(libs.gson)
 }
 
 tasks.test {
     systemProperty("architecture.modules", codeModules.joinToString(",") { moduleName(it) })
+    systemProperty("architecture.engineModules", codeModules.filter { it.path.startsWith(":engine:") }.joinToString(",") { moduleName(it) })
     systemProperty("architecture.modulesWithCode", codeModules.filter(::hasCode).joinToString(",") { moduleName(it) })
     // ModuleGraphTest reads the module table; without this input a cached result would hide a doc change.
     inputs.file(rootProject.file("docs/ARCHITECTURE.md"))

@@ -1,8 +1,15 @@
 package dev.shoko.minecraft.loot.enchant.craft;
 
 import dev.shoko.minecraft.core.random.RandomSource;
+import dev.shoko.minecraft.item.component.EnchantmentLevels;
 import dev.shoko.minecraft.item.stack.ItemStack;
 import dev.shoko.minecraft.loot.assembly.LootData;
+import dev.shoko.minecraft.loot.enchant.EnchantmentCatalog;
+import dev.shoko.minecraft.loot.enchant.EnchantmentTags;
+import dev.shoko.minecraft.loot.enchant.ItemEnchantments;
+import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 
 /**
@@ -11,6 +18,8 @@ import java.util.List;
  * the caller's job (open point): the functions here only consume the source they are given.
  */
 public final class EnchantingTable {
+
+  private static final int MAX_SHELVES = 15;
 
   private EnchantingTable() {}
 
@@ -24,7 +33,9 @@ public final class EnchantingTable {
    * @return the three costs
    */
   public static LineCosts lineCosts(int shelves, RandomSource random) {
-    return Skeleton.throwNotImplemented();
+    int counted = Math.max(0, Math.min(MAX_SHELVES, shelves));
+    int base = 1 + random.nextInt(8) + counted / 2 + random.nextInt(counted + 1);
+    return new LineCosts(Math.max(base / 3, 1), base * 2 / 3 + 1, Math.max(base, counted * 2));
   }
 
   /**
@@ -43,7 +54,33 @@ public final class EnchantingTable {
    */
   public static EnchantOffer offer(
       ItemStack stack, int lineCost, int lineIndex, RandomSource random, LootData data) {
-    return Skeleton.throwNotImplemented();
+    EnchantmentLevels none = new EnchantmentLevels(new LinkedHashMap<>());
+    int lapis = lineIndex + 1;
+    if (!StackEnchants.isEnchantable(stack)) {
+      return new EnchantOffer(lineCost, lapis, none);
+    }
+    int enchantability = StackEnchants.enchantability(stack);
+    int cost = EnchantmentSelection.effectiveCost(lineCost, enchantability, random);
+    IdOrTagSet options =
+        new IdOrTagSet(
+            EnchantmentCatalog.REGISTRY.name(),
+            List.of(),
+            List.of(EnchantmentTags.IN_ENCHANTING_TABLE),
+            false);
+    List<EnchantmentInstance> candidates =
+        EnchantmentSelection.possible(stack, cost, options, true, data);
+    List<EnchantmentInstance> chosen =
+        new ArrayList<>(EnchantmentSelection.choose(candidates, cost, random, data));
+    if (StackEnchants.isBook(stack) && chosen.size() > 1) {
+      EnchantmentInstance kept = chosen.get(random.nextInt(chosen.size()));
+      chosen.clear();
+      chosen.add(kept);
+    }
+    EnchantmentLevels levels = none;
+    for (EnchantmentInstance instance : chosen) {
+      levels = levels.with(instance.enchantment().id(), instance.level());
+    }
+    return new EnchantOffer(lineCost, lapis, levels);
   }
 
   /**
@@ -59,6 +96,14 @@ public final class EnchantingTable {
    */
   public static List<EnchantOffer> offers(
       ItemStack stack, int shelves, RandomSource random, LootData data) {
-    return Skeleton.throwNotImplemented();
+    boolean enchanted = !ItemEnchantments.of(stack).levels().isEmpty();
+    if (!StackEnchants.isEnchantable(stack) || enchanted) {
+      return List.of();
+    }
+    LineCosts costs = lineCosts(shelves, random);
+    return List.of(
+        offer(stack, costs.top(), 0, random, data),
+        offer(stack, costs.middle(), 1, random, data),
+        offer(stack, costs.bottom(), 2, random, data));
   }
 }

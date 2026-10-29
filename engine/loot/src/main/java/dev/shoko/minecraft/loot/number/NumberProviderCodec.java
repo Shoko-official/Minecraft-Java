@@ -95,6 +95,16 @@ public final class NumberProviderCodec {
         .stream().map(Identifier::minecraft).toList();
   }
 
+  /**
+   * Lists the references of named providers that no loaded provider answers.
+   *
+   * @param set the named providers
+   * @return one {@code UNRESOLVED_REFERENCE} finding per missing target
+   */
+  public static List<LootFinding> unresolvedReferences(NumberProviderSet set) {
+    return ProviderReferences.unresolved(set);
+  }
+
   private static List<LootFinding> prefixed(Identifier element, List<LootFinding> findings) {
     return findings.stream()
         .map(f -> new LootFinding(f.code(), f.path(), element + ": " + f.message()))

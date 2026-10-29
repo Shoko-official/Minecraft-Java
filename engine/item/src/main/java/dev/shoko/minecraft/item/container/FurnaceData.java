@@ -2,6 +2,8 @@ package dev.shoko.minecraft.item.container;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.stack.ItemStack;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.SequencedMap;
 
@@ -22,4 +24,20 @@ public record FurnaceData(
     int litTotalTime,
     int cookingTimeSpent,
     int cookingTotalTime,
-    SequencedMap<Identifier, Integer> recipesUsed) {}
+    SequencedMap<Identifier, Integer> recipesUsed) {
+
+  /**
+   * Copies the slots and the recipes used.
+   *
+   * @param slots the three slots
+   * @param litTimeRemaining {@code lit_time_remaining}
+   * @param litTotalTime {@code lit_total_time}
+   * @param cookingTimeSpent {@code cooking_time_spent}
+   * @param cookingTotalTime {@code cooking_total_time}
+   * @param recipesUsed {@code RecipesUsed}, in stored order
+   */
+  public FurnaceData {
+    slots = List.copyOf(slots);
+    recipesUsed = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(recipesUsed));
+  }
+}

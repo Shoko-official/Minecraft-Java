@@ -3,6 +3,8 @@ package dev.shoko.minecraft.item.recipe;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.recipe.ingredient.Ingredient;
 import dev.shoko.minecraft.item.recipe.ingredient.RecipeResult;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.SequencedMap;
 
 /**
@@ -23,6 +25,19 @@ public record SpecialRecipe(
     SequencedMap<String, Ingredient> parts,
     RecipeResult result)
     implements Recipe {
+
+  /**
+   * Copies the parts.
+   *
+   * @param id the recipe identifier
+   * @param group the recipe book group
+   * @param kind the serializer
+   * @param parts the ingredients by field name, in file order
+   * @param result the result
+   */
+  public SpecialRecipe {
+    parts = Collections.unmodifiableSequencedMap(new LinkedHashMap<>(parts));
+  }
 
   /**
    * Returns {@link RecipeType#CRAFTING}.

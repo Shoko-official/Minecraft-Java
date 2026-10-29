@@ -19,10 +19,11 @@ public record ShapedPattern(int width, int height, List<Ingredient> cells) {
    * @param width the number of columns
    * @param height the number of rows
    * @param cells the ingredients in row-major order
-   * @throws IllegalArgumentException when the number of cells is not {@code width * height}
+   * @throws IllegalArgumentException when a dimension is below 1 or the number of cells is not
+   *     {@code width * height}
    */
   public ShapedPattern {
-    if (cells.size() != width * height) {
+    if (width < 1 || height < 1 || cells.size() != (long) width * height) {
       throw new IllegalArgumentException(
           "a " + width + "x" + height + " pattern needs " + width * height + " cells");
     }

@@ -17,7 +17,9 @@ import dev.shoko.minecraft.item.stack.ItemStack;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Optional;
+import java.util.OptionalInt;
 import java.util.SequencedMap;
+import java.util.stream.IntStream;
 
 /**
  * Recognition of the special crafting recipes whose result depends on the content of the stacks
@@ -175,9 +177,25 @@ final class SpecialMatcher {
 
   /** RC-R44: one signed book and n blank ones give n copies one generation further. */
   private static Optional<ItemStack> bookCloning(SpecialRecipe recipe, List<ItemStack> cells) {
+    OptionalInt source = bookSource(recipe, cells);
+    if (source.isEmpty()) {
+      return Optional.empty();
+    }
+    ItemStack book = cells.get(source.getAsInt());
+    int copies = GridStacks.without(cells, source.getAsInt()).size();
+    int generation = GridStacks.intField(book, BOOK, "generation", 0);
+    return Optional.of(copyOfBook(recipe, book, copies, generation + 1));
+  }
+
+  /** The cell of the book to clone among cells that may include empty ones, if the cells fit. */
+  private static OptionalInt bookSource(SpecialRecipe recipe, List<ItemStack> cells) {
     for (int i = 0; i < cells.size(); i++) {
       ItemStack source = cells.get(i);
-      List<ItemStack> blanks = GridStacks.without(cells, i);
+      if (source.isEmpty()) {
+        continue;
+      }
+      List<ItemStack> blanks =
+          GridStacks.without(cells, i).stream().filter(s -> !s.isEmpty()).toList();
       int generation = GridStacks.intField(source, BOOK, "generation", 0);
       boolean fits =
           part(recipe, "source").matches(source)
@@ -185,10 +203,29 @@ final class SpecialMatcher {
               && !blanks.isEmpty()
               && GridStacks.allMatch(blanks, part(recipe, "material"));
       if (fits) {
-        return Optional.of(copyOfBook(recipe, source, blanks.size(), generation + 1));
+        return OptionalInt.of(i);
       }
     }
-    return Optional.empty();
+    return OptionalInt.empty();
+  }
+
+  /**
+   * The cell whose stack the recipe gives back (RC-R43: the banner to copy, RC-R44: the signed
+   * book), if the kind gives one back.
+   *
+   * @param recipe the recipe that matched the grid
+   * @param grid the grid
+   * @return the index of the cell in row-major order
+   */
+  static OptionalInt keptCell(SpecialRecipe recipe, CraftingGrid grid) {
+    return switch (recipe.kind()) {
+      case BOOK_CLONING -> bookSource(recipe, grid.stacks());
+      case BANNER_DUPLICATE ->
+          IntStream.range(0, grid.stacks().size())
+              .filter(i -> GridStacks.listSize(grid.stacks().get(i), BANNER_PATTERNS) > 0)
+              .findFirst();
+      default -> OptionalInt.empty();
+    };
   }
 
   private static ItemStack copyOfBook(

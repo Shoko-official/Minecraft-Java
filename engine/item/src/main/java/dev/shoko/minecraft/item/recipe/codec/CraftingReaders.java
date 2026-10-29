@@ -81,32 +81,38 @@ final class CraftingReaders {
         root.get("add_material_count_to_result")
             .map(node -> RecipeReader.bool(node, path + ".add_material_count_to_result"))
             .orElse(false);
-    JsonNode result = RecipeReader.required(root, "result", path);
+    RecipeReader.required(root, "result", path);
     return new TransmuteRecipe(
         id,
         RecipeReader.group(root, path),
         RecipeReader.category(root, path),
         reader.ingredient(RecipeReader.required(root, "input", path), path + ".input"),
         reader.ingredient(RecipeReader.required(root, "material", path), path + ".material"),
-        materialCount(root.get("material_count"), path + ".material_count"),
+        materialCount(root, path),
         addCount,
-        reader.derivableResult(Optional.of(result), path + ".result"));
+        reader.derivableResult(root, path));
   }
 
   /** A single value gives equal bounds; an object gives {@code min} and {@code max}. */
-  private static CountRange materialCount(Optional<JsonNode> node, String path) {
+  private static CountRange materialCount(JsonObject root, String parent) {
+    String path = parent + ".material_count";
+    Optional<JsonNode> node = root.get("material_count");
     if (node.isEmpty()) {
       return new CountRange(1, 1);
     }
     if (node.get() instanceof JsonNumber) {
       int count = RecipeReader.integer(node.get(), path);
-      return new CountRange(count, count);
+      return checked(count, count, path);
     }
     JsonObject range = RecipeReader.object(node.get(), path);
     int min = RecipeReader.integer(RecipeReader.required(range, "min", path), path + ".min");
     int max = RecipeReader.integer(RecipeReader.required(range, "max", path), path + ".max");
+    return checked(min, max, path);
+  }
+
+  private static CountRange checked(int min, int max, String path) {
     if (min < 1 || max < min) {
-      throw new FindingException(FindingCode.VALUE_RANGE, path, "not a range of counts");
+      throw new FindingException(FindingCode.VALUE_RANGE, path, "not a range of counts from 1");
     }
     return new CountRange(min, max);
   }

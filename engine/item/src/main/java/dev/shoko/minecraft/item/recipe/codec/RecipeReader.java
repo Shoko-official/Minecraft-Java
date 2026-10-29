@@ -203,13 +203,18 @@ final class RecipeReader {
   }
 
   /**
-   * Reads the result of a crafting recipe: a stack, or the empty object and an absent field for a
-   * result derived from the grid (RC-R12).
+   * Reads the {@code result} of a crafting recipe: a stack, or the empty object and an absent field
+   * for a result derived from the grid (RC-R12).
+   *
+   * @param root the recipe object
+   * @param path the path of the recipe object
+   * @return the result
    */
-  RecipeResult derivableResult(Optional<JsonNode> node, String path) {
+  RecipeResult derivableResult(JsonObject root, String path) {
+    Optional<JsonNode> node = root.get("result");
     if (node.isEmpty() || (node.get() instanceof JsonObject o && o.members().isEmpty())) {
       return new RecipeResult.Derived();
     }
-    return new RecipeResult.Fixed(stack(node.get(), path));
+    return new RecipeResult.Fixed(stack(node.get(), at(path, "result")));
   }
 }

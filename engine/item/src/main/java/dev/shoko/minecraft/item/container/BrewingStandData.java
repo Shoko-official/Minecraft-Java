@@ -10,4 +10,16 @@ import java.util.List;
  * @param brewTime {@code BrewTime}, a Short
  * @param fuel {@code Fuel}, a Byte from 0 to 20
  */
-public record BrewingStandData(List<ItemStack> slots, int brewTime, int fuel) {}
+public record BrewingStandData(List<ItemStack> slots, int brewTime, int fuel) {
+
+  /**
+   * Copies the slots.
+   *
+   * @param slots the five slots
+   * @param brewTime {@code BrewTime}
+   * @param fuel {@code Fuel}
+   */
+  public BrewingStandData {
+    slots = List.copyOf(slots);
+  }
+}

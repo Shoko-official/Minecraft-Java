@@ -45,11 +45,16 @@ class ArchitectureTest {
 
   @ArchTest
   static final ArchRule GSON_IS_CONFINED =
-      ModuleRules.gsonConfinement(ROOT).allowEmptyShould(noCodeIn(ModuleRules.DIRECT.keySet()));
+      ModuleRules.gsonConfinement(ROOT)
+          .allowEmptyShould(noCodeIn(ModuleRules.gsonConfinedModules()));
 
   @ArchTest
   static final ArchRule GSON_IS_NOT_EXPOSED =
       ModuleRules.noGsonInSignatures(ROOT).allowEmptyShould(noCodeIn(List.of("data")));
+
+  @ArchTest
+  static final ArchRule GSON_IS_NOT_A_SUPERTYPE =
+      ModuleRules.noGsonInSupertypes(ROOT).allowEmptyShould(noCodeIn(List.of("data")));
 
   /**
    * A rule may be empty only while none of the modules it covers has code. The import check below

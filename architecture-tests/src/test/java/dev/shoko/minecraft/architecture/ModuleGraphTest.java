@@ -32,6 +32,12 @@ class ModuleGraphTest {
     assertThat(BuildModules.all()).isEqualTo(ModuleRules.DIRECT.keySet());
   }
 
+  /** A new engine module must not stay silently outside the determinism rule. */
+  @Test
+  void engineModulesOfTheRulesAreTheGradleEngineModules() {
+    assertThat(ModuleRules.ENGINE).containsExactlyInAnyOrderElementsOf(BuildModules.engine());
+  }
+
   @Test
   void worldAndItemDoNotKnowEachOther() {
     assertThat(ModuleRules.reachable("world")).doesNotContain("item");

@@ -1,10 +1,15 @@
 package dev.shoko.minecraft.net.packet;
 
 import dev.shoko.minecraft.net.ProtocolException;
+import dev.shoko.minecraft.net.buffer.PacketReader;
+import dev.shoko.minecraft.net.buffer.PacketWriter;
 import dev.shoko.minecraft.net.frame.Frame;
+import dev.shoko.minecraft.net.registry.PacketRegistry;
 import dev.shoko.minecraft.net.registry.PacketType;
 import dev.shoko.minecraft.net.state.ConnectionState;
 import dev.shoko.minecraft.net.state.PacketDirection;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Converts between {@link Frame} and {@link Packet}. This first batch covers the handshake, status,
@@ -14,7 +19,18 @@ import dev.shoko.minecraft.net.state.PacketDirection;
  */
 public final class PacketCodecs {
 
+  private static final Map<PacketType, FieldDecoder> DECODERS = allDecoders();
+
   private PacketCodecs() {}
+
+  private static Map<PacketType, FieldDecoder> allDecoders() {
+    Map<PacketType, FieldDecoder> all = new HashMap<>();
+    all.putAll(HandshakeCodecs.decoders());
+    all.putAll(StatusCodecs.decoders());
+    all.putAll(LoginCodecs.decoders());
+    all.putAll(ConfigurationCodecs.decoders());
+    return Map.copyOf(all);
+  }
 
   /**
    * Tells whether this class can decode and encode a packet type.
@@ -23,7 +39,7 @@ public final class PacketCodecs {
    * @return true for the packets of the first batch, false for the others
    */
   public static boolean isSupported(PacketType type) {
-    return Skeleton.throwNotImplemented();
+    return DECODERS.containsKey(type);
   }
 
   /**
@@ -43,7 +59,15 @@ public final class PacketCodecs {
    */
   public static Packet decode(ConnectionState state, PacketDirection direction, Frame frame)
       throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    PacketType type = PacketRegistry.lookup(state, direction, frame.packetId());
+    FieldDecoder decoder = DECODERS.get(type);
+    if (decoder == null) {
+      throw new IllegalArgumentException("packet type not supported yet: " + type.packetName());
+    }
+    PacketReader in = frame.reader();
+    Packet packet = decoder.decode(in);
+    in.requireFullyConsumed();
+    return packet;
   }
 
   /**
@@ -57,6 +81,18 @@ public final class PacketCodecs {
    *     #isSupported(PacketType)})
    */
   public static Frame encode(Packet packet) throws ProtocolException {
-    return Skeleton.throwNotImplemented();
+    PacketType type = packet.type();
+    if (!isSupported(type)) {
+      throw new IllegalArgumentException("packet type not supported yet: " + type.packetName());
+    }
+    PacketWriter out = PacketWriter.create();
+    switch (type.state()) {
+      case HANDSHAKE -> HandshakeCodecs.encode(packet, out);
+      case STATUS -> StatusCodecs.encode(packet, out);
+      case LOGIN -> LoginCodecs.encode(packet, out);
+      case CONFIGURATION -> ConfigurationCodecs.encode(packet, out);
+      case PLAY -> throw new IllegalArgumentException("play packets are not supported yet");
+    }
+    return Frame.of(type.id(), out.toByteArray());
   }
 }

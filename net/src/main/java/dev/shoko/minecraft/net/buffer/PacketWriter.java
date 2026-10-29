@@ -104,7 +104,8 @@ public final class PacketWriter {
    * @throws ProtocolException with {@code PAYLOAD_TOO_LARGE} past the bound
    */
   public void writeByte(int value) throws ProtocolException {
-    buffer[reserve(1)] = (byte) value;
+    int at = reserve(1);
+    buffer[at] = (byte) value;
   }
 
   /**
@@ -199,7 +200,8 @@ public final class PacketWriter {
    * Writes a String(n): a VarInt byte length then UTF-8 (R9).
    *
    * @param value the string
-   * @param maxChars the maximum length in UTF-16 code units, at most 32767
+   * @param maxChars the maximum length in UTF-16 code units, at most 32767 except for a JSON text
+   *     component (262144, R17)
    * @throws ProtocolException with {@code STRING_TOO_LONG} when {@code value} is longer than {@code
    *     maxChars} units, or {@code PAYLOAD_TOO_LARGE} past the bound
    */

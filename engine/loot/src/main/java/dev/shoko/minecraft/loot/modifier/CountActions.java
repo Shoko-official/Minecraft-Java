@@ -11,6 +11,9 @@ import java.util.OptionalDouble;
 /** The modifiers that change the quantity of a stack (LT-R39 to LT-R43). */
 final class CountActions {
 
+  /** Bound on the draws of one modifier, far above what any stack asks for. */
+  private static final int MAX_DRAWS = 100_000;
+
   private CountActions() {}
 
   static ItemStack setCount(ModifierAction.SetCount action, ItemStack stack, LootContext context) {
@@ -34,8 +37,9 @@ final class CountActions {
     }
     float probability = 1.0f / (float) radius.getAsDouble();
     RandomSource random = context.random();
-    int kept = 0;
-    for (int unit = 0; unit < stack.count(); unit++) {
+    int kept = Math.max(0, stack.count() - MAX_DRAWS);
+    int drawn = Math.min(stack.count(), MAX_DRAWS);
+    for (int unit = 0; unit < drawn; unit++) {
       if (!(random.nextFloat() < probability)) {
         kept++;
       }
@@ -58,7 +62,7 @@ final class CountActions {
       case BonusFormula.UniformBonusCount uniform ->
           count += random.nextInt(Math.max(1, level * uniform.bonusMultiplier() + 1));
       case BonusFormula.BinomialWithBonusCount binomial -> {
-        int trials = level + binomial.extra();
+        int trials = Math.min(level + binomial.extra(), MAX_DRAWS);
         for (int i = 0; i < trials; i++) {
           if (random.nextFloat() < binomial.probability()) {
             count++;

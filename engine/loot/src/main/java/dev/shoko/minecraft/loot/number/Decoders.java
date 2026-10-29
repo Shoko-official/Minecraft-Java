@@ -6,7 +6,6 @@ import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.data.registry.RegistryAccess;
 import dev.shoko.minecraft.loot.Fields;
 import dev.shoko.minecraft.loot.Findings;
-import dev.shoko.minecraft.loot.LootFindingCode;
 import dev.shoko.minecraft.loot.enchant.effect.EffectCodec;
 import dev.shoko.minecraft.loot.enchant.effect.LevelBasedValue;
 import dev.shoko.minecraft.loot.predicate.LootCondition;
@@ -226,13 +225,5 @@ final class Decoders {
       LevelBasedValue value = findings.take(EffectCodec.levelBased(amount));
       return new FloatProvider.EnchantmentLevel(value);
     }
-  }
-
-  /** Reports a reference that no loaded provider answers. */
-  static void unresolvedFinding(Findings findings, Identifier owner, Identifier target) {
-    findings.add(
-        LootFindingCode.UNRESOLVED_REFERENCE,
-        "$",
-        owner + " references missing provider " + target);
   }
 }

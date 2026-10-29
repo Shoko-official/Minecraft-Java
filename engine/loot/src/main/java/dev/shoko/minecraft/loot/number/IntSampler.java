@@ -13,6 +13,9 @@ final class IntSampler {
   /** Bound on chained references, so that a cycle of named providers ends in a typed error. */
   static final int MAX_REFERENCE_DEPTH = 64;
 
+  /** Bound on the trials of a binomial, far above what any data asks for. */
+  static final int MAX_TRIALS = 100_000;
+
   private IntSampler() {}
 
   static int sample(IntProvider provider, LootContext context, int depth) {
@@ -40,11 +43,23 @@ final class IntSampler {
   private static int uniform(IntProvider.Uniform uniform, LootContext context, int depth) {
     int min = sample(uniform.min(), context, depth);
     int max = sample(uniform.max(), context, depth);
-    return context.random().nextIntBetweenInclusive(min, max);
+    return uniformBetween(context.random(), min, max);
+  }
+
+  /** Draws in [min, max]; a range wider than an int is drawn from a long (LT-R51). */
+  static int uniformBetween(RandomSource random, int min, int max) {
+    if (min >= max) {
+      return min;
+    }
+    long size = (long) max - min + 1;
+    if (size <= Integer.MAX_VALUE) {
+      return random.nextIntBetweenInclusive(min, max);
+    }
+    return (int) (min + Math.floorMod(random.nextLong(), size));
   }
 
   private static int binomial(IntProvider.Binomial binomial, LootContext context, int depth) {
-    int trials = sample(binomial.n(), context, depth);
+    int trials = Math.min(sample(binomial.n(), context, depth), MAX_TRIALS);
     float probability = FloatSampler.sample(binomial.p(), context, depth);
     RandomSource random = context.random();
     int successes = 0;

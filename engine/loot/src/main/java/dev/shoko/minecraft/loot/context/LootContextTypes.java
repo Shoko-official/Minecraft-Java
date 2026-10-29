@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.loot.context;
 
 import dev.shoko.minecraft.data.id.Identifier;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Optional;
@@ -34,8 +35,6 @@ public final class LootContextTypes {
           ContextKey.TOOL,
           ContextKey.THIS_ENTITY,
           ContextKey.ORIGIN);
-
-  private static final List<LootContextType> ALL = build();
 
   private LootContextTypes() {}
 
@@ -73,81 +72,95 @@ public final class LootContextTypes {
     return Set.copyOf(set);
   }
 
+  private static final Set<ContextKey> NONE = Set.of();
+
+  private static final Set<ContextKey> ORIGIN = keys(ContextKey.ORIGIN);
+
+  private static final Set<ContextKey> ORIGIN_AND_ENTITY =
+      keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY);
+
+  private static final Set<ContextKey> BLOCK =
+      keys(
+          ContextKey.ORIGIN,
+          ContextKey.BLOCK_STATE,
+          ContextKey.TOOL,
+          ContextKey.EXPLOSION_RADIUS,
+          ContextKey.BLOCK_ENTITY,
+          ContextKey.THIS_ENTITY);
+
+  private static final Set<ContextKey> ENTITY =
+      keys(
+          ContextKey.ORIGIN,
+          ContextKey.THIS_ENTITY,
+          ContextKey.ATTACKER,
+          ContextKey.DIRECT_ATTACKER,
+          ContextKey.ATTACKING_PLAYER,
+          ContextKey.DAMAGE_SOURCE);
+
+  private static final Set<ContextKey> FISHING =
+      keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY, ContextKey.TOOL, ContextKey.ATTACKER);
+
+  private static final Set<ContextKey> INTERACT =
+      keys(
+          ContextKey.ORIGIN,
+          ContextKey.THIS_ENTITY,
+          ContextKey.TARGET_ENTITY,
+          ContextKey.INTERACTING_ENTITY,
+          ContextKey.BLOCK_STATE,
+          ContextKey.TOOL);
+
+  private static final Set<ContextKey> DAMAGE =
+      keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY, ContextKey.ATTACKER);
+
+  private static final List<LootContextType> ALL = build();
+
+  /** One entry of the registry: the name, the required keys and the keys the set may carry. */
+  private record Row(String name, Set<ContextKey> required, Set<ContextKey> allowed) {}
+
   private static List<LootContextType> build() {
     // spec: LT-R13 for the names and their order, LT-R14b for the parameter sets (provisional)
-    Set<ContextKey> none = Set.of();
-    Set<ContextKey> block =
-        keys(
-            ContextKey.ORIGIN,
-            ContextKey.BLOCK_STATE,
-            ContextKey.TOOL,
-            ContextKey.EXPLOSION_RADIUS,
-            ContextKey.BLOCK_ENTITY,
-            ContextKey.THIS_ENTITY);
-    Set<ContextKey> entity =
-        keys(
-            ContextKey.ORIGIN,
-            ContextKey.THIS_ENTITY,
-            ContextKey.ATTACKER,
-            ContextKey.DIRECT_ATTACKER,
-            ContextKey.ATTACKING_PLAYER,
-            ContextKey.DAMAGE_SOURCE);
-    Set<ContextKey> origin = keys(ContextKey.ORIGIN);
-    Set<ContextKey> originAndEntity = keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY);
-    Set<ContextKey> fishing =
-        keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY, ContextKey.TOOL, ContextKey.ATTACKER);
-    Set<ContextKey> interact =
-        keys(
-            ContextKey.ORIGIN,
-            ContextKey.THIS_ENTITY,
-            ContextKey.TARGET_ENTITY,
-            ContextKey.INTERACTING_ENTITY,
-            ContextKey.BLOCK_STATE,
-            ContextKey.TOOL);
-    Set<ContextKey> damage = keys(ContextKey.ORIGIN, ContextKey.THIS_ENTITY, ContextKey.ATTACKER);
-    Object[][] rows = {
-      {"empty", none, none},
-      {"generic", none, ALL_DROP_KEYS},
-      {"chest", origin, originAndEntity},
-      {"command", none, ALL_DROP_KEYS},
-      {"command_slot_source", none, originAndEntity},
-      {"command_compute_default", none, ALL_DROP_KEYS},
-      {"command_compute_position", none, origin},
-      {"command_compute_entity", none, originAndEntity},
-      {"selector", none, originAndEntity},
-      {"villager_trade", none, originAndEntity},
-      {"fishing", origin, fishing},
-      {"entity", origin, entity},
-      {"equipment", none, originAndEntity},
-      {"archaeology", none, originAndEntity},
-      {"gift", origin, originAndEntity},
-      {"barter", none, originAndEntity},
-      {"vault", none, originAndEntity},
-      {"advancement_reward", none, originAndEntity},
-      {"advancement_entity", none, originAndEntity},
-      {"advancement_location", none, originAndEntity},
-      {"block_use", none, interact},
-      {"block", origin, block},
-      {"shearing", origin, originAndEntity},
-      {"entity_interact", none, interact},
-      {"block_interact", origin, interact},
-      {"container_process", none, originAndEntity},
-      {"enchanted_damage", none, union(ENCHANTED_KEYS, damage, entity)},
-      {"enchanted_item", none, ENCHANTED_KEYS},
-      {"enchanted_location", none, ENCHANTED_KEYS},
-      {"enchanted_entity", none, ENCHANTED_KEYS},
-      {"hit_block", none, union(ENCHANTED_KEYS, keys(ContextKey.BLOCK_STATE))}
-    };
-    List<LootContextType> types = new java.util.ArrayList<>();
-    for (int i = 0; i < rows.length; i++) {
-      @SuppressWarnings("unchecked")
-      Set<ContextKey> required = (Set<ContextKey>) rows[i][1];
-      @SuppressWarnings("unchecked")
-      Set<ContextKey> allowed = (Set<ContextKey>) rows[i][2];
-      Set<ContextKey> withRequired = union(allowed, required);
+    List<Row> rows =
+        List.of(
+            new Row("empty", NONE, NONE),
+            new Row("generic", NONE, ALL_DROP_KEYS),
+            new Row("chest", ORIGIN, ORIGIN_AND_ENTITY),
+            new Row("command", NONE, ALL_DROP_KEYS),
+            new Row("command_slot_source", NONE, ORIGIN_AND_ENTITY),
+            new Row("command_compute_default", NONE, ALL_DROP_KEYS),
+            new Row("command_compute_position", NONE, ORIGIN),
+            new Row("command_compute_entity", NONE, ORIGIN_AND_ENTITY),
+            new Row("selector", NONE, ORIGIN_AND_ENTITY),
+            new Row("villager_trade", NONE, ORIGIN_AND_ENTITY),
+            new Row("fishing", ORIGIN, FISHING),
+            new Row("entity", ORIGIN, ENTITY),
+            new Row("equipment", NONE, ORIGIN_AND_ENTITY),
+            new Row("archaeology", NONE, ORIGIN_AND_ENTITY),
+            new Row("gift", ORIGIN, ORIGIN_AND_ENTITY),
+            new Row("barter", NONE, ORIGIN_AND_ENTITY),
+            new Row("vault", NONE, ORIGIN_AND_ENTITY),
+            new Row("advancement_reward", NONE, ORIGIN_AND_ENTITY),
+            new Row("advancement_entity", NONE, ORIGIN_AND_ENTITY),
+            new Row("advancement_location", NONE, ORIGIN_AND_ENTITY),
+            new Row("block_use", NONE, INTERACT),
+            new Row("block", ORIGIN, BLOCK),
+            new Row("shearing", ORIGIN, ORIGIN_AND_ENTITY),
+            new Row("entity_interact", NONE, INTERACT),
+            new Row("block_interact", ORIGIN, INTERACT),
+            new Row("container_process", NONE, ORIGIN_AND_ENTITY),
+            new Row("enchanted_damage", NONE, union(ENCHANTED_KEYS, DAMAGE, ENTITY)),
+            new Row("enchanted_item", NONE, ENCHANTED_KEYS),
+            new Row("enchanted_location", NONE, ENCHANTED_KEYS),
+            new Row("enchanted_entity", NONE, ENCHANTED_KEYS),
+            new Row("hit_block", NONE, union(ENCHANTED_KEYS, keys(ContextKey.BLOCK_STATE))));
+    List<LootContextType> types = new ArrayList<>();
+    for (int i = 0; i < rows.size(); i++) {
+      Row row = rows.get(i);
       types.add(
           new LootContextType(
-              Identifier.minecraft((String) rows[i][0]), i, required, withRequired));
+              Identifier.minecraft(row.name()),
+              i,
+              row.required(),
+              union(row.allowed(), row.required())));
     }
     return List.copyOf(types);
   }

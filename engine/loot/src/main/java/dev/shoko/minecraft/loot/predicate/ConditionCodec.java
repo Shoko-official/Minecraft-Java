@@ -71,7 +71,7 @@ public final class ConditionCodec {
     } else {
       conditions.add(read(node, access, findings));
     }
-    return findings.result(List.copyOf(conditions));
+    return findings.failed() ? findings.failure() : findings.result(List.copyOf(conditions));
   }
 
   /**

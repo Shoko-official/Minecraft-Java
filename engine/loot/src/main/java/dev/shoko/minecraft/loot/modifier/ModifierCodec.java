@@ -49,7 +49,7 @@ public final class ModifierCodec {
       JsonNode node, RegistryAccess access, ItemCatalog items) {
     Findings findings = new Findings();
     List<ItemModifier> modifiers = new ModifierReader(access, items, findings).list(node);
-    return findings.result(List.copyOf(modifiers));
+    return findings.failed() ? findings.failure() : findings.result(List.copyOf(modifiers));
   }
 
   /** Reads a list of modifiers with a reader that shares its warnings. */

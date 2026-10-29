@@ -43,6 +43,14 @@ class ArchitectureTest {
   static final ArchRule ENGINE_IS_DETERMINISTIC =
       ModuleRules.determinism(ROOT).allowEmptyShould(noCodeIn(ModuleRules.ENGINE));
 
+  @ArchTest
+  static final ArchRule GSON_IS_CONFINED =
+      ModuleRules.gsonConfinement(ROOT).allowEmptyShould(noCodeIn(ModuleRules.DIRECT.keySet()));
+
+  @ArchTest
+  static final ArchRule GSON_IS_NOT_EXPOSED =
+      ModuleRules.noGsonInSignatures(ROOT).allowEmptyShould(noCodeIn(List.of("data")));
+
   /**
    * A rule may be empty only while none of the modules it covers has code. The import check below
    * makes sure that code, once written, is actually seen by the rules.

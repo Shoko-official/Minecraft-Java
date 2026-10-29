@@ -17,6 +17,8 @@ fun hasCode(module: Project): Boolean =
 dependencies {
     codeModules.forEach { testImplementation(project(it.path)) }
     testImplementation(libs.archunit.junit5)
+    // The fixtures of the Gson rules (ADR 0006) need Gson types to break them.
+    testImplementation(libs.gson)
 }
 
 tasks.test {

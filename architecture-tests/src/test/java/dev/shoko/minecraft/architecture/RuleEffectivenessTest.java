@@ -26,6 +26,17 @@ import dev.shoko.minecraft.architecture.fixture.determinism.core.UsesSplittableR
 import dev.shoko.minecraft.architecture.fixture.determinism.core.UsesStrictMathRandom;
 import dev.shoko.minecraft.architecture.fixture.determinism.core.UsesThreadLocalRandom;
 import dev.shoko.minecraft.architecture.fixture.determinism.core.UsesZonedDateTimeNow;
+import dev.shoko.minecraft.architecture.fixture.gson.data.catalog.GsonInMethodBody;
+import dev.shoko.minecraft.architecture.fixture.gson.data.codec.GsonInPrivateField;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonConstructorParameter;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonInArrayParameter;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonInGenericReturn;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonParameter;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonProtectedMethod;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonPublicField;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonReturned;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonThrown;
+import dev.shoko.minecraft.architecture.fixture.gson.world.GsonOutsideData;
 import dev.shoko.minecraft.architecture.fixture.layers.core.CoreUsesWorld;
 import dev.shoko.minecraft.architecture.fixture.layers.item.ItemLeaf;
 import dev.shoko.minecraft.architecture.fixture.layers.item.ItemUsesWorld;
@@ -54,6 +65,7 @@ class RuleEffectivenessTest {
   private static final String STRAY = FIXTURE + ".stray";
   private static final String DETERMINISM = FIXTURE + ".determinism";
   private static final String GOOD = FIXTURE + ".good";
+  private static final String GSON = FIXTURE + ".gson";
 
   /** Fixtures import a few classes only, so every layer may be empty. */
   private static final ArchRule LAYERED_FIXTURE =
@@ -157,6 +169,38 @@ class RuleEffectivenessTest {
         Arguments.of(UsesDefaultRandomGenerator.class, "java.util.random.RandomGenerator"));
   }
 
+  @ParameterizedTest
+  @MethodSource("gsonOutsideTheJsonPackage")
+  void gsonOutsideTheDataJsonPackageIsDetected(Class<?> fixture, String target) {
+    assertViolation(ModuleRules.gsonConfinement(GSON).evaluate(classes(fixture)), fixture, target);
+  }
+
+  static Stream<Arguments> gsonOutsideTheJsonPackage() {
+    return Stream.of(
+        Arguments.of(GsonInMethodBody.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonInPrivateField.class, "com.google.gson.Gson"),
+        Arguments.of(GsonOutsideData.class, "com.google.gson.JsonObject"));
+  }
+
+  @ParameterizedTest
+  @MethodSource("gsonInPublicSignatures")
+  void gsonInAPublicOrProtectedSignatureIsDetected(Class<?> fixture, String target) {
+    assertViolation(
+        ModuleRules.noGsonInSignatures(GSON).evaluate(classes(fixture)), fixture, target);
+  }
+
+  static Stream<Arguments> gsonInPublicSignatures() {
+    return Stream.of(
+        Arguments.of(GsonReturned.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonParameter.class, "com.google.gson.JsonElement"),
+        Arguments.of(GsonConstructorParameter.class, "com.google.gson.stream.JsonReader"),
+        Arguments.of(GsonPublicField.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonProtectedMethod.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonInGenericReturn.class, "com.google.gson.JsonElement"),
+        Arguments.of(GsonInArrayParameter.class, "com.google.gson.JsonElement"),
+        Arguments.of(GsonThrown.class, "com.google.gson.JsonParseException"));
+  }
+
   @Test
   void downwardDependenciesAndAllowedApisAreAccepted() {
     JavaClasses good = new ClassFileImporter().importPackages(GOOD);
@@ -166,5 +210,7 @@ class RuleEffectivenessTest {
     assertThat(ModuleRules.modulePackagesOnly(GOOD).evaluate(good).hasViolation()).isFalse();
     assertThat(ModuleRules.determinism(GOOD).evaluate(good).hasViolation()).isFalse();
     assertThat(ModuleRules.noPackageCycles(GOOD).evaluate(good).hasViolation()).isFalse();
+    assertThat(ModuleRules.gsonConfinement(GOOD).evaluate(good).hasViolation()).isFalse();
+    assertThat(ModuleRules.noGsonInSignatures(GOOD).evaluate(good).hasViolation()).isFalse();
   }
 }

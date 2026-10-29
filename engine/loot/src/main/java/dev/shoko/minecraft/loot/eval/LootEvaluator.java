@@ -50,7 +50,7 @@ public final class LootEvaluator {
         draw.enter(loaded.getKey());
       }
     }
-    return result(draw.table(table, 0, "$"), draw);
+    return result(draw.root(table), draw);
   }
 
   /**
@@ -67,7 +67,7 @@ public final class LootEvaluator {
     }
     TableDraw draw = new TableDraw(context);
     draw.enter(id);
-    return result(draw.table(table.get(), 0, "$"), draw);
+    return result(draw.root(table.get()), draw);
   }
 
   /**

@@ -3,6 +3,7 @@ package dev.shoko.minecraft.loot.eval;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.registry.ItemType;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.predicate.match.IdOrTagSet;
 import dev.shoko.minecraft.loot.random.DrawReason;
 import dev.shoko.minecraft.loot.random.Draws;
@@ -32,16 +33,23 @@ public final class EntryExpander {
    * @return the candidates in the order of the pool
    */
   public static List<Candidate> candidates(LootPool pool, LootContext context) {
-    List<Candidate> candidates = new ArrayList<>();
-    for (LootEntry entry : pool.entries()) {
-      for (LootEntry simple : expand(entry, context)) {
-        int weight = WeightMath.effectiveWeight(simple.weight(), simple.quality(), context.luck());
-        if (weight > 0) {
-          candidates.add(new Candidate(simple, weight));
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      List<Candidate> candidates = new ArrayList<>();
+      for (LootEntry entry : pool.entries()) {
+        for (LootEntry simple : expand(entry, context)) {
+          int weight =
+              WeightMath.effectiveWeight(simple.weight(), simple.quality(), context.luck());
+          if (weight > 0) {
+            candidates.add(new Candidate(simple, weight));
+          }
         }
       }
+      return candidates;
+    } finally {
+      budget.exit();
     }
-    return candidates;
   }
 
   /**
@@ -52,9 +60,15 @@ public final class EntryExpander {
    * @return the simple entries it stands for, empty when its conditions fail
    */
   public static List<LootEntry> expand(LootEntry entry, LootContext context) {
-    List<LootEntry> out = new ArrayList<>();
-    expand(entry, context, out);
-    return out;
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      List<LootEntry> out = new ArrayList<>();
+      expand(entry, context, out);
+      return out;
+    } finally {
+      budget.exit();
+    }
   }
 
   /** Expands an entry into {@code out}; tells whether the entry succeeded (LT-R21). */

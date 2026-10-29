@@ -26,7 +26,7 @@ final class FloatSampler {
               depth);
       case FloatProvider.NumberDispatcher dispatcher -> dispatch(dispatcher, context, depth);
       case FloatProvider.EnchantmentLevel level ->
-          level.amount().calculate(context.enchantmentLevel().orElse(0));
+          level.amount().calculate(context.enchantmentLevel().orElse(0), context.budget());
       case FloatProvider.FromInt fromInt -> IntSampler.sample(fromInt.source(), context, depth);
       case FloatProvider.Arithmetic arithmetic -> arithmetic(arithmetic, context, depth);
       case FloatProvider.Reference reference -> reference(reference, context, depth);

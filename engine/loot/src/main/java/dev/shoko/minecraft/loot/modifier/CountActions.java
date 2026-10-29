@@ -68,6 +68,7 @@ final class CountActions {
         if (trials > MAX_DRAWS) {
           throw new LootBudgetException("apply_bonus binomial with " + trials + " trials");
         }
+        context.budget().units(Math.max(0, trials));
         for (int i = 0; i < trials; i++) {
           if (random.nextFloat() < binomial.probability()) {
             count++;
@@ -89,18 +90,23 @@ final class CountActions {
     if (level <= 0) {
       return stack;
     }
-    if (level > MAX_DRAWS) {
-      throw new LootBudgetException("enchanted_count_increase at level " + level);
-    }
     float increase = 0f;
     for (int draw = 0; draw < level; draw++) {
       increase += action.count().sample(context);
     }
-    long count = (long) stack.count() + (long) Math.floor(increase);
+    long count = (long) stack.count() + saturatedFloor(increase);
     if (action.limit() > 0) {
       count = Math.min(count, action.limit());
     }
     return stack.withCount(clamp(count));
+  }
+
+  /** Floors a float to a long within the int range; NaN gives 0, infinities saturate. */
+  private static long saturatedFloor(float value) {
+    if (Float.isNaN(value)) {
+      return 0;
+    }
+    return (long) Math.max(Integer.MIN_VALUE, Math.min(Integer.MAX_VALUE, Math.floor(value)));
   }
 
   private static int clamp(long count) {

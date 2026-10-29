@@ -114,7 +114,9 @@ final class ConditionEvaluator {
       LootCondition.RandomChanceWithEnchantedBonus bonus, LootContext context) {
     int level = attackerLevel(context, bonus.enchantment());
     float probability =
-        level > 0 ? bonus.enchantedChance().calculate(level) : bonus.unenchantedChance();
+        level > 0
+            ? bonus.enchantedChance().calculate(level, context.budget())
+            : bonus.unenchantedChance();
     return of(context.random().nextFloat() < probability);
   }
 

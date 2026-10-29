@@ -1,5 +1,6 @@
 package dev.shoko.minecraft.loot.enchant.effect;
 
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import java.util.List;
 
 /**
@@ -29,7 +30,21 @@ public sealed interface LevelBasedValue
    * @return the value
    */
   default float calculate(int level) {
-    return LevelMath.calculate(this, level);
+    return LevelMath.calculate(this, level, new NodeBudget());
+  }
+
+  /**
+   * Evaluates the value at a level, counting the nodes on the budget of a call in progress
+   * (LT-R74f). A value that uses the same sub-value twice, level after level, makes a number of
+   * evaluations that doubles at each level: the call fails with a {@code LootBudgetException} past
+   * the cap.
+   *
+   * @param level the level, 1 to 255
+   * @param budget the budget of the call that evaluates the value
+   * @return the value
+   */
+  default float calculate(int level, NodeBudget budget) {
+    return LevelMath.calculate(this, level, budget);
   }
 
   /**

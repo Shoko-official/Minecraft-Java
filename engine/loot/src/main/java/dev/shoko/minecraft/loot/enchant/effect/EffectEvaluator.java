@@ -2,6 +2,7 @@ package dev.shoko.minecraft.loot.enchant.effect;
 
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.enchant.EnchantmentCatalog;
 import dev.shoko.minecraft.loot.enchant.EnchantmentDefinition;
 import dev.shoko.minecraft.loot.port.ActionSink;
@@ -33,7 +34,13 @@ public final class EffectEvaluator {
    */
   public static float value(
       EffectComponents effects, Identifier component, int level, float start, LootContext context) {
-    return EffectRun.value(effects, component, level, start, context);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return EffectRun.value(effects, component, level, start, context);
+    } finally {
+      budget.exit();
+    }
   }
 
   /**
@@ -55,7 +62,13 @@ public final class EffectEvaluator {
       Identifier component,
       float start,
       LootContext context) {
-    return EffectRun.valueOverEquipment(entity, catalog, component, start, context);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return EffectRun.valueOverEquipment(entity, catalog, component, start, context);
+    } finally {
+      budget.exit();
+    }
   }
 
   /**
@@ -75,6 +88,12 @@ public final class EffectEvaluator {
       int level,
       LootContext context,
       ActionSink sink) {
-    EffectRun.trigger(enchantment, component, level, context, sink);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      EffectRun.trigger(enchantment, component, level, context, sink);
+    } finally {
+      budget.exit();
+    }
   }
 }

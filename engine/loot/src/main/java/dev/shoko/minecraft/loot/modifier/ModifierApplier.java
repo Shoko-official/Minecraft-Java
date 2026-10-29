@@ -2,6 +2,7 @@ package dev.shoko.minecraft.loot.modifier;
 
 import dev.shoko.minecraft.item.stack.ItemStack;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.random.DrawReason;
 import dev.shoko.minecraft.loot.random.Draws;
 import java.util.ArrayList;
@@ -27,14 +28,21 @@ public final class ModifierApplier {
    * @return the new stack and the cause
    */
   public static ModifierResult apply(ItemModifier modifier, ItemStack stack, LootContext context) {
-    context.budget().node();
-    if (stack.isEmpty()) {
-      return new ModifierResult(ItemStack.empty(), ModifierCause.EMPTY_INPUT);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      budget.node();
+      if (stack.isEmpty()) {
+        return new ModifierResult(ItemStack.empty(), ModifierCause.EMPTY_INPUT);
+      }
+      if (!Draws.allHold(
+          context, DrawReason.MODIFIER_CONDITION, "modifier", modifier.conditions())) {
+        return new ModifierResult(stack, ModifierCause.CONDITION_FAILED);
+      }
+      return ModifierActions.run(modifier.action(), stack, context);
+    } finally {
+      budget.exit();
     }
-    if (!Draws.allHold(context, DrawReason.MODIFIER_CONDITION, "modifier", modifier.conditions())) {
-      return new ModifierResult(stack, ModifierCause.CONDITION_FAILED);
-    }
-    return ModifierActions.run(modifier.action(), stack, context);
   }
 
   /**
@@ -49,17 +57,23 @@ public final class ModifierApplier {
    */
   public static List<ItemStack> applyAll(
       List<ItemModifier> modifiers, List<ItemStack> stacks, LootContext context) {
-    List<ItemStack> current = new ArrayList<>(stacks.stream().filter(s -> !s.isEmpty()).toList());
-    for (ItemModifier modifier : modifiers) {
-      List<ItemStack> next = new ArrayList<>(current.size());
-      for (ItemStack stack : current) {
-        ItemStack modified = apply(modifier, stack, context).stack();
-        if (!modified.isEmpty()) {
-          next.add(modified);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      List<ItemStack> current = new ArrayList<>(stacks.stream().filter(s -> !s.isEmpty()).toList());
+      for (ItemModifier modifier : modifiers) {
+        List<ItemStack> next = new ArrayList<>(current.size());
+        for (ItemStack stack : current) {
+          ItemStack modified = apply(modifier, stack, context).stack();
+          if (!modified.isEmpty()) {
+            next.add(modified);
+          }
         }
+        current = next;
       }
-      current = next;
+      return current;
+    } finally {
+      budget.exit();
     }
-    return current;
   }
 }

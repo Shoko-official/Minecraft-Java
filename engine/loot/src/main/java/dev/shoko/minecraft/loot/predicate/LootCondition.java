@@ -5,6 +5,7 @@ import dev.shoko.minecraft.data.json.JsonNode;
 import dev.shoko.minecraft.data.json.JsonObject;
 import dev.shoko.minecraft.loot.context.EntityTarget;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.enchant.effect.LevelBasedValue;
 import dev.shoko.minecraft.loot.number.FloatProvider;
 import dev.shoko.minecraft.loot.number.IntProvider;
@@ -58,7 +59,13 @@ public sealed interface LootCondition
    * @return the answer and its cause
    */
   default ConditionResult test(LootContext context) {
-    return ConditionEvaluator.test(this, context, 0);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return ConditionEvaluator.test(this, context, 0);
+    } finally {
+      budget.exit();
+    }
   }
 
   /**

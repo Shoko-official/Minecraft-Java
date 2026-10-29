@@ -3,6 +3,7 @@ package dev.shoko.minecraft.loot.enchant.craft;
 import dev.shoko.minecraft.data.id.Identifier;
 import dev.shoko.minecraft.item.stack.ItemStack;
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import dev.shoko.minecraft.loot.enchant.EnchantmentDefinition;
 import dev.shoko.minecraft.loot.enchant.ItemEnchantments;
 import dev.shoko.minecraft.loot.enchant.effect.EffectEvaluator;
@@ -30,6 +31,17 @@ public final class XpRepair {
     if (stack.isEmpty() || experience <= 0 || !stack.isDamageable() || stack.damage() <= 0) {
       return new RepairResult(stack, Math.max(0, experience));
     }
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return repairWithEffects(stack, experience, context);
+    } finally {
+      budget.exit();
+    }
+  }
+
+  private static RepairResult repairWithEffects(
+      ItemStack stack, int experience, LootContext context) {
     float factor = 1.0f;
     boolean effect = false;
     for (Map.Entry<Identifier, Integer> enchanted :

@@ -147,12 +147,13 @@ class EnchantingTableTest {
   }
 
   @Test
-  void provisionalABookIsOfferedExactlyOneEnchantment() {
-    // spec: EN-R39
+  void provisionalABookIsOfferedAtLeastOneEnchantment() {
+    // spec: EN-R45 (N-1 when several were selected, so never none; the exact sizes are in
+    // TableBookTest, probe PE13)
     for (long seed = 1; seed <= 150; seed++) {
       EnchantOffer offer =
           EnchantingTable.offer(LootItems.stack("book"), 30, 2, Lcg48Random.ofSeed(seed), data());
-      assertThat(offer.enchantments().levels()).as("seed %d", seed).hasSize(1);
+      assertThat(offer.enchantments().levels()).as("seed %d", seed).isNotEmpty();
     }
   }
 

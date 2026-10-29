@@ -111,19 +111,20 @@ class GrindstoneAndXpTest {
   }
 
   @Test
-  void provisionalEachPointOfExperienceRepairsTwiceTheFactorOfMending() {
-    // spec: EN-R44b
+  void provisionalEachPointOfExperienceRepairsTheFinalValueOfRepairWithXp() {
+    // spec: EN-R44b, EN-R19c, V-E19: 1 x 2.0 = 2 durability points per point, not 2 x 2.0
     RepairResult result = XpRepair.repair(mendingPick(100), 10, context());
-    assertThat(result.stack().damage()).isEqualTo(60);
+    assertThat(result.stack().damage()).isEqualTo(80);
     assertThat(result.experienceLeft()).isZero();
   }
 
   @Test
   void provisionalTheExperienceNotUsedIsGivenBack() {
-    // spec: RepairResult contract (experienceLeft), EN-R44b
+    // spec: RepairResult contract (experienceLeft), EN-R44b, EN-R48: 100 points repair 100 at 2 per
+    // point, so 50 are consumed and 50 are given back
     RepairResult result = XpRepair.repair(mendingPick(100), 100, context());
     assertThat(result.stack().damage()).isZero();
-    assertThat(result.experienceLeft()).isEqualTo(75);
+    assertThat(result.experienceLeft()).isEqualTo(50);
   }
 
   @Test

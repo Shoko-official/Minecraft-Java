@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.net.frame;
 
 import dev.shoko.minecraft.net.buffer.PacketReader;
+import java.util.Arrays;
 
 /**
  * One packet as it crosses the framing layer: a packet id and the payload that follows it, before
@@ -9,7 +10,13 @@ import dev.shoko.minecraft.net.buffer.PacketReader;
  */
 public final class Frame {
 
-  private Frame() {}
+  private final int packetId;
+  private final byte[] payload;
+
+  private Frame(int packetId, byte[] payload) {
+    this.packetId = packetId;
+    this.payload = payload;
+  }
 
   /**
    * Creates a frame.
@@ -19,7 +26,12 @@ public final class Frame {
    * @return the frame
    */
   public static Frame of(int packetId, byte[] payload) {
-    return Skeleton.throwNotImplemented();
+    return new Frame(packetId, payload.clone());
+  }
+
+  /** Creates a frame that takes ownership of an array nobody else holds. */
+  static Frame adopt(int packetId, byte[] payload) {
+    return new Frame(packetId, payload);
   }
 
   /**
@@ -28,7 +40,7 @@ public final class Frame {
    * @return the id
    */
   public int packetId() {
-    return Skeleton.throwNotImplemented();
+    return packetId;
   }
 
   /**
@@ -37,7 +49,7 @@ public final class Frame {
    * @return a new array, empty for a packet with no field
    */
   public byte[] payload() {
-    return Skeleton.throwNotImplemented();
+    return payload.clone();
   }
 
   /**
@@ -46,24 +58,26 @@ public final class Frame {
    * @return a new reader at the first payload byte
    */
   public PacketReader reader() {
-    return Skeleton.throwNotImplemented();
+    return PacketReader.wrap(payload);
   }
 
   /** Equal when the ids and the payload bytes are equal. */
   @Override
   public boolean equals(Object other) {
-    return Skeleton.throwNotImplemented();
+    return other instanceof Frame frame
+        && packetId == frame.packetId
+        && Arrays.equals(payload, frame.payload);
   }
 
   /** Returns a hash consistent with {@link #equals(Object)}. */
   @Override
   public int hashCode() {
-    return Skeleton.throwNotImplemented();
+    return 31 * packetId + Arrays.hashCode(payload);
   }
 
   /** Returns a description for humans: id and payload length. */
   @Override
   public String toString() {
-    return Skeleton.throwNotImplemented();
+    return "Frame[id=" + packetId + ", " + payload.length + " bytes]";
   }
 }

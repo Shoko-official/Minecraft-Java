@@ -1,5 +1,7 @@
 package dev.shoko.minecraft.net.frame;
 
+import javax.crypto.Cipher;
+
 /**
  * Factory of the AES-128 CFB8 ciphers of a connection (R31, R32). The 16-byte shared secret is both
  * the key and the initial vector (vectors CH01 to CH03). One encryptor and one decryptor are
@@ -17,7 +19,7 @@ public final class Cfb8Ciphers {
    * @throws IllegalArgumentException when {@code sharedSecret} is not 16 bytes long
    */
   public static StreamCipher encryptor(byte[] sharedSecret) {
-    return Skeleton.throwNotImplemented();
+    return new Cfb8Cipher(Cipher.ENCRYPT_MODE, sharedSecret);
   }
 
   /**
@@ -28,6 +30,6 @@ public final class Cfb8Ciphers {
    * @throws IllegalArgumentException when {@code sharedSecret} is not 16 bytes long
    */
   public static StreamCipher decryptor(byte[] sharedSecret) {
-    return Skeleton.throwNotImplemented();
+    return new Cfb8Cipher(Cipher.DECRYPT_MODE, sharedSecret);
   }
 }

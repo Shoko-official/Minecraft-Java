@@ -23,6 +23,7 @@ dependencies {
 
 tasks.test {
     systemProperty("architecture.modules", codeModules.joinToString(",") { moduleName(it) })
+    systemProperty("architecture.engineModules", codeModules.filter { it.path.startsWith(":engine:") }.joinToString(",") { moduleName(it) })
     systemProperty("architecture.modulesWithCode", codeModules.filter(::hasCode).joinToString(",") { moduleName(it) })
     // ModuleGraphTest reads the module table; without this input a cached result would hide a doc change.
     inputs.file(rootProject.file("docs/ARCHITECTURE.md"))

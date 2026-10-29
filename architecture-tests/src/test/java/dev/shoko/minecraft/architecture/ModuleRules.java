@@ -167,13 +167,22 @@ final class ModuleRules {
         .because("engine behavior must not depend on wall-clock time or unseeded randomness");
   }
 
+  /** Modules that depend on Gson for their own purposes: tools that are programs of their own. */
+  static final Set<String> GSON_USERS = Set.of("tools.bootstrap", "tools.diff");
+
+  /** Modules covered by the Gson confinement: every module but the Gson users. */
+  static List<String> gsonConfinedModules() {
+    return DIRECT.keySet().stream().filter(m -> !GSON_USERS.contains(m)).toList();
+  }
+
   /**
-   * ADR 0006: within the engine, Gson is used by the data JSON package only, so that replacing the
-   * library touches one package. The tools are programs of their own, with their own dependency on
-   * Gson.
+   * ADR 0006: Gson is used by the data JSON package only, so that replacing the library touches one
+   * package. Only the tools that are programs of their own, with their own dependency on Gson, are
+   * outside the rule (GSON_USERS).
    */
   static ArchRule gsonConfinement(String root) {
-    String[] packages = ENGINE.stream().map(m -> root + "." + m + "..").toArray(String[]::new);
+    String[] packages =
+        gsonConfinedModules().stream().map(m -> root + "." + m + "..").toArray(String[]::new);
     return noClasses()
         .that()
         .resideInAnyPackage(packages)
@@ -205,6 +214,47 @@ final class ModuleRules {
         .and(exported)
         .should(notExposeGson())
         .because("ADR 0006 keeps Gson out of every public signature of the data module");
+  }
+
+  /**
+   * ADR 0006: a public or protected class of the data module does not extend or implement a Gson
+   * type, directly or through a generic argument: a subclass of a Gson type shows that type to its
+   * callers. Members are covered by noGsonInSignatures.
+   */
+  static ArchRule noGsonInSupertypes(String root) {
+    DescribedPredicate<JavaClass> exported =
+        DescribedPredicate.describe(
+            "public or protected",
+            type ->
+                type.getModifiers().contains(JavaModifier.PUBLIC)
+                    || type.getModifiers().contains(JavaModifier.PROTECTED));
+    return classes()
+        .that()
+        .resideInAPackage(root + ".data..")
+        .and(exported)
+        .should(notHaveGsonSupertype())
+        .because("ADR 0006 keeps Gson out of every public type of the data module");
+  }
+
+  private static ArchCondition<JavaClass> notHaveGsonSupertype() {
+    return new ArchCondition<>("not extend or implement a Gson type") {
+      @Override
+      public void check(JavaClass type, ConditionEvents events) {
+        Stream.concat(type.getSuperclass().stream(), type.getInterfaces().stream())
+            .flatMap(supertype -> supertype.getAllInvolvedRawTypes().stream())
+            .filter(involved -> involved.getPackageName().startsWith("com.google.gson"))
+            .forEach(
+                involved ->
+                    events.add(
+                        SimpleConditionEvent.violated(
+                            type,
+                            type.getDescription()
+                                + " has the supertype "
+                                + involved.getName()
+                                + " in "
+                                + type.getSourceCodeLocation())));
+      }
+    };
   }
 
   private static ArchCondition<JavaMember> notExposeGson() {

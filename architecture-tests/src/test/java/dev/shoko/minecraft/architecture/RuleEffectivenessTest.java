@@ -31,11 +31,15 @@ import dev.shoko.minecraft.architecture.fixture.gson.data.codec.GsonInPrivateFie
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonConstructorParameter;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonInArrayParameter;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonInGenericReturn;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonInterface;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonParameter;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonProtectedMethod;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonPublicField;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonReturned;
+import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonSuperclass;
 import dev.shoko.minecraft.architecture.fixture.gson.data.json.GsonThrown;
+import dev.shoko.minecraft.architecture.fixture.gson.net.GsonInNet;
+import dev.shoko.minecraft.architecture.fixture.gson.tools.oracle.GsonInOracle;
 import dev.shoko.minecraft.architecture.fixture.gson.world.GsonOutsideData;
 import dev.shoko.minecraft.architecture.fixture.layers.core.CoreUsesWorld;
 import dev.shoko.minecraft.architecture.fixture.layers.item.ItemLeaf;
@@ -179,7 +183,9 @@ class RuleEffectivenessTest {
     return Stream.of(
         Arguments.of(GsonInMethodBody.class, "com.google.gson.JsonObject"),
         Arguments.of(GsonInPrivateField.class, "com.google.gson.Gson"),
-        Arguments.of(GsonOutsideData.class, "com.google.gson.JsonObject"));
+        Arguments.of(GsonOutsideData.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonInNet.class, "com.google.gson.JsonObject"),
+        Arguments.of(GsonInOracle.class, "com.google.gson.JsonObject"));
   }
 
   @ParameterizedTest
@@ -201,6 +207,29 @@ class RuleEffectivenessTest {
         Arguments.of(GsonThrown.class, "com.google.gson.JsonParseException"));
   }
 
+  /** The member modifiers decide, not the visibility of the class: the cautious reading is kept. */
+  @Test
+  void aPublicMethodOfAPackagePrivateClassIsStillReported() throws ClassNotFoundException {
+    Class<?> fixture = Class.forName(GSON + ".data.json.GsonInPackagePrivateClass");
+    assertViolation(
+        ModuleRules.noGsonInSignatures(GSON).evaluate(classes(fixture)),
+        fixture,
+        "com.google.gson.JsonObject");
+  }
+
+  @ParameterizedTest
+  @MethodSource("gsonSupertypes")
+  void gsonAsASupertypeOfAPublicClassIsDetected(Class<?> fixture, String target) {
+    assertViolation(
+        ModuleRules.noGsonInSupertypes(GSON).evaluate(classes(fixture)), fixture, target);
+  }
+
+  static Stream<Arguments> gsonSupertypes() {
+    return Stream.of(
+        Arguments.of(GsonSuperclass.class, "com.google.gson.TypeAdapter"),
+        Arguments.of(GsonInterface.class, "com.google.gson.InstanceCreator"));
+  }
+
   @Test
   void downwardDependenciesAndAllowedApisAreAccepted() {
     JavaClasses good = new ClassFileImporter().importPackages(GOOD);
@@ -212,5 +241,6 @@ class RuleEffectivenessTest {
     assertThat(ModuleRules.noPackageCycles(GOOD).evaluate(good).hasViolation()).isFalse();
     assertThat(ModuleRules.gsonConfinement(GOOD).evaluate(good).hasViolation()).isFalse();
     assertThat(ModuleRules.noGsonInSignatures(GOOD).evaluate(good).hasViolation()).isFalse();
+    assertThat(ModuleRules.noGsonInSupertypes(GOOD).evaluate(good).hasViolation()).isFalse();
   }
 }

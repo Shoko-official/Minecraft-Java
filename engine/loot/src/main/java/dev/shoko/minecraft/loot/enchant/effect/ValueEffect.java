@@ -1,6 +1,7 @@
 package dev.shoko.minecraft.loot.enchant.effect;
 
 import dev.shoko.minecraft.loot.context.LootContext;
+import dev.shoko.minecraft.loot.context.NodeBudget;
 import java.util.List;
 
 /**
@@ -29,7 +30,13 @@ public sealed interface ValueEffect
    * @return the new value
    */
   default float apply(float current, int level, LootContext context) {
-    return LevelMath.apply(this, current, level, context);
+    NodeBudget budget = context.budget();
+    budget.enter();
+    try {
+      return LevelMath.apply(this, current, level, context);
+    } finally {
+      budget.exit();
+    }
   }
 
   /**

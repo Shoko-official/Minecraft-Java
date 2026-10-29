@@ -72,9 +72,8 @@ public final class EnchantingTable {
     List<EnchantmentInstance> chosen =
         new ArrayList<>(EnchantmentSelection.choose(candidates, cost, random, data));
     if (StackEnchants.isBook(stack) && chosen.size() > 1) {
-      EnchantmentInstance kept = chosen.get(random.nextInt(chosen.size()));
-      chosen.clear();
-      chosen.add(kept);
+      // EN-R45: one enchantment is removed, chosen uniformly (H-livre-tirage), after the loop.
+      chosen.remove(random.nextInt(chosen.size()));
     }
     EnchantmentLevels levels = none;
     for (EnchantmentInstance instance : chosen) {

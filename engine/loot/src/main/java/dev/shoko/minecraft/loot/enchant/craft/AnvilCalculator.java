@@ -151,11 +151,12 @@ public final class AnvilCalculator {
   private static void mergeDurability(Work work, ItemStack sacrifice) {
     ItemStack target = work.result;
     int max = target.maxDamage();
+    // A damage above the maximum counts as a broken item: no remaining durability, never negative.
     long remaining =
-        (long) (max - target.damage())
-            + (max - sacrifice.damage())
+        (long) Math.max(0, max - target.damage())
+            + Math.max(0, max - sacrifice.damage())
             + max * (long) MERGE_BONUS_PERCENT / 100;
-    int damage = (int) Math.max(0, max - remaining);
+    int damage = (int) Math.max(0, max - Math.min(max, remaining));
     if (damage != target.damage()) {
       work.result = StackEnchants.withDamage(target, damage);
       work.cost += MERGE_COST;

@@ -225,8 +225,10 @@ public final class RegionFile implements Closeable {
     }
   }
 
-  // The stream is complete under its final name before the location points to it.
+  // The stream is complete under its final name before the location points to it. A target that is
+  // not a plain file (a directory, a link that the move would replace) is refused first.
   private static void writeExternal(Path path, byte[] payload) throws IOException {
+    existsAsRegularFile(path);
     Path temporary = path.resolveSibling(path.getFileName() + ".tmp");
     Files.deleteIfExists(temporary);
     try {
@@ -283,7 +285,8 @@ public final class RegionFile implements Closeable {
    * @param compression the type to use, {@link RegionCompression#ZLIB} by default in the game
    * @param timestampSeconds Unix seconds of the write, an unsigned 32 bit value, from the caller
    *     (AR-R9)
-   * @throws IOException on a write failure
+   * @throws IOException on a write failure, before any record is written if the {@code .mcc} path
+   *     exists and is not a plain file (a directory, a symbolic link; AR-R27)
    * @throws IllegalArgumentException if the chunk is in another region or the timestamp is out of
    *     range
    */
@@ -301,6 +304,9 @@ public final class RegionFile implements Closeable {
             ? RegionRecords.externalRecord(compression)
             : RegionRecords.record(compression.id(), payload);
     Path mcc = folder.resolve(WorldLayout.externalChunkFileName(chunk));
+    // Checked before anything is written: a leftover that is not a plain file fails the write, not
+    // the cleanup after the chunk is committed.
+    boolean leftover = !external && existsAsRegularFile(mcc);
     makeWritable();
     if (external) {
       writeExternal(mcc, payload);
@@ -312,7 +318,7 @@ public final class RegionFile implements Closeable {
     int index = chunk.indexInRegion();
     writeAt(4L * index, intBuffer((sector << 8) | (record.length / SECTOR)));
     writeAt(SECTOR + 4L * index, intBuffer((int) timestampSeconds));
-    if (!external) {
+    if (leftover) {
       Files.deleteIfExists(mcc);
     }
   }

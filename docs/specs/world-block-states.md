@@ -11,7 +11,8 @@ Couvre, pour `engine/world` :
 - la structure de `generated/reports/blocks.json` (blocs, propriétés, valeurs, état par défaut, identifiants d'état) ;
 - la règle qui assigne les identifiants d'état globaux, recalculée et comparée aux 35 723 identifiants du rapport ;
 - la représentation NBT d'un état de bloc dans les palettes (gabarits de structures, sections de chunk) ;
-- les cas particuliers : blocs sans propriété, liquides, `waterlogged`, ordres de valeurs.
+- les cas particuliers : blocs sans propriété, liquides, `waterlogged`, ordres de valeurs ;
+- le classement des entrées de palette invalides : corrigées avec un avertissement, jamais cause de refus du chunk (R22).
 
 Ne couvre pas :
 
@@ -71,13 +72,14 @@ Niveaux : **D** valeur lue telle quelle dans un fichier extrait ; **C** proprié
 | R18 | L'ordre des clés dans `properties` n'est pas fixe (non alphabétique dans 11 452 des 17 770 entrées des gabarits). Un lecteur ne dépend jamais de cet ordre. | C |
 | R19 | Dans les chunks de 26.3, les entrées de la palette `block_states` utilisent les mêmes noms `id` et `properties` (renommage en 26.3 Snapshot 7, data version 5009). Une entrée peut omettre les propriétés de l'état par défaut, et une palette peut être une List de String (identifiants de blocs, état par défaut) quand toutes ses entrées sont des états par défaut. **Provisoire** : le lecteur accepte (a) List de Compound `{id, properties?}`, (b) List de String ; l'écrivain produit la forme de R16 (Compound, `properties` complet si le bloc a des propriétés). | S |
 | R20 | Entrée Compound dont `properties` est absent ou partiel. **Provisoire** : chaque propriété manquante prend la valeur de l'état par défaut du bloc. | S |
-| R21 | Entrée invalide. **Provisoire** : identifiant de bloc inconnu -> `air` (identifiant 0) avec un avertissement ; propriété inconnue -> ignorée ; valeur hors liste -> valeur de l'état par défaut pour cette propriété. Le fichier n'est pas réécrit tant que le chunk n'est pas modifié. | S |
+| R21 | Entrée invalide. **Provisoire** : identifiant de bloc inconnu -> `air` (identifiant 0) avec un avertissement ; propriété inconnue -> ignorée ; valeur hors liste -> valeur de l'état par défaut pour cette propriété. Le fichier n'est pas réécrit tant que le chunk n'est pas modifié ; dès que le chunk est sauvegardé, la valeur corrigée est écrite à la place de l'originale, qui n'est pas conservée. Classement complet de ces cas : R22. | S |
+| R22 | Classement des entrées de palette invalides (révision du 2026-10-28, décision D4 de `world-decisions-log.md`). **Provisoire** : (a) une entrée qui n'est ni String ni Compound, ou un Compound sans `id` String, est traitée comme un bloc inconnu (R21) : `air` et avertissement ; (b) aucune entrée invalide, de quelque nature que ce soit, ne fait refuser le chunk : seules les incohérences du conteneur (palette vide, longueur de `data`, index hors palette, `world-chunk-format.md` R10) le refusent ; (c) chaque correction de R20 ou R21 produit un avertissement qui nomme la section, l'entrée de palette et la propriété ou le bloc concernés ; (d) deux entrées corrigées vers le même état restent deux entrées de palette à la lecture, donc les index restent valides ; l'écriture compacte la palette (`world-chunk-format.md`, Entrées / sorties). Le classement vient du moteur : la sonde PB1 relève ce que fait le serveur, sans en déduire de refus de chunk. | S |
 
 ## Entrées / sorties
 
 - **Chargement** : entrée = `blocks.json` et registre `minecraft:block` ; sortie = table identifiant -> (bloc, valeurs de propriétés) et table inverse, avec l'état par défaut de chaque bloc. Le chargeur vérifie R3, R5 à R7 et échoue sur toute incohérence (identifiant manquant, en double, ou qui contredit R6).
 - **Identifiants** : entiers de 0 à 35 722. Aucune valeur négative. Les identifiants d'état dépendent de l'ensemble des blocs chargés : ils ne sont jamais écrits sur disque (les palettes de chunk stockent les noms, voir `world-chunk-format.md`).
-- **NBT** : lecture selon R19 à R21 ; écriture selon R16. Les comparaisons avec l'oracle portent sur l'arbre décodé, pas sur les octets (comme `core-nbt.md` R30).
+- **NBT** : lecture selon R19 à R22 ; écriture selon R16. Les comparaisons avec l'oracle portent sur l'arbre décodé, pas sur les octets (comme `core-nbt.md` R30).
 
 ## Cas limites
 
@@ -94,5 +96,5 @@ Voir `world-vectors.md`, partie BS : comptes (BS1), identifiants calculés (BS2)
 ## Questions ouvertes
 
 - R19 et R20 : forme réelle des palettes écrites par le serveur 26.3 (Compound complet, propriétés élidées, List de String) : sondes PC2 (monde de débogage `debug_all_block_states`) et PC1 (monde plat) ; lecture par le serveur de ces formes : sonde PB1, variantes `string_palette` et `partial_props`.
-- R21 : comportement du serveur face à une entrée invalide : sonde PB1, variantes `unknown_block` et `bad_value`.
+- R21 et R22 : comportement du serveur face à une entrée invalide : sonde PB1, variantes `unknown_block` et `bad_value` ; le cas d'une entrée qui n'est ni String ni Compound n'a pas de variante, à ajouter si PB1 montre que le serveur refuse ou régénère le chunk.
 - R5 à R7 sont C sur les données ; la sonde PC2 les confirme en M en vérifiant que le monde de débogage contient les 35 722 états autres que `air`, rangés par identifiant croissant.

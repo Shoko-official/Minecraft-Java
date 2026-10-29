@@ -171,17 +171,9 @@ final class MatchJson {
   private static Object flags(EntityPredicate.Check.Flags flags) {
     SequencedMap<String, Object> object = JsonOut.object();
     for (Map.Entry<EntityFlag, Boolean> flag : flags.flags().entrySet()) {
-      object.put("is_" + flagName(flag.getKey()), flag.getValue());
+      object.put(flag.getKey().jsonName(), flag.getValue());
     }
     return object;
-  }
-
-  private static String flagName(EntityFlag flag) {
-    return switch (flag) {
-      case ON_FIRE -> "on_fire";
-      case ON_GROUND -> "on_ground";
-      case FLYING -> "flying";
-    };
   }
 
   private static Object equipment(EntityPredicate.Check.Equipment equipment) {
